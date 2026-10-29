@@ -1,0 +1,506 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL PRIMITIVE HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isNumberInRange(val, minVal, maxVal) {
+      return (val is int || val is float) && val >= minVal && val <= maxVal;
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidBoundedStringList(arr, maxLen) {
+      return arr is list && arr.size() <= maxLen && (arr.size() == 0 || (arr[0] is string && arr[0].size() <= 128));
+    }
+
+    function isValidServerTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isBootstrappedAdminEmail() {
+      return isSignedIn() &&
+             ('email' in request.auth.token) &&
+             ('email_verified' in request.auth.token) &&
+             request.auth.token.email_verified == true &&
+             request.auth.token.email == 'nabilalailatus12@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdminEmail() ||
+             (isSignedIn() &&
+              exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled == true);
+    }
+
+    // --- 1. PRIVATE USER ACCOUNT (/users/{userId}) ---
+    function isValidUserAccount(data) {
+      return isValidString(data.userId, 1, 128) &&
+             isValidString(data.displayName, 1, 80) &&
+             isValidString(data.district, 2, 60) &&
+             (!('bio' in data) || isValidString(data.bio, 0, 240)) &&
+             isNumberInRange(data.searchRadiusKm, 1, 50) &&
+             data.isDiscoverable is bool &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'district', 'searchRadiusKm', 'isDiscoverable', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'district', 'bio', 'searchRadiusKm', 'isDiscoverable', 'createdAt', 'updatedAt']) &&
+                       isValidUserAccount(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUserAccount(incoming()) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'district', 'bio', 'searchRadiusKm', 'isDiscoverable', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      // --- 2. USER PRIVATE BOOKMARKS (/users/{userId}/bookmarks/{bookmarkId}) ---
+      function isValidBookmark(data) {
+        return isValidString(data.userId, 1, 128) &&
+               isValidString(data.targetId, 1, 128) &&
+               (data.targetType in ['KULINER', 'KEJADIAN', 'EVENT']) &&
+               isValidString(data.title, 1, 140) &&
+               isValidString(data.subtitle, 1, 200) &&
+               isValidString(data.district, 1, 60) &&
+               isValidServerTimestamp(data.createdAt);
+      }
+
+      match /bookmarks/{bookmarkId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(bookmarkId) && request.auth.uid == userId;
+        allow list: if isSignedIn() && request.auth.uid == userId && existing().userId == request.auth.uid;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(bookmarkId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'targetId', 'targetType', 'title', 'subtitle', 'district', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'targetId', 'targetType', 'title', 'subtitle', 'district', 'createdAt']) &&
+                         isValidBookmark(incoming());
+
+        allow update: if false;
+
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(bookmarkId) && request.auth.uid == userId;
+      }
+    }
+
+    // --- 3. ADMIN MODERATION REGISTRY (/admins/{userId}) ---
+    function isValidAdminRole(data) {
+      return isValidString(data.userId, 1, 128) &&
+             data.enabled is bool &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    match /admins/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'enabled', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'enabled', 'createdAt', 'updatedAt']) &&
+                       isValidAdminRole(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidAdminRole(incoming()) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['enabled', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    // --- 4. PUBLIC NON-PII NEARBY PROFILES (/nearbyProfiles/{profileId}) ---
+    function isValidNearbyProfile(data) {
+      return isValidString(data.userId, 1, 128) &&
+             isValidString(data.displayName, 1, 80) &&
+             isValidString(data.avatarColorHex, 4, 12) &&
+             isValidString(data.bio, 0, 240) &&
+             isValidString(data.district, 2, 60) &&
+             isValidString(data.interests, 0, 200) &&
+             isNumberInRange(data.lat, -90, 90) &&
+             isNumberInRange(data.lng, -180, 180) &&
+             data.isDiscoverable is bool &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    match /nearbyProfiles/{profileId} {
+      allow get: if isSignedIn() && isValidId(profileId) && (
+                   resource == null ||
+                   existing().isDiscoverable == true ||
+                   existing().userId == request.auth.uid
+                 );
+      allow list: if isSignedIn() && existing().isDiscoverable == true;
+
+      allow create: if isSignedIn() &&
+                       isValidId(profileId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'avatarColorHex', 'bio', 'district', 'interests', 'lat', 'lng', 'isDiscoverable', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'avatarColorHex', 'bio', 'district', 'interests', 'lat', 'lng', 'isDiscoverable', 'createdAt', 'updatedAt']) &&
+                       isValidNearbyProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(profileId) &&
+                       isValidNearbyProfile(incoming()) &&
+                       existing().userId == request.auth.uid &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'avatarColorHex', 'bio', 'district', 'interests', 'lat', 'lng', 'isDiscoverable', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(profileId) && existing().userId == request.auth.uid;
+    }
+
+    // --- 5. KEJADIAN SURABAYA (/incidents/{incidentId}) ---
+    function isValidIncident(data) {
+      return isValidString(data.authorId, 1, 128) &&
+             isValidString(data.authorName, 1, 80) &&
+             isValidString(data.title, 3, 140) &&
+             isValidString(data.description, 5, 1200) &&
+             (data.category in ['LALU_LINTAS', 'CUACA_BANJIR', 'DARURAT', 'FASILITAS', 'INFO_WARGA']) &&
+             (data.severity in ['DARURAT', 'PENTING', 'INFO']) &&
+             isValidString(data.district, 2, 60) &&
+             isValidString(data.address, 3, 180) &&
+             isNumberInRange(data.lat, -90, 90) &&
+             isNumberInRange(data.lng, -180, 180) &&
+             isValidString(data.imageKey, 1, 60) &&
+             data.verifiedCount is int && data.verifiedCount >= 0 && data.verifiedCount <= 100000 &&
+             isValidBoundedStringList(data.verifiedByUids, 50) &&
+             data.commentCount is int && data.commentCount >= 0 && data.commentCount <= 100000 &&
+             data.visibility == 'SURABAYA_PUBLIC' &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    match /incidents/{incidentId} {
+      allow get: if isSignedIn() && isValidId(incidentId) && resource != null && existing().visibility == 'SURABAYA_PUBLIC';
+      allow list: if isSignedIn() && existing().visibility == 'SURABAYA_PUBLIC';
+
+      allow create: if isSignedIn() &&
+                       isValidId(incidentId) &&
+                       incoming().authorId == request.auth.uid &&
+                       incoming().keys().hasAll(['authorId', 'authorName', 'title', 'description', 'category', 'severity', 'district', 'address', 'lat', 'lng', 'imageKey', 'verifiedCount', 'verifiedByUids', 'commentCount', 'visibility', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['authorId', 'authorName', 'title', 'description', 'category', 'severity', 'district', 'address', 'lat', 'lng', 'imageKey', 'verifiedCount', 'verifiedByUids', 'commentCount', 'visibility', 'createdAt', 'updatedAt']) &&
+                       isValidIncident(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(incidentId) &&
+                       isValidIncident(incoming()) &&
+                       incoming().authorId == existing().authorId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().visibility == existing().visibility && (
+                         (existing().authorId == request.auth.uid &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'severity', 'district', 'address', 'updatedAt'])) ||
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['verifiedCount', 'verifiedByUids', 'commentCount', 'updatedAt'])) ||
+                         isAdmin()
+                       );
+
+      allow delete: if isSignedIn() && isValidId(incidentId) && (existing().authorId == request.auth.uid || isAdmin());
+
+      // --- 5b. INCIDENT COMMENTS (/incidents/{incidentId}/comments/{commentId}) ---
+      function isValidIncidentComment(data) {
+        return isValidString(data.incidentId, 1, 128) &&
+               isValidString(data.authorId, 1, 128) &&
+               isValidString(data.authorName, 1, 80) &&
+               isValidString(data.text, 1, 500) &&
+               data.visibility == 'SURABAYA_PUBLIC' &&
+               isValidServerTimestamp(data.createdAt);
+      }
+
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(incidentId) && isValidId(commentId) && existing().visibility == 'SURABAYA_PUBLIC';
+        allow list: if isSignedIn() && existing().visibility == 'SURABAYA_PUBLIC';
+
+        allow create: if isSignedIn() &&
+                         isValidId(incidentId) &&
+                         isValidId(commentId) &&
+                         incoming().incidentId == incidentId &&
+                         incoming().authorId == request.auth.uid &&
+                         incoming().keys().hasAll(['incidentId', 'authorId', 'authorName', 'text', 'visibility', 'createdAt']) &&
+                         incoming().keys().hasOnly(['incidentId', 'authorId', 'authorName', 'text', 'visibility', 'createdAt']) &&
+                         isValidIncidentComment(incoming()) &&
+                         exists(/databases/$(database)/documents/incidents/$(incidentId));
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(incidentId) && isValidId(commentId) && (existing().authorId == request.auth.uid || isAdmin());
+      }
+    }
+
+    // --- 6. EVENT SURABAYA WITH ADMIN MODERATION (/events/{eventId}) ---
+    function isValidEvent(data) {
+      return isValidString(data.proposerId, 1, 128) &&
+             isValidString(data.proposerName, 1, 80) &&
+             isValidString(data.title, 3, 140) &&
+             (data.category in ['FESTIVAL', 'MUSIK_SENI', 'KULINER_BAZAR', 'KOMUNITAS', 'OLAHRAGA']) &&
+             isValidString(data.eventDateText, 3, 60) &&
+             isValidString(data.timeText, 3, 50) &&
+             isValidString(data.venueName, 2, 100) &&
+             isValidString(data.district, 2, 60) &&
+             isValidString(data.address, 3, 180) &&
+             isNumberInRange(data.lat, -90, 90) &&
+             isNumberInRange(data.lng, -180, 180) &&
+             isValidString(data.priceLabel, 1, 50) &&
+             isValidString(data.description, 5, 1200) &&
+             isValidString(data.imageKey, 1, 60) &&
+             (data.status in ['PENDING', 'APPROVED', 'REJECTED']) &&
+             isValidString(data.adminNote, 0, 300) &&
+             data.interestedCount is int && data.interestedCount >= 0 && data.interestedCount <= 100000 &&
+             isValidBoundedStringList(data.interestedUids, 50) &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    match /events/{eventId} {
+      allow get: if isSignedIn() && isValidId(eventId) && resource != null && (
+                   existing().status == 'APPROVED' ||
+                   existing().proposerId == request.auth.uid ||
+                   existing().status == 'PENDING' ||
+                   isAdmin()
+                 );
+
+      allow list: if isSignedIn() && (
+                    existing().status == 'APPROVED' ||
+                    existing().proposerId == request.auth.uid ||
+                    existing().status == 'PENDING'
+                  );
+
+      allow create: if isSignedIn() &&
+                       isValidId(eventId) &&
+                       incoming().proposerId == request.auth.uid &&
+                       incoming().keys().hasAll(['proposerId', 'proposerName', 'title', 'category', 'eventDateText', 'timeText', 'venueName', 'district', 'address', 'lat', 'lng', 'priceLabel', 'description', 'imageKey', 'status', 'adminNote', 'interestedCount', 'interestedUids', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['proposerId', 'proposerName', 'title', 'category', 'eventDateText', 'timeText', 'venueName', 'district', 'address', 'lat', 'lng', 'priceLabel', 'description', 'imageKey', 'status', 'adminNote', 'interestedCount', 'interestedUids', 'createdAt', 'updatedAt']) &&
+                       isValidEvent(incoming()) &&
+                       (incoming().status == 'PENDING' || (incoming().status == 'APPROVED' && isAdmin()));
+
+      allow update: if isSignedIn() &&
+                       isValidId(eventId) &&
+                       isValidEvent(incoming()) &&
+                       incoming().proposerId == existing().proposerId &&
+                       incoming().createdAt == existing().createdAt && (
+                         // Action 1: Admin Moderation (Approve/Reject/Edit) - also serves as terminal override
+                         (isAdmin() &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminNote', 'title', 'description', 'eventDateText', 'timeText', 'venueName', 'priceLabel', 'updatedAt'])) ||
+                         // Action 2: Proposer edits while still PENDING (Terminal lock: forbidden once REJECTED or APPROVED)
+                         (existing().status == 'PENDING' &&
+                          incoming().status == 'PENDING' &&
+                          existing().proposerId == request.auth.uid &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'eventDateText', 'timeText', 'venueName', 'district', 'address', 'priceLabel', 'description', 'updatedAt'])) ||
+                         // Action 3: Citizens mark interest on APPROVED events
+                         (existing().status == 'APPROVED' &&
+                          incoming().status == 'APPROVED' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['interestedCount', 'interestedUids', 'updatedAt']))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(eventId) && (
+                      (existing().proposerId == request.auth.uid && existing().status == 'PENDING') ||
+                      isAdmin()
+                    );
+    }
+
+    // --- 7. KULINER SURABAYA (/culinary/{culinaryId}) ---
+    function isValidCulinarySpot(data) {
+      return isValidString(data.createdBy, 1, 128) &&
+             isValidString(data.authorName, 1, 80) &&
+             isValidString(data.name, 2, 100) &&
+             (data.category in ['RAWON_SOTO', 'PENYETAN_SAMBAL', 'KOPI_NONGKRONG', 'JAJANAN_MALAM', 'LEGENDARIS']) &&
+             isValidString(data.description, 5, 1000) &&
+             isValidString(data.district, 2, 60) &&
+             isValidString(data.address, 3, 180) &&
+             isValidString(data.priceRange, 2, 60) &&
+             data.openHour is int && data.openHour >= 0 && data.openHour <= 23 &&
+             data.closeHour is int && data.closeHour >= 0 && data.closeHour <= 24 &&
+             isNumberInRange(data.lat, -90, 90) &&
+             isNumberInRange(data.lng, -180, 180) &&
+             isValidString(data.imageKey, 1, 60) &&
+             isNumberInRange(data.ratingAvg, 0, 5) &&
+             data.reviewCount is int && data.reviewCount >= 0 && data.reviewCount <= 100000 &&
+             data.visibility == 'SURABAYA_PUBLIC' &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    match /culinary/{culinaryId} {
+      allow get: if isSignedIn() && isValidId(culinaryId) && resource != null && existing().visibility == 'SURABAYA_PUBLIC';
+      allow list: if isSignedIn() && existing().visibility == 'SURABAYA_PUBLIC';
+
+      allow create: if isSignedIn() &&
+                       isValidId(culinaryId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['createdBy', 'authorName', 'name', 'category', 'description', 'district', 'address', 'priceRange', 'openHour', 'closeHour', 'lat', 'lng', 'imageKey', 'ratingAvg', 'reviewCount', 'visibility', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['createdBy', 'authorName', 'name', 'category', 'description', 'district', 'address', 'priceRange', 'openHour', 'closeHour', 'lat', 'lng', 'imageKey', 'ratingAvg', 'reviewCount', 'visibility', 'createdAt', 'updatedAt']) &&
+                       isValidCulinarySpot(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(culinaryId) &&
+                       isValidCulinarySpot(incoming()) &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().visibility == existing().visibility && (
+                         (existing().createdBy == request.auth.uid &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'category', 'description', 'district', 'address', 'priceRange', 'openHour', 'closeHour', 'updatedAt'])) ||
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['ratingAvg', 'reviewCount', 'updatedAt'])) ||
+                         isAdmin()
+                       );
+
+      allow delete: if isSignedIn() && isValidId(culinaryId) && (existing().createdBy == request.auth.uid || isAdmin());
+
+      // --- 7b. CULINARY REVIEWS (/culinary/{culinaryId}/reviews/{reviewId}) ---
+      function isValidCulinaryReview(data) {
+        return isValidString(data.culinaryId, 1, 128) &&
+               isValidString(data.authorId, 1, 128) &&
+               isValidString(data.authorName, 1, 80) &&
+               data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+               isValidString(data.comment, 2, 500) &&
+               data.visibility == 'SURABAYA_PUBLIC' &&
+               isValidServerTimestamp(data.createdAt);
+      }
+
+      match /reviews/{reviewId} {
+        allow get: if isSignedIn() && isValidId(culinaryId) && isValidId(reviewId) && existing().visibility == 'SURABAYA_PUBLIC';
+        allow list: if isSignedIn() && existing().visibility == 'SURABAYA_PUBLIC';
+
+        allow create: if isSignedIn() &&
+                         isValidId(culinaryId) &&
+                         isValidId(reviewId) &&
+                         incoming().culinaryId == culinaryId &&
+                         incoming().authorId == request.auth.uid &&
+                         incoming().keys().hasAll(['culinaryId', 'authorId', 'authorName', 'rating', 'comment', 'visibility', 'createdAt']) &&
+                         incoming().keys().hasOnly(['culinaryId', 'authorId', 'authorName', 'rating', 'comment', 'visibility', 'createdAt']) &&
+                         isValidCulinaryReview(incoming()) &&
+                         exists(/databases/$(database)/documents/culinary/$(culinaryId));
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(culinaryId) && isValidId(reviewId) && (existing().authorId == request.auth.uid || isAdmin());
+      }
+    }
+
+    // --- 8. CHAT WARGA SURABAYA (/chatRooms/{roomId} & messages) ---
+    function isValidChatRoom(data) {
+      return (data.roomType in ['PUBLIC', 'DIRECT']) &&
+             isValidString(data.title, 1, 100) &&
+             isValidString(data.subtitle, 0, 140) &&
+             isValidBoundedStringList(data.participantUids, 2) &&
+             ((data.roomType == 'PUBLIC' && data.participantUids.size() == 0) ||
+              (data.roomType == 'DIRECT' && data.participantUids.size() == 2)) &&
+             isValidString(data.participantNames, 0, 160) &&
+             isValidString(data.lastMessage, 0, 300) &&
+             isValidString(data.lastSenderName, 0, 80) &&
+             isValidString(data.createdBy, 1, 128) &&
+             isValidServerTimestamp(data.createdAt) &&
+             isValidServerTimestamp(data.updatedAt);
+    }
+
+    match /chatRooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) && (
+                   resource == null ||
+                   existing().roomType == 'PUBLIC' ||
+                   (existing().roomType == 'DIRECT' && request.auth.uid in existing().participantUids)
+                 );
+
+      allow list: if isSignedIn() && (
+                    existing().roomType == 'PUBLIC' ||
+                    (existing().roomType == 'DIRECT' && request.auth.uid in existing().participantUids)
+                  );
+
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['roomType', 'title', 'subtitle', 'participantUids', 'participantNames', 'lastMessage', 'lastSenderName', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['roomType', 'title', 'subtitle', 'participantUids', 'participantNames', 'lastMessage', 'lastSenderName', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       isValidChatRoom(incoming()) &&
+                       (incoming().roomType == 'PUBLIC' || request.auth.uid in incoming().participantUids);
+
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidChatRoom(incoming()) &&
+                       incoming().roomType == existing().roomType &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().participantUids == existing().participantUids &&
+                       (existing().roomType == 'PUBLIC' || request.auth.uid in existing().participantUids) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastSenderName', 'updatedAt']);
+
+      allow delete: if false;
+
+      // --- 8b. CHAT MESSAGES (/chatRooms/{roomId}/messages/{messageId}) ---
+      function isValidChatMessage(data) {
+        return isValidString(data.roomId, 1, 128) &&
+               (data.roomType in ['PUBLIC', 'DIRECT']) &&
+               isValidBoundedStringList(data.participantUids, 2) &&
+               isValidString(data.senderId, 1, 128) &&
+               isValidString(data.senderName, 1, 80) &&
+               isValidString(data.text, 1, 1000) &&
+               isValidServerTimestamp(data.createdAt);
+      }
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(messageId) && resource != null && (
+                     existing().roomType == 'PUBLIC' ||
+                     (existing().roomType == 'DIRECT' && request.auth.uid in existing().participantUids)
+                   );
+
+        allow list: if isSignedIn() && (
+                      existing().roomType == 'PUBLIC' ||
+                      (existing().roomType == 'DIRECT' && request.auth.uid in existing().participantUids)
+                    );
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(messageId) &&
+                         incoming().roomId == roomId &&
+                         incoming().senderId == request.auth.uid &&
+                         incoming().keys().hasAll(['roomId', 'roomType', 'participantUids', 'senderId', 'senderName', 'text', 'createdAt']) &&
+                         incoming().keys().hasOnly(['roomId', 'roomType', 'participantUids', 'senderId', 'senderName', 'text', 'createdAt']) &&
+                         isValidChatMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/chatRooms/$(roomId)) &&
+                         (incoming().roomType == 'PUBLIC' ||
+                          (incoming().roomType == 'DIRECT' &&
+                           request.auth.uid in incoming().participantUids &&
+                           request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(roomId)).data.participantUids));
+
+        allow update, delete: if false;
+      }
+    }
+  }
+}

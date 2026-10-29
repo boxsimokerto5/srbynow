@@ -1,0 +1,253 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Private account settings and preferences for an authenticated Surabaya Hari Ini user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "district": { "type": "string", "description": "Surabaya sub-district (kecamatan)." },
+        "bio": { "type": "string", "description": "Short personal bio." },
+        "searchRadiusKm": { "type": "number", "description": "Preferred nearby friend search radius in kilometers." },
+        "isDiscoverable": { "type": "boolean", "description": "Whether user appears in Nearby Friends." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "displayName", "district", "searchRadiusKm", "isDiscoverable", "createdAt", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Admin mode activation record for moderating proposed Surabaya events.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID." },
+        "enabled": { "type": "boolean", "description": "Whether admin moderation mode is active." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "enabled", "createdAt", "updatedAt"]
+    },
+    "Bookmark": {
+      "title": "Bookmark",
+      "description": "Saved item (culinary, incident, or event) owned privately by a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "targetId": { "type": "string", "description": "Referenced item document ID." },
+        "targetType": { "type": "string", "enum": ["KULINER", "KEJADIAN", "EVENT"], "description": "Category of bookmarked item." },
+        "title": { "type": "string", "description": "Display title of saved item." },
+        "subtitle": { "type": "string", "description": "Location or brief summary." },
+        "district": { "type": "string", "description": "Surabaya district." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "targetId", "targetType", "title", "subtitle", "district", "createdAt"]
+    },
+    "NearbyProfile": {
+      "title": "NearbyProfile",
+      "description": "Publicly discoverable non-PII profile card for Nearby Friends in Surabaya.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "displayName": { "type": "string", "description": "Public display name." },
+        "avatarColorHex": { "type": "string", "description": "Hex color accent for user avatar." },
+        "bio": { "type": "string", "description": "Short greeting or bio." },
+        "district": { "type": "string", "description": "Surabaya sub-district." },
+        "interests": { "type": "string", "description": "Comma-separated hobbies/interests." },
+        "lat": { "type": "number", "description": "Approximate latitude for distance calculation." },
+        "lng": { "type": "number", "description": "Approximate longitude for distance calculation." },
+        "isDiscoverable": { "type": "boolean", "description": "Whether visible to nearby users." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "displayName", "avatarColorHex", "bio", "district", "interests", "lat", "lng", "isDiscoverable", "createdAt", "updatedAt"]
+    },
+    "Incident": {
+      "title": "Incident",
+      "description": "Real-time citizen report on Kejadian Surabaya.",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string", "description": "Reporter Firebase Auth UID." },
+        "authorName": { "type": "string", "description": "Reporter display name." },
+        "title": { "type": "string", "description": "Headline of the incident." },
+        "description": { "type": "string", "description": "Detailed report chronology." },
+        "category": { "type": "string", "enum": ["LALU_LINTAS", "CUACA_BANJIR", "DARURAT", "FASILITAS", "INFO_WARGA"], "description": "Incident category." },
+        "severity": { "type": "string", "enum": ["DARURAT", "PENTING", "INFO"], "description": "Urgency level." },
+        "district": { "type": "string", "description": "Surabaya district." },
+        "address": { "type": "string", "description": "Street location." },
+        "lat": { "type": "number", "description": "Latitude." },
+        "lng": { "type": "number", "description": "Longitude." },
+        "imageKey": { "type": "string", "description": "Visual preset or media identifier." },
+        "verifiedCount": { "type": "number", "description": "Community verification count." },
+        "verifiedByUids": { "type": "array", "description": "Bounded list of UIDs who verified." },
+        "commentCount": { "type": "number", "description": "Count of citizen comments." },
+        "visibility": { "type": "string", "enum": ["SURABAYA_PUBLIC"], "description": "Public feed scope." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["authorId", "authorName", "title", "description", "category", "severity", "district", "address", "lat", "lng", "imageKey", "verifiedCount", "verifiedByUids", "commentCount", "visibility", "createdAt", "updatedAt"]
+    },
+    "IncidentComment": {
+      "title": "IncidentComment",
+      "description": "Citizen update comment under an Incident.",
+      "type": "object",
+      "properties": {
+        "incidentId": { "type": "string", "description": "Parent incident ID." },
+        "authorId": { "type": "string", "description": "Commenter UID." },
+        "authorName": { "type": "string", "description": "Commenter display name." },
+        "text": { "type": "string", "description": "Comment message." },
+        "visibility": { "type": "string", "enum": ["SURABAYA_PUBLIC"], "description": "Public scope." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["incidentId", "authorId", "authorName", "text", "visibility", "createdAt"]
+    },
+    "SurabayaEvent": {
+      "title": "SurabayaEvent",
+      "description": "Community or city event in Surabaya with admin moderation workflow.",
+      "type": "object",
+      "properties": {
+        "proposerId": { "type": "string", "description": "Proposer Firebase Auth UID." },
+        "proposerName": { "type": "string", "description": "Proposer display name." },
+        "title": { "type": "string", "description": "Event title." },
+        "category": { "type": "string", "enum": ["FESTIVAL", "MUSIK_SENI", "KULINER_BAZAR", "KOMUNITAS", "OLAHRAGA"], "description": "Event category." },
+        "eventDateText": { "type": "string", "description": "Formatted date string." },
+        "timeText": { "type": "string", "description": "Event schedule hours." },
+        "venueName": { "type": "string", "description": "Venue name." },
+        "district": { "type": "string", "description": "Surabaya district." },
+        "address": { "type": "string", "description": "Full venue address." },
+        "lat": { "type": "number", "description": "Venue latitude." },
+        "lng": { "type": "number", "description": "Venue longitude." },
+        "priceLabel": { "type": "string", "description": "Ticket price or Gratis." },
+        "description": { "type": "string", "description": "Event details." },
+        "imageKey": { "type": "string", "description": "Cover theme key." },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"], "description": "Admin moderation status." },
+        "adminNote": { "type": "string", "description": "Optional note from admin moderator." },
+        "interestedCount": { "type": "number", "description": "Number of interested citizens." },
+        "interestedUids": { "type": "array", "description": "Bounded list of interested UIDs." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["proposerId", "proposerName", "title", "category", "eventDateText", "timeText", "venueName", "district", "address", "lat", "lng", "priceLabel", "description", "imageKey", "status", "adminNote", "interestedCount", "interestedUids", "createdAt", "updatedAt"]
+    },
+    "CulinarySpot": {
+      "title": "CulinarySpot",
+      "description": "Surabaya culinary recommendation with operating hours and citizen rating.",
+      "type": "object",
+      "properties": {
+        "createdBy": { "type": "string", "description": "Creator UID." },
+        "authorName": { "type": "string", "description": "Creator display name." },
+        "name": { "type": "string", "description": "Culinary spot name." },
+        "category": { "type": "string", "enum": ["RAWON_SOTO", "PENYETAN_SAMBAL", "KOPI_NONGKRONG", "JAJANAN_MALAM", "LEGENDARIS"], "description": "Culinary category." },
+        "description": { "type": "string", "description": "Signature dishes and atmosphere." },
+        "district": { "type": "string", "description": "Surabaya district." },
+        "address": { "type": "string", "description": "Street address." },
+        "priceRange": { "type": "string", "description": "Typical price range." },
+        "openHour": { "type": "number", "description": "Opening hour (0-23)." },
+        "closeHour": { "type": "number", "description": "Closing hour (0-24)." },
+        "lat": { "type": "number", "description": "Latitude." },
+        "lng": { "type": "number", "description": "Longitude." },
+        "imageKey": { "type": "string", "description": "Visual theme key." },
+        "ratingAvg": { "type": "number", "description": "Average citizen star rating." },
+        "reviewCount": { "type": "number", "description": "Total citizen reviews." },
+        "visibility": { "type": "string", "enum": ["SURABAYA_PUBLIC"], "description": "Public directory visibility." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["createdBy", "authorName", "name", "category", "description", "district", "address", "priceRange", "openHour", "closeHour", "lat", "lng", "imageKey", "ratingAvg", "reviewCount", "visibility", "createdAt", "updatedAt"]
+    },
+    "CulinaryReview": {
+      "title": "CulinaryReview",
+      "description": "Citizen rating and review for a Surabaya culinary spot.",
+      "type": "object",
+      "properties": {
+        "culinaryId": { "type": "string", "description": "Parent culinary spot ID." },
+        "authorId": { "type": "string", "description": "Reviewer UID." },
+        "authorName": { "type": "string", "description": "Reviewer display name." },
+        "rating": { "type": "number", "description": "Star rating 1 to 5." },
+        "comment": { "type": "string", "description": "Review text." },
+        "visibility": { "type": "string", "enum": ["SURABAYA_PUBLIC"], "description": "Public visibility." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["culinaryId", "authorId", "authorName", "rating", "comment", "visibility", "createdAt"]
+    },
+    "ChatRoom": {
+      "title": "ChatRoom",
+      "description": "Public Surabaya discussion channel or 1-on-1 direct chat room.",
+      "type": "object",
+      "properties": {
+        "roomType": { "type": "string", "enum": ["PUBLIC", "DIRECT"], "description": "Room access type." },
+        "title": { "type": "string", "description": "Room title or chat label." },
+        "subtitle": { "type": "string", "description": "Room topic or participant district." },
+        "participantUids": { "type": "array", "description": "Bounded list of 2 UIDs for DIRECT rooms, or empty for PUBLIC." },
+        "participantNames": { "type": "string", "description": "Display names summary for direct chat." },
+        "lastMessage": { "type": "string", "description": "Preview of latest message." },
+        "lastSenderName": { "type": "string", "description": "Latest sender name." },
+        "createdBy": { "type": "string", "description": "Creator UID." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["roomType", "title", "subtitle", "participantUids", "participantNames", "lastMessage", "lastSenderName", "createdBy", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Real-time message in a public or direct chat room.",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string", "description": "Parent chatRoom ID." },
+        "roomType": { "type": "string", "enum": ["PUBLIC", "DIRECT"], "description": "Denormalized room type for flat rule evaluation." },
+        "participantUids": { "type": "array", "description": "Denormalized participant UIDs (size <= 2)." },
+        "senderId": { "type": "string", "description": "Sender Firebase Auth UID." },
+        "senderName": { "type": "string", "description": "Sender display name." },
+        "text": { "type": "string", "description": "Message body." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["roomId", "roomType", "participantUids", "senderId", "senderName", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserAccount",
+      "description": "Private user settings and preferences."
+    },
+    "/admins/{userId}": {
+      "schema": "AdminRole",
+      "description": "Admin moderation role registry."
+    },
+    "/users/{userId}/bookmarks/{bookmarkId}": {
+      "schema": "Bookmark",
+      "description": "User's private saved items."
+    },
+    "/nearbyProfiles/{userId}": {
+      "schema": "NearbyProfile",
+      "description": "Public non-PII profiles for Nearby Friends."
+    },
+    "/incidents/{incidentId}": {
+      "schema": "Incident",
+      "description": "Kejadian Surabaya citizen reports."
+    },
+    "/incidents/{incidentId}/comments/{commentId}": {
+      "schema": "IncidentComment",
+      "description": "Comments under a Kejadian Surabaya report."
+    },
+    "/events/{eventId}": {
+      "schema": "SurabayaEvent",
+      "description": "Event Surabaya listings and proposals."
+    },
+    "/culinary/{culinaryId}": {
+      "schema": "CulinarySpot",
+      "description": "Kuliner Surabaya spots."
+    },
+    "/culinary/{culinaryId}/reviews/{reviewId}": {
+      "schema": "CulinaryReview",
+      "description": "Citizen reviews on Kuliner Surabaya spots."
+    },
+    "/chatRooms/{roomId}": {
+      "schema": "ChatRoom",
+      "description": "Public Surabaya channels and 1-on-1 direct message rooms."
+    },
+    "/chatRooms/{roomId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Real-time messages inside a chat room."
+    }
+  }
+}

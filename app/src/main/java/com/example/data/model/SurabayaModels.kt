@@ -1,0 +1,181 @@
+package com.example.data.model
+
+sealed interface UiState<out T> {
+    data object Loading : UiState<Nothing>
+    data class Success<T>(val data: T) : UiState<T>
+    data class Error(val message: String) : UiState<Nothing>
+}
+
+data class PbUserSession(
+    val token: String,
+    val userId: String,
+    val email: String,
+    val displayName: String,
+    val district: String = "Genteng",
+    val isAdmin: Boolean = false,
+)
+
+data class UserAccount(
+    val id: String = "",
+    val userId: String = "",
+    val displayName: String = "",
+    val district: String = "Genteng",
+    val bio: String = "",
+    val searchRadiusKm: Double = 10.0,
+    val isDiscoverable: Boolean = true,
+    val isAdmin: Boolean = false,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+)
+
+data class BookmarkItem(
+    val id: String = "",
+    val userId: String = "",
+    val targetId: String = "",
+    val targetType: String = "KULINER",
+    val title: String = "",
+    val subtitle: String = "",
+    val district: String = "Genteng",
+    val createdAt: Long? = null,
+)
+
+data class NearbyProfile(
+    val id: String = "",
+    val userId: String = "",
+    val displayName: String = "",
+    val avatarColorHex: String = "#006B5E",
+    val bio: String = "",
+    val district: String = "Genteng",
+    val interests: String = "Kuliner, Ngopi, Keliling Kota",
+    val lat: Double = -7.2575,
+    val lng: Double = 112.7521,
+    val isDiscoverable: Boolean = true,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+)
+
+data class IncidentReport(
+    val id: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val title: String = "",
+    val description: String = "",
+    val category: String = "INFO_WARGA",
+    val severity: String = "INFO",
+    val district: String = "Genteng",
+    val address: String = "",
+    val lat: Double = -7.2575,
+    val lng: Double = 112.7521,
+    val imageKey: String = "kejadian_kota",
+    val verifiedCount: Int = 0,
+    val verifiedByUids: List<String> = emptyList(),
+    val commentCount: Int = 0,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+)
+
+data class IncidentComment(
+    val id: String = "",
+    val incidentId: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val text: String = "",
+    val createdAt: Long? = null,
+)
+
+data class SurabayaEvent(
+    val id: String = "",
+    val proposerId: String = "",
+    val proposerName: String = "",
+    val title: String = "",
+    val category: String = "FESTIVAL",
+    val eventDateText: String = "",
+    val timeText: String = "",
+    val venueName: String = "",
+    val district: String = "Genteng",
+    val address: String = "",
+    val lat: Double = -7.2575,
+    val lng: Double = 112.7521,
+    val priceLabel: String = "Gratis",
+    val description: String = "",
+    val imageKey: String = "event_festival",
+    val status: String = "PENDING",
+    val adminNote: String = "",
+    val interestedCount: Int = 0,
+    val interestedUids: List<String> = emptyList(),
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+)
+
+data class CulinarySpot(
+    val id: String = "",
+    val createdBy: String = "",
+    val authorName: String = "",
+    val name: String = "",
+    val category: String = "LEGENDARIS",
+    val description: String = "",
+    val district: String = "Genteng",
+    val address: String = "",
+    val priceRange: String = "Rp 20.000 - Rp 35.000",
+    val openHour: Int = 8,
+    val closeHour: Int = 22,
+    val lat: Double = -7.2575,
+    val lng: Double = 112.7521,
+    val imageKey: String = "kuliner_rawon",
+    val ratingAvg: Double = 4.8,
+    val reviewCount: Int = 1,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+)
+
+data class CulinaryReview(
+    val id: String = "",
+    val culinaryId: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val rating: Int = 5,
+    val comment: String = "",
+    val createdAt: Long? = null,
+)
+
+data class ChatRoom(
+    val id: String = "",
+    val roomKey: String = "",
+    val roomType: String = "PUBLIC",
+    val title: String = "",
+    val subtitle: String = "",
+    val participantUids: List<String> = emptyList(),
+    val participantNames: String = "",
+    val lastMessage: String = "",
+    val lastSenderName: String = "",
+    val createdBy: String = "",
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+) {
+    fun displayTitleFor(currentUserId: String): String {
+        if (roomType != "DIRECT") return title
+        if (participantNames.contains("|")) {
+            val parts = participantNames.split("|").map { it.trim() }
+            if (participantUids.size == 2 && parts.size == 2) {
+                return when (currentUserId) {
+                    participantUids[0] -> parts[1].ifBlank { title }
+                    participantUids[1] -> parts[0].ifBlank { title }
+                    else -> title
+                }
+            }
+        }
+        return title
+    }
+}
+
+data class ChatMessage(
+    val id: String = "",
+    val roomId: String = "",
+    val roomKey: String = "",
+    val roomType: String = "PUBLIC",
+    val participantUids: List<String> = emptyList(),
+    val senderId: String = "",
+    val senderName: String = "",
+    val text: String = "",
+    val createdAt: Long? = null,
+)

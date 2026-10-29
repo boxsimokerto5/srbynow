@@ -1,0 +1,6 @@
+{
+  "summary":  "Rencana implementasi lengkap untuk aplikasi media sosial warga \"Surabaya Hari Ini\" mencakup aritektur cloud real-time (Firebase Auth & Firestore), desain UI modern bernuansa Hijau Toska khas Surabaya dengan gaya rapat, proporsional, sudut membulat (rounded), dan interaksi Bottom Sheet ala Google Maps untuk seluruh detail & formulir pada 5 menu utama (Kejadian, Event + Moderasi Admin, Kuliner, Teman Sekitar berbasis GPS, dan Chat Real-time).",
+  "updatedAt":  "2026-10-28T17:01:27.537223082Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

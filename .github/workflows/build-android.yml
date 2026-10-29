@@ -1,0 +1,235 @@
+name: Build Release APK & AAB (Arek Surabaya)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+    paths-ignore:
+      - ".signing/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    name: Signed APK & AAB Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validasi Secret KEYSTORE_PASSPHRASE
+        env:
+          KEYSTORE_PASSPHRASE: ${{ secrets.KEYSTORE_PASSPHRASE }}
+        run: |
+          if [ -z "${KEYSTORE_PASSPHRASE}" ]; then
+            echo "::error::Secret KEYSTORE_PASSPHRASE belum diatur! Buka GitHub Repository -> Settings -> Secrets and variables -> Actions -> New repository secret, lalu buat secret bernama KEYSTORE_PASSPHRASE berisi password rahasia pilihan Anda."
+            exit 1
+          fi
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK & Licenses
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Setup Gradle (Wrapper Version)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+
+      - name: Siapkan File Konfigurasi Lokal (.env & debug.keystore)
+        run: |
+          [ -f .env ] || cp .env.example .env
+          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          fi
+
+      - name: Buat atau Pulihkan Release Signature Key (Otomatis & Permanen)
+        id: signing
+        env:
+          KEYSTORE_PASSPHRASE: ${{ secrets.KEYSTORE_PASSPHRASE }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          ENCRYPTED_KEYSTORE=".signing/release-key.jks.gpg"
+          FINGERPRINT_FILE=".signing/SHA-FINGERPRINTS.txt"
+          TEMP_KEYSTORE="${RUNNER_TEMP}/my-upload-key.jks"
+
+          # Turunkan password keystore 32 karakter deterministik dari KEYSTORE_PASSPHRASE
+          # (Memenuhi syarat minimal 6 karakter keytool & konsisten di semua build)
+          DERIVED_PASS="$(printf '%s' "${KEYSTORE_PASSPHRASE}:arek-surabaya-jks" | sha256sum | cut -c1-32)"
+          echo "::add-mask::${DERIVED_PASS}"
+
+          TARGET_BRANCH="${GITHUB_REF_NAME}"
+          if [ "${GITHUB_REF_TYPE}" != "branch" ]; then
+            TARGET_BRANCH="${DEFAULT_BRANCH}"
+          fi
+
+          # Sinkronisasi terbaru dari branch agar tidak membuat key ganda bila ada commit baru
+          git fetch origin "${TARGET_BRANCH}" || true
+          if [ "${GITHUB_REF_TYPE}" = "branch" ]; then
+            git rebase "origin/${TARGET_BRANCH}" || true
+          fi
+
+          mkdir -p .signing
+
+          if [ ! -f "${ENCRYPTED_KEYSTORE}" ]; then
+            echo "🔑 Build Pertama terdeteksi: Membuat Release Signature Key baru..."
+
+            keytool -genkeypair -v \
+              -keystore "${TEMP_KEYSTORE}" \
+              -storetype PKCS12 \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -alias upload \
+              -storepass "${DERIVED_PASS}" \
+              -keypass "${DERIVED_PASS}" \
+              -dname "CN=Arek Surabaya, OU=Mobile, O=ArekSurabaya, L=Surabaya, ST=Jawa Timur, C=ID"
+
+            # Enkripsi keystore dengan AES-256 GPG memakai KEYSTORE_PASSPHRASE
+            printf '%s' "${KEYSTORE_PASSPHRASE}" | gpg \
+              --batch --yes --pinentry-mode loopback \
+              --passphrase-fd 0 \
+              --symmetric --cipher-algo AES256 \
+              --output "${ENCRYPTED_KEYSTORE}" \
+              "${TEMP_KEYSTORE}"
+
+            # Simpan fingerprint publik (SHA-1 & SHA-256) untuk referensi Play Store / OAuth
+            {
+              echo "Arek Surabaya - Public Signing Certificate Fingerprints"
+              echo "Alias: upload"
+              echo "-------------------------------------------------------"
+              keytool -list -v \
+                -keystore "${TEMP_KEYSTORE}" \
+                -storepass "${DERIVED_PASS}" \
+                -alias upload | grep -E "Owner:|Issuer:|Valid from:|SHA1:|SHA256:" || true
+            } > "${FINGERPRINT_FILE}"
+
+            # Simpan permanen ke repositori agar build berikutnya selalu memakai key yang sama
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add "${ENCRYPTED_KEYSTORE}" "${FINGERPRINT_FILE}"
+            git commit -m "chore(signing): initialize encrypted Android release keystore [skip ci]"
+            git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
+            echo "✅ Keystore baru berhasil dienkripsi dan disimpan permanen ke ${ENCRYPTED_KEYSTORE}"
+          else
+            echo "🔒 Keystore permanen ditemukan (${ENCRYPTED_KEYSTORE}): Mendekripsi signature key yang sama..."
+
+            if ! printf '%s' "${KEYSTORE_PASSPHRASE}" | gpg \
+              --batch --yes --pinentry-mode loopback \
+              --passphrase-fd 0 \
+              --decrypt \
+              --output "${TEMP_KEYSTORE}" \
+              "${ENCRYPTED_KEYSTORE}"; then
+              echo "::error::Gagal mendekripsi ${ENCRYPTED_KEYSTORE}. Pastikan secret KEYSTORE_PASSPHRASE tidak berubah dari saat build pertama!"
+              exit 1
+            fi
+
+            echo "✅ Keystore berhasil dipulihkan tanpa mengubah signature."
+          fi
+
+          # Verifikasi alias 'upload' valid di dalam keystore
+          keytool -list \
+            -keystore "${TEMP_KEYSTORE}" \
+            -storepass "${DERIVED_PASS}" \
+            -alias upload > /dev/null
+
+          echo "keystore_path=${TEMP_KEYSTORE}" >> "${GITHUB_OUTPUT}"
+          echo "keystore_password=${DERIVED_PASS}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build Signed Release APK & AAB
+        env:
+          KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          STORE_PASSWORD: ${{ steps.signing.outputs.keystore_password }}
+          KEY_PASSWORD: ${{ steps.signing.outputs.keystore_password }}
+        run: |
+          gradle :app:assembleRelease :app:bundleRelease --no-daemon
+
+      - name: Siapkan Output & Verifikasi Signature
+        id: package_info
+        env:
+          KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          STORE_PASSWORD: ${{ steps.signing.outputs.keystore_password }}
+        run: |
+          mkdir -p release-outputs
+
+          APK_SOURCE=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          AAB_SOURCE=$(find app/build/outputs/bundle/release -name "*.aab" | head -n 1)
+
+          if [ -z "${APK_SOURCE}" ] || [ -z "${AAB_SOURCE}" ]; then
+            echo "::error::File APK atau AAB release tidak ditemukan!"
+            exit 1
+          fi
+
+          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts || echo "1.0")
+          APK_DEST="release-outputs/Arek-Surabaya-v${VERSION_NAME}-release.apk"
+          AAB_DEST="release-outputs/Arek-Surabaya-v${VERSION_NAME}-release.aab"
+
+          cp "${APK_SOURCE}" "${APK_DEST}"
+          cp "${AAB_SOURCE}" "${AAB_DEST}"
+
+          SHA256_FP=$(keytool -list -v -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASSWORD}" -alias upload | grep "SHA256:" | head -n 1 | xargs || true)
+
+          {
+            echo "## 📦 Hasil Build Release — Arek Surabaya"
+            echo "- **Application ID:** \`com.areksurabaya.gecckosurabaya\`"
+            echo "- **Version:** \`${VERSION_NAME}\`"
+            echo "- **APK File:** \`$(basename "${APK_DEST}")\`"
+            echo "- **AAB File:** \`$(basename "${AAB_DEST}")\`"
+            echo "- **Certificate Fingerprint:** \`${SHA256_FP}\`"
+            echo ""
+            echo "> Signature key dijamin konsisten dari \`.signing/release-key.jks.gpg\`."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload Artifact APK (Siap Install)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Arek-Surabaya-APK
+          path: release-outputs/*.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload Artifact AAB (Siap Upload Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Arek-Surabaya-AAB
+          path: release-outputs/*.aab
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish ke GitHub Releases (Khusus Tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-outputs/*.apk
+            release-outputs/*.aab
+          generate_release_notes: true
+
+      - name: Bersihkan Keystore Sementara dari Runner
+        if: always()
+        run: |
+          rm -f "${RUNNER_TEMP}/my-upload-key.jks"

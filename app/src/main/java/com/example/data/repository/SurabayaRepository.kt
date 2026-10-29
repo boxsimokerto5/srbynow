@@ -1,0 +1,1055 @@
+package com.example.data.repository
+
+import android.content.Context
+import android.util.Log
+import com.example.data.model.BookmarkItem
+import com.example.data.model.ChatMessage
+import com.example.data.model.ChatRoom
+import com.example.data.model.CulinaryReview
+import com.example.data.model.CulinarySpot
+import com.example.data.model.IncidentComment
+import com.example.data.model.IncidentReport
+import com.example.data.model.NearbyProfile
+import com.example.data.model.SurabayaEvent
+import com.example.data.model.UserAccount
+import com.example.data.pocketbase.PocketBaseClient
+import com.example.data.pocketbase.PocketBaseException
+import com.example.data.seed.SurabayaCuratedSeed
+import com.example.data.util.OperationType
+import com.example.data.util.SurabayaDistricts
+import com.example.data.util.logBackendError
+import com.example.data.util.parsePocketBaseTimestamp
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import org.json.JSONObject
+
+class SurabayaRepository(
+    private val pb: PocketBaseClient,
+) {
+    constructor(context: Context) : this(PocketBaseClient.getInstance(context))
+
+    private fun requireUserId(): String {
+        return pb.currentSession?.userId?.takeIf { it.isNotBlank() }
+            ?: throw IllegalStateException("Pengguna wajib masuk ke akun Warga Surabaya terlebih dahulu.")
+    }
+
+    // --- 1. USER PROFILE, ADMIN ROLE & INITIAL SEEDING ---
+
+    fun observeUserAccount(userId: String): Flow<UserAccount?> {
+        return pb.observeCollection("users", pollIntervalMs = 8_000L) {
+            val json = pb.getOneOrNull("users", userId) ?: return@observeCollection null
+            mapUserAccount(json)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.GET, "users/$userId")
+            throw e
+        }
+    }
+
+    fun observeAdminRole(userId: String): Flow<Boolean> {
+        return pb.observeCollection("users", pollIntervalMs = 8_000L) {
+            val json = pb.getOneOrNull("users", userId)
+            val email = json?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
+            val isBootstrapped = email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true)
+            val isFlagged = json?.optBoolean("is_admin", false) ?: (pb.currentSession?.isAdmin == true)
+            isBootstrapped || isFlagged
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.GET, "users/$userId")
+            throw e
+        }
+    }
+
+    suspend fun bootstrapCurrentUserAndSeedIfEmpty(
+        displayNameFallback: String,
+        lat: Double = SurabayaDistricts.DEFAULT_LAT,
+        lng: Double = SurabayaDistricts.DEFAULT_LNG,
+        district: String = "Genteng",
+    ) {
+        val uid = requireUserId()
+        val session = pb.currentSession
+        val userName = (session?.displayName?.takeIf { it.isNotBlank() } ?: displayNameFallback).take(80)
+        val isBootstrappedAdmin = session?.email?.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true) == true
+
+        try {
+            val existingUser = pb.getOneOrNull("users", uid)
+            if (existingUser != null) {
+                val curName = existingUser.optString("name")
+                val curDistrict = existingUser.optString("district")
+                val curAdmin = existingUser.optBoolean("is_admin", false)
+                if (curName.isBlank() || curDistrict.isBlank() || (isBootstrappedAdmin && !curAdmin)) {
+                    val patch = JSONObject().apply {
+                        if (curName.isBlank()) put("name", userName)
+                        if (curDistrict.isBlank()) put("district", district)
+                        if (existingUser.optString("bio").isBlank()) put("bio", "Warga aktif Arek Surabaya")
+                        if (existingUser.optDouble("search_radius_km", 0.0) <= 0.0) put("search_radius_km", 10.0)
+                        if (!existingUser.has("is_discoverable")) put("is_discoverable", true)
+                        if (isBootstrappedAdmin && !curAdmin) put("is_admin", true)
+                    }
+                    pb.updateRecord("users", uid, patch)
+                }
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "User profile bootstrap warning: ${e.message}")
+        }
+
+        // Ensure current citizen has their own NearbyProfile record with id == uid
+        try {
+            val existingNearby = pb.getOneOrNull("nearby_profiles", uid)
+            if (existingNearby == null) {
+                val colorPalette = listOf("#006B5E", "#00798C", "#C86D1F", "#2B6CB0", "#0F766E")
+                val pickedColor = colorPalette[(uid.hashCode() and Int.MAX_VALUE) % colorPalette.size]
+                val payload = JSONObject().apply {
+                    put("id", uid)
+                    put("user_id", uid)
+                    put("display_name", userName)
+                    put("avatar_color_hex", pickedColor)
+                    put("bio", "Halo rek! Salam kenal dari $district.")
+                    put("district", district)
+                    put("interests", "Kuliner SBY, Kopi, Event Kota")
+                    put("lat", lat)
+                    put("lng", lng)
+                    put("is_discoverable", true)
+                }
+                createOrIgnoreExisting("nearby_profiles", payload)
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "Nearby profile bootstrap warning: ${e.message}")
+        }
+
+        val canSeedApproved = isBootstrappedAdmin || (pb.currentSession?.isAdmin == true)
+        seedCommunityCollectionsIfEmpty(uid, userName, canSeedApproved)
+    }
+
+    private suspend fun seedCommunityCollectionsIfEmpty(
+        uid: String,
+        userName: String,
+        canSeedApprovedEvents: Boolean,
+    ) {
+        try {
+            val incidents = pb.getList("incidents", perPage = 1)
+            if (incidents.isEmpty()) {
+                for (item in SurabayaCuratedSeed.starterIncidents(uid, userName)) {
+                    createOrIgnoreExisting("incidents", item)
+                }
+            }
+
+            val culinary = pb.getList("culinary", perPage = 1)
+            if (culinary.isEmpty()) {
+                for (item in SurabayaCuratedSeed.starterCulinary(uid)) {
+                    createOrIgnoreExisting("culinary", item)
+                }
+            }
+
+            val pendingEvents = pb.getList("events", filter = "status = 'PENDING'", perPage = 1)
+            if (pendingEvents.isEmpty()) {
+                for (item in SurabayaCuratedSeed.starterPendingEvents(uid)) {
+                    createOrIgnoreExisting("events", item)
+                }
+            }
+
+            if (canSeedApprovedEvents) {
+                seedApprovedEventsIfEmpty(uid)
+            }
+
+            val publicRooms = pb.getList("chat_rooms", filter = "room_type = 'PUBLIC'", perPage = 1)
+            if (publicRooms.isEmpty()) {
+                for (item in SurabayaCuratedSeed.starterPublicRooms(uid)) {
+                    createOrIgnoreExisting("chat_rooms", item)
+                }
+            }
+
+            val peers = pb.getList("nearby_profiles", filter = "is_discoverable = true", perPage = 3)
+            if (peers.size <= 1) {
+                for (item in SurabayaCuratedSeed.starterCommunityPeers(uid)) {
+                    createOrIgnoreExisting("nearby_profiles", item)
+                }
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "Seed check warning: ${e.message}")
+        }
+    }
+
+    private suspend fun seedApprovedEventsIfEmpty(uid: String) {
+        try {
+            val approved = pb.getList("events", filter = "status = 'APPROVED'", perPage = 1)
+            if (approved.isEmpty()) {
+                for (item in SurabayaCuratedSeed.starterApprovedEvents(uid)) {
+                    createOrIgnoreExisting("events", item)
+                }
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "Approved event seed warning: ${e.message}")
+        }
+    }
+
+    private suspend fun createOrIgnoreExisting(collection: String, payload: JSONObject) {
+        try {
+            pb.createRecord(collection, payload)
+        } catch (e: PocketBaseException) {
+            // Ignore duplicate ID race if two devices open simultaneously
+            if (e.statusCode != 400) throw e
+        }
+    }
+
+    suspend fun setAdminMode(enabled: Boolean) {
+        val uid = requireUserId()
+        try {
+            val patch = JSONObject().apply {
+                put("is_admin", enabled)
+            }
+            pb.updateRecord("users", uid, patch)
+            if (enabled) {
+                seedApprovedEventsIfEmpty(uid)
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "users/$uid")
+            throw e
+        }
+    }
+
+    suspend fun updateProfileAndPrivacy(
+        displayName: String,
+        district: String,
+        bio: String,
+        interests: String,
+        searchRadiusKm: Double,
+        isDiscoverable: Boolean,
+        lat: Double,
+        lng: Double,
+    ) {
+        val uid = requireUserId()
+        val cleanName = displayName.trim().take(80).ifEmpty { "Warga Surabaya" }
+        val cleanDistrict = district.trim().take(60).ifEmpty { "Genteng" }
+        val cleanBio = bio.trim().take(240)
+        val cleanInterests = interests.trim().take(200)
+        val clampedRadius = searchRadiusKm.coerceIn(1.0, 50.0)
+
+        try {
+            val userPatch = JSONObject().apply {
+                put("name", cleanName)
+                put("district", cleanDistrict)
+                put("bio", cleanBio)
+                put("search_radius_km", clampedRadius)
+                put("is_discoverable", isDiscoverable)
+            }
+            pb.updateRecord("users", uid, userPatch)
+
+            val existingNearby = pb.getOneOrNull("nearby_profiles", uid)
+            if (existingNearby != null) {
+                val nearbyPatch = JSONObject().apply {
+                    put("display_name", cleanName)
+                    put("bio", cleanBio)
+                    put("district", cleanDistrict)
+                    put("interests", cleanInterests)
+                    put("lat", lat)
+                    put("lng", lng)
+                    put("is_discoverable", isDiscoverable)
+                }
+                pb.updateRecord("nearby_profiles", uid, nearbyPatch)
+            } else {
+                val createPayload = JSONObject().apply {
+                    put("id", uid)
+                    put("user_id", uid)
+                    put("display_name", cleanName)
+                    put("avatar_color_hex", "#006B5E")
+                    put("bio", cleanBio)
+                    put("district", cleanDistrict)
+                    put("interests", cleanInterests)
+                    put("lat", lat)
+                    put("lng", lng)
+                    put("is_discoverable", isDiscoverable)
+                }
+                pb.createRecord("nearby_profiles", createPayload)
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "users/$uid")
+            throw e
+        }
+    }
+
+    // --- 2. BOOKMARKS ---
+
+    fun observeBookmarks(userId: String): Flow<List<BookmarkItem>> {
+        val safeUid = escapePbValue(userId)
+        return pb.observeCollection("bookmarks", pollIntervalMs = 8_000L) {
+            pb.getList(
+                collection = "bookmarks",
+                filter = "user_id = '$safeUid'",
+                sort = "-created",
+            ).map(::mapBookmark)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "bookmarks")
+            throw e
+        }
+    }
+
+    suspend fun toggleBookmark(
+        targetId: String,
+        targetType: String,
+        title: String,
+        subtitle: String,
+        district: String,
+    ): Boolean {
+        val uid = requireUserId()
+        val bookmarkRecordId = PocketBaseClient.deterministicPbId("bm_${uid}_${targetType.lowercase()}_$targetId")
+        return try {
+            val existing = pb.getOneOrNull("bookmarks", bookmarkRecordId)
+            if (existing != null) {
+                pb.deleteRecord("bookmarks", bookmarkRecordId)
+                false
+            } else {
+                val payload = JSONObject().apply {
+                    put("id", bookmarkRecordId)
+                    put("user_id", uid)
+                    put("target_id", targetId)
+                    put("target_type", targetType)
+                    put("title", title.trim().take(140).ifEmpty { "Item Surabaya" })
+                    put("subtitle", subtitle.trim().take(200))
+                    put("district", district.trim().take(60).ifEmpty { "Surabaya" })
+                }
+                pb.createRecord("bookmarks", payload)
+                true
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.WRITE, "bookmarks/$bookmarkRecordId")
+            throw e
+        }
+    }
+
+    // --- 3. KEJADIAN SURABAYA (INCIDENTS) ---
+
+    fun observeIncidents(): Flow<List<IncidentReport>> {
+        return pb.observeCollection("incidents", pollIntervalMs = 6_000L) {
+            pb.getList(
+                collection = "incidents",
+                sort = "-created",
+            ).map(::mapIncident)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "incidents")
+            throw e
+        }
+    }
+
+    suspend fun createIncident(
+        authorName: String,
+        title: String,
+        description: String,
+        category: String,
+        severity: String,
+        district: String,
+        address: String,
+        imageKey: String = "kejadian_kota",
+    ): String {
+        val uid = requireUserId()
+        val recordId = PocketBaseClient.deterministicPbId("inc_${UUID.randomUUID()}")
+        val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val payload = JSONObject().apply {
+            put("id", recordId)
+            put("author_id", uid)
+            put("author_name", authorName.trim().take(80).ifEmpty { "Warga Surabaya" })
+            put("title", title.trim().take(140))
+            put("description", description.trim().take(1200))
+            put("category", category)
+            put("severity", severity)
+            put("district", district.trim().take(60))
+            put("address", address.trim().take(180))
+            put("lat", lat)
+            put("lng", lng)
+            put("image_key", imageKey)
+            put("verified_count", 1)
+            put("verified_by_uids", uid)
+            put("comment_count", 0)
+        }
+        return try {
+            val created = pb.createRecord("incidents", payload)
+            created.optString("id").ifBlank { recordId }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.CREATE, "incidents/$recordId")
+            throw e
+        }
+    }
+
+    suspend fun toggleVerifyIncident(incident: IncidentReport) {
+        val uid = requireUserId()
+        val currentList = incident.verifiedByUids.toMutableList()
+        val alreadyVerified = uid in currentList
+        if (alreadyVerified) {
+            currentList.remove(uid)
+        } else if (currentList.size < 80) {
+            currentList.add(uid)
+        }
+        val newCount = if (alreadyVerified) {
+            (incident.verifiedCount - 1).coerceAtLeast(0)
+        } else {
+            incident.verifiedCount + 1
+        }
+        try {
+            val patch = JSONObject().apply {
+                put("verified_count", newCount)
+                put("verified_by_uids", encodeUidList(currentList))
+            }
+            pb.updateRecord("incidents", incident.id, patch)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "incidents/${incident.id}")
+            throw e
+        }
+    }
+
+    fun observeIncidentComments(incidentId: String): Flow<List<IncidentComment>> {
+        val safeIncidentId = escapePbValue(incidentId)
+        return pb.observeCollection("incident_comments", pollIntervalMs = 5_000L) {
+            pb.getList(
+                collection = "incident_comments",
+                filter = "incident_id = '$safeIncidentId'",
+                sort = "+created",
+            ).map(::mapIncidentComment)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "incident_comments")
+            throw e
+        }
+    }
+
+    suspend fun addIncidentComment(
+        incident: IncidentReport,
+        authorName: String,
+        text: String,
+    ) {
+        val uid = requireUserId()
+        val commentId = PocketBaseClient.deterministicPbId("cmt_${UUID.randomUUID()}")
+        try {
+            val payload = JSONObject().apply {
+                put("id", commentId)
+                put("incident_id", incident.id)
+                put("author_id", uid)
+                put("author_name", authorName.trim().take(80).ifEmpty { "Warga Surabaya" })
+                put("text", text.trim().take(500))
+            }
+            pb.createRecord("incident_comments", payload)
+            val patch = JSONObject().apply {
+                put("comment_count", incident.commentCount + 1)
+            }
+            pb.updateRecord("incidents", incident.id, patch)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.CREATE, "incident_comments/$commentId")
+            throw e
+        }
+    }
+
+    // --- 4. EVENT SURABAYA & ADMIN MODERATION ---
+
+    fun observeApprovedEvents(): Flow<List<SurabayaEvent>> {
+        return pb.observeCollection("events", pollIntervalMs = 6_000L) {
+            pb.getList(
+                collection = "events",
+                filter = "status = 'APPROVED'",
+                sort = "-created",
+            ).map(::mapEvent)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "events")
+            throw e
+        }
+    }
+
+    fun observePendingEvents(): Flow<List<SurabayaEvent>> {
+        return pb.observeCollection("events", pollIntervalMs = 6_000L) {
+            pb.getList(
+                collection = "events",
+                filter = "status = 'PENDING'",
+                sort = "-created",
+            ).map(::mapEvent)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "events")
+            throw e
+        }
+    }
+
+    fun observeMyProposedEvents(userId: String): Flow<List<SurabayaEvent>> {
+        val safeUid = escapePbValue(userId)
+        return pb.observeCollection("events", pollIntervalMs = 6_000L) {
+            pb.getList(
+                collection = "events",
+                filter = "proposer_id = '$safeUid'",
+                sort = "-created",
+            ).map(::mapEvent)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "events")
+            throw e
+        }
+    }
+
+    suspend fun proposeEvent(
+        proposerName: String,
+        title: String,
+        category: String,
+        eventDateText: String,
+        timeText: String,
+        venueName: String,
+        district: String,
+        address: String,
+        priceLabel: String,
+        description: String,
+        imageKey: String = "event_festival",
+    ): String {
+        val uid = requireUserId()
+        val recordId = PocketBaseClient.deterministicPbId("ev_${UUID.randomUUID()}")
+        val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val payload = JSONObject().apply {
+            put("id", recordId)
+            put("proposer_id", uid)
+            put("proposer_name", proposerName.trim().take(80).ifEmpty { "Warga Surabaya" })
+            put("title", title.trim().take(140))
+            put("category", category)
+            put("event_date_text", eventDateText.trim().take(60))
+            put("time_text", timeText.trim().take(50))
+            put("venue_name", venueName.trim().take(100))
+            put("district", district.trim().take(60))
+            put("address", address.trim().take(180))
+            put("lat", lat)
+            put("lng", lng)
+            put("price_label", priceLabel.trim().take(50).ifEmpty { "Gratis" })
+            put("description", description.trim().take(1200))
+            put("image_key", imageKey)
+            put("status", "PENDING")
+            put("admin_note", "")
+            put("interested_count", 1)
+            put("interested_uids", uid)
+        }
+        return try {
+            val created = pb.createRecord("events", payload)
+            created.optString("id").ifBlank { recordId }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.CREATE, "events/$recordId")
+            throw e
+        }
+    }
+
+    suspend fun moderateEvent(
+        eventId: String,
+        approve: Boolean,
+        adminNote: String,
+    ) {
+        requireUserId()
+        try {
+            val patch = JSONObject().apply {
+                put("status", if (approve) "APPROVED" else "REJECTED")
+                put("admin_note", adminNote.trim().take(300))
+            }
+            pb.updateRecord("events", eventId, patch)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "events/$eventId")
+            throw e
+        }
+    }
+
+    suspend fun toggleEventInterest(event: SurabayaEvent) {
+        val uid = requireUserId()
+        val list = event.interestedUids.toMutableList()
+        val already = uid in list
+        if (already) {
+            list.remove(uid)
+        } else if (list.size < 80) {
+            list.add(uid)
+        }
+        val nextCount = if (already) {
+            (event.interestedCount - 1).coerceAtLeast(0)
+        } else {
+            event.interestedCount + 1
+        }
+        try {
+            val patch = JSONObject().apply {
+                put("interested_count", nextCount)
+                put("interested_uids", encodeUidList(list))
+            }
+            pb.updateRecord("events", event.id, patch)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "events/${event.id}")
+            throw e
+        }
+    }
+
+    // --- 5. KULINER SURABAYA & REVIEWS ---
+
+    fun observeCulinarySpots(): Flow<List<CulinarySpot>> {
+        return pb.observeCollection("culinary", pollIntervalMs = 7_000L) {
+            pb.getList(
+                collection = "culinary",
+                sort = "-rating_avg,-created",
+            ).map(::mapCulinarySpot)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "culinary")
+            throw e
+        }
+    }
+
+    suspend fun createCulinarySpot(
+        authorName: String,
+        name: String,
+        category: String,
+        description: String,
+        district: String,
+        address: String,
+        priceRange: String,
+        openHour: Int,
+        closeHour: Int,
+    ): String {
+        val uid = requireUserId()
+        val recordId = PocketBaseClient.deterministicPbId("kul_${UUID.randomUUID()}")
+        val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val payload = JSONObject().apply {
+            put("id", recordId)
+            put("created_by", uid)
+            put("author_name", authorName.trim().take(80).ifEmpty { "Warga Surabaya" })
+            put("name", name.trim().take(100))
+            put("category", category)
+            put("description", description.trim().take(1000))
+            put("district", district.trim().take(60))
+            put("address", address.trim().take(180))
+            put("price_range", priceRange.trim().take(60).ifEmpty { "Rp 15.000 - Rp 30.000" })
+            put("open_hour", openHour.coerceIn(0, 23))
+            put("close_hour", closeHour.coerceIn(0, 24))
+            put("lat", lat)
+            put("lng", lng)
+            put("image_key", "kuliner_rawon")
+            put("rating_avg", 5.0)
+            put("review_count", 1)
+        }
+        return try {
+            val created = pb.createRecord("culinary", payload)
+            created.optString("id").ifBlank { recordId }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.CREATE, "culinary/$recordId")
+            throw e
+        }
+    }
+
+    fun observeCulinaryReviews(culinaryId: String): Flow<List<CulinaryReview>> {
+        val safeCulId = escapePbValue(culinaryId)
+        return pb.observeCollection("culinary_reviews", pollIntervalMs = 5_000L) {
+            pb.getList(
+                collection = "culinary_reviews",
+                filter = "culinary_id = '$safeCulId'",
+                sort = "-created",
+            ).map(::mapCulinaryReview)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "culinary_reviews")
+            throw e
+        }
+    }
+
+    suspend fun addCulinaryReview(
+        spot: CulinarySpot,
+        authorName: String,
+        rating: Int,
+        comment: String,
+    ) {
+        val uid = requireUserId()
+        val safeRating = rating.coerceIn(1, 5)
+        val reviewId = PocketBaseClient.deterministicPbId("rev_${UUID.randomUUID()}")
+        val nextCount = spot.reviewCount + 1
+        val nextAvg = (((spot.ratingAvg * spot.reviewCount) + safeRating) / nextCount * 10.0).toInt() / 10.0
+        try {
+            val reviewPayload = JSONObject().apply {
+                put("id", reviewId)
+                put("culinary_id", spot.id)
+                put("author_id", uid)
+                put("author_name", authorName.trim().take(80).ifEmpty { "Warga Surabaya" })
+                put("rating", safeRating)
+                put("comment", comment.trim().take(500))
+            }
+            pb.createRecord("culinary_reviews", reviewPayload)
+
+            val spotPatch = JSONObject().apply {
+                put("rating_avg", nextAvg.coerceIn(0.0, 5.0))
+                put("review_count", nextCount)
+            }
+            pb.updateRecord("culinary", spot.id, spotPatch)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.CREATE, "culinary_reviews/$reviewId")
+            throw e
+        }
+    }
+
+    // --- 6. TEMAN SEKITAR (NEARBY FRIENDS) ---
+
+    fun observeDiscoverableProfiles(): Flow<List<NearbyProfile>> {
+        return pb.observeCollection("nearby_profiles", pollIntervalMs = 7_000L) {
+            pb.getList(
+                collection = "nearby_profiles",
+                filter = "is_discoverable = true",
+                sort = "-updated",
+            ).map(::mapNearbyProfile)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "nearby_profiles")
+            throw e
+        }
+    }
+
+    // --- 7. CHAT WARGA SURABAYA (PUBLIC & DIRECT TWO-WAY) ---
+
+    fun observePublicChatRooms(): Flow<List<ChatRoom>> {
+        return pb.observeCollection("chat_rooms", pollIntervalMs = 4_000L) {
+            pb.getList(
+                collection = "chat_rooms",
+                filter = "room_type = 'PUBLIC'",
+                sort = "-updated",
+            ).map(::mapChatRoom)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "chat_rooms")
+            throw e
+        }
+    }
+
+    fun observeDirectChatRooms(userId: String): Flow<List<ChatRoom>> {
+        val safeUid = escapePbValue(userId)
+        return pb.observeCollection("chat_rooms", pollIntervalMs = 3_500L) {
+            pb.getList(
+                collection = "chat_rooms",
+                filter = "room_type = 'DIRECT' && (participant_uid_1 = '$safeUid' || participant_uid_2 = '$safeUid')",
+                sort = "-updated",
+            ).map(::mapChatRoom)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "chat_rooms")
+            throw e
+        }
+    }
+
+    suspend fun openOrCreateDirectChat(
+        peerProfile: NearbyProfile,
+        currentUserName: String,
+        currentUserDistrict: String,
+    ): ChatRoom {
+        val uid = requireUserId()
+        val rawPeerId = peerProfile.id.ifBlank { peerProfile.userId }.trim()
+        val peerUidForList = if (rawPeerId == uid || rawPeerId.isBlank()) {
+            "self_${uid.take(40)}"
+        } else {
+            rawPeerId.take(56)
+        }
+        val sortedPair = listOf(uid, peerUidForList).sorted()
+        val roomKey = buildDirectRoomId(uid, peerUidForList)
+        val roomId = PocketBaseClient.deterministicPbId(roomKey)
+
+        val cleanCurrentName = currentUserName.trim().replace("|", " ").take(60).ifEmpty { "Warga Surabaya" }
+        val cleanPeerName = peerProfile.displayName.trim().replace("|", " ").take(60).ifEmpty { "Warga Surabaya" }
+        val alignedNames = if (sortedPair[0] == uid) {
+            "$cleanCurrentName|$cleanPeerName"
+        } else {
+            "$cleanPeerName|$cleanCurrentName"
+        }
+
+        return try {
+            val existing = pb.getOneOrNull("chat_rooms", roomId)
+            if (existing != null) {
+                return mapChatRoom(existing)
+            }
+            val subtitleText = "${peerProfile.district} • $currentUserDistrict".take(140)
+            val payload = JSONObject().apply {
+                put("id", roomId)
+                put("room_key", roomKey)
+                put("room_type", "DIRECT")
+                put("title", cleanPeerName.take(100))
+                put("subtitle", subtitleText)
+                put("participant_uid_1", sortedPair[0])
+                put("participant_uid_2", sortedPair[1])
+                put("participant_names", alignedNames.take(160))
+                put("last_message", "Mulai sapaan hangat warga Surabaya 👋")
+                put("last_sender_name", cleanCurrentName)
+                put("created_by", uid)
+            }
+            val created = pb.createRecord("chat_rooms", payload)
+            mapChatRoom(created)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.WRITE, "chat_rooms/$roomId")
+            throw e
+        }
+    }
+
+    fun observeMessages(
+        room: ChatRoom,
+        currentUserId: String,
+    ): Flow<List<ChatMessage>> {
+        val safeRoomId = escapePbValue(room.id)
+        val safeUid = escapePbValue(currentUserId)
+        val filterQuery = if (room.roomType == "DIRECT") {
+            "room_id = '$safeRoomId' && room_type = 'DIRECT' && (participant_uid_1 = '$safeUid' || participant_uid_2 = '$safeUid')"
+        } else {
+            "room_id = '$safeRoomId' && room_type = 'PUBLIC'"
+        }
+        return pb.observeCollection("chat_messages", pollIntervalMs = 2_500L) {
+            pb.getList(
+                collection = "chat_messages",
+                filter = filterQuery,
+                sort = "+created",
+                perPage = 150,
+            ).map(::mapChatMessage)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "chat_messages/${room.id}")
+            throw e
+        }
+    }
+
+    suspend fun sendMessage(
+        room: ChatRoom,
+        senderName: String,
+        text: String,
+    ) {
+        val uid = requireUserId()
+        val cleanText = text.trim().take(1000)
+        if (cleanText.isEmpty()) return
+        val cleanSender = senderName.trim().take(80).ifEmpty { "Warga Surabaya" }
+        val msgId = PocketBaseClient.deterministicPbId("msg_${UUID.randomUUID()}")
+        val uid1 = if (room.roomType == "DIRECT") room.participantUids.getOrNull(0).orEmpty() else ""
+        val uid2 = if (room.roomType == "DIRECT") room.participantUids.getOrNull(1).orEmpty() else ""
+
+        try {
+            val msgPayload = JSONObject().apply {
+                put("id", msgId)
+                put("room_id", room.id)
+                put("room_key", room.roomKey.ifBlank { room.id })
+                put("room_type", room.roomType)
+                put("participant_uid_1", uid1)
+                put("participant_uid_2", uid2)
+                put("sender_id", uid)
+                put("sender_name", cleanSender)
+                put("text", cleanText)
+            }
+            pb.createRecord("chat_messages", msgPayload)
+
+            val roomPatch = JSONObject().apply {
+                put("last_message", cleanText.take(300))
+                put("last_sender_name", cleanSender)
+            }
+            pb.updateRecord("chat_rooms", room.id, roomPatch)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.CREATE, "chat_messages/$msgId")
+            throw e
+        }
+    }
+
+    // --- JSON -> DOMAIN MAPPERS ---
+
+    private fun mapUserAccount(j: JSONObject): UserAccount {
+        val id = j.optString("id")
+        val email = j.optString("email")
+        val name = j.optString("name").ifBlank { email.substringBefore("@").ifBlank { "Warga Surabaya" } }
+        return UserAccount(
+            id = id,
+            userId = id,
+            displayName = name,
+            district = j.optString("district").ifBlank { "Genteng" },
+            bio = j.optString("bio"),
+            searchRadiusKm = j.optDouble("search_radius_km", 10.0).takeIf { !it.isNaN() && it > 0.0 } ?: 10.0,
+            isDiscoverable = if (j.has("is_discoverable")) j.optBoolean("is_discoverable", true) else true,
+            isAdmin = j.optBoolean("is_admin", false) || email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    private fun mapBookmark(j: JSONObject): BookmarkItem = BookmarkItem(
+        id = j.optString("id"),
+        userId = j.optString("user_id"),
+        targetId = j.optString("target_id"),
+        targetType = j.optString("target_type", "KULINER"),
+        title = j.optString("title"),
+        subtitle = j.optString("subtitle"),
+        district = j.optString("district", "Surabaya"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
+    private fun mapNearbyProfile(j: JSONObject): NearbyProfile = NearbyProfile(
+        id = j.optString("id"),
+        userId = j.optString("user_id"),
+        displayName = j.optString("display_name", "Warga Surabaya"),
+        avatarColorHex = j.optString("avatar_color_hex").ifBlank { "#006B5E" },
+        bio = j.optString("bio"),
+        district = j.optString("district").ifBlank { "Genteng" },
+        interests = j.optString("interests").ifBlank { "Kuliner, Ngopi, Keliling Kota" },
+        lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
+        lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+        isDiscoverable = j.optBoolean("is_discoverable", true),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+        updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+    )
+
+    private fun mapIncident(j: JSONObject): IncidentReport = IncidentReport(
+        id = j.optString("id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        title = j.optString("title"),
+        description = j.optString("description"),
+        category = j.optString("category", "INFO_WARGA").ifBlank { "INFO_WARGA" },
+        severity = j.optString("severity", "INFO").ifBlank { "INFO" },
+        district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+        address = j.optString("address"),
+        lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
+        lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+        imageKey = j.optString("image_key").ifBlank { "kejadian_kota" },
+        verifiedCount = j.optInt("verified_count", 0),
+        verifiedByUids = decodeUidList(j.optString("verified_by_uids")),
+        commentCount = j.optInt("comment_count", 0),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+        updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+    )
+
+    private fun mapIncidentComment(j: JSONObject): IncidentComment = IncidentComment(
+        id = j.optString("id"),
+        incidentId = j.optString("incident_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        text = j.optString("text"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
+    private fun mapEvent(j: JSONObject): SurabayaEvent = SurabayaEvent(
+        id = j.optString("id"),
+        proposerId = j.optString("proposer_id"),
+        proposerName = j.optString("proposer_name", "Warga Surabaya"),
+        title = j.optString("title"),
+        category = j.optString("category", "FESTIVAL").ifBlank { "FESTIVAL" },
+        eventDateText = j.optString("event_date_text"),
+        timeText = j.optString("time_text"),
+        venueName = j.optString("venue_name"),
+        district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+        address = j.optString("address"),
+        lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
+        lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+        priceLabel = j.optString("price_label").ifBlank { "Gratis" },
+        description = j.optString("description"),
+        imageKey = j.optString("image_key").ifBlank { "event_festival" },
+        status = j.optString("status", "PENDING").ifBlank { "PENDING" },
+        adminNote = j.optString("admin_note"),
+        interestedCount = j.optInt("interested_count", 0),
+        interestedUids = decodeUidList(j.optString("interested_uids")),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+        updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+    )
+
+    private fun mapCulinarySpot(j: JSONObject): CulinarySpot = CulinarySpot(
+        id = j.optString("id"),
+        createdBy = j.optString("created_by"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        name = j.optString("name"),
+        category = j.optString("category", "LEGENDARIS").ifBlank { "LEGENDARIS" },
+        description = j.optString("description"),
+        district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+        address = j.optString("address"),
+        priceRange = j.optString("price_range").ifBlank { "Rp 20.000 - Rp 35.000" },
+        openHour = j.optInt("open_hour", 8),
+        closeHour = j.optInt("close_hour", 22),
+        lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
+        lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+        imageKey = j.optString("image_key").ifBlank { "kuliner_rawon" },
+        ratingAvg = j.optDouble("rating_avg", 4.8),
+        reviewCount = j.optInt("review_count", 1),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+        updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+    )
+
+    private fun mapCulinaryReview(j: JSONObject): CulinaryReview = CulinaryReview(
+        id = j.optString("id"),
+        culinaryId = j.optString("culinary_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        rating = j.optInt("rating", 5),
+        comment = j.optString("comment"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
+    private fun mapChatRoom(j: JSONObject): ChatRoom {
+        val uid1 = j.optString("participant_uid_1")
+        val uid2 = j.optString("participant_uid_2")
+        val participants = listOf(uid1, uid2).filter { it.isNotBlank() }
+        return ChatRoom(
+            id = j.optString("id"),
+            roomKey = j.optString("room_key"),
+            roomType = j.optString("room_type", "PUBLIC"),
+            title = j.optString("title"),
+            subtitle = j.optString("subtitle"),
+            participantUids = participants,
+            participantNames = j.optString("participant_names"),
+            lastMessage = j.optString("last_message"),
+            lastSenderName = j.optString("last_sender_name"),
+            createdBy = j.optString("created_by"),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    private fun mapChatMessage(j: JSONObject): ChatMessage {
+        val uid1 = j.optString("participant_uid_1")
+        val uid2 = j.optString("participant_uid_2")
+        val participants = listOf(uid1, uid2).filter { it.isNotBlank() }
+        return ChatMessage(
+            id = j.optString("id"),
+            roomId = j.optString("room_id"),
+            roomKey = j.optString("room_key"),
+            roomType = j.optString("room_type", "PUBLIC"),
+            participantUids = participants,
+            senderId = j.optString("sender_id"),
+            senderName = j.optString("sender_name", "Warga Surabaya"),
+            text = j.optString("text"),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+        )
+    }
+
+    private fun encodeUidList(list: List<String>): String {
+        return list.map { it.trim() }.filter { it.isNotBlank() }.distinct().joinToString("|").take(1950)
+    }
+
+    private fun decodeUidList(raw: String): List<String> {
+        if (raw.isBlank()) return emptyList()
+        return raw.split("|").map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    private fun escapePbValue(raw: String): String {
+        return raw.replace("\\", "\\\\").replace("'", "\\'")
+    }
+
+    companion object {
+        private const val TAG = "SurabayaRepoPB"
+        const val BOOTSTRAPPED_ADMIN_EMAIL = "nabilalailatus12@gmail.com"
+
+        fun buildDirectRoomId(uidA: String, uidB: String): String {
+            val cleanA = uidA.trim().replace(Regex("[^a-zA-Z0-9_\\-]"), "_").take(56)
+            val cleanB = uidB.trim().replace(Regex("[^a-zA-Z0-9_\\-]"), "_").take(56)
+            val sorted = listOf(cleanA, cleanB).sorted()
+            return "dm_${sorted[0]}_${sorted[1]}"
+        }
+    }
+}

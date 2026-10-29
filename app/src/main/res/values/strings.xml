@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">Arek Surabaya</string>
+    <string name="pocketbase_base_url" translatable="false">http://173.249.59.183:8091</string>
+    <string name="tagline_surabaya">Pusat Informasi, Kuliner, Event &amp; Warga Kota Pahlawan</string>
+    <string name="btn_google_sign_in">Masuk ke Arek Surabaya</string>
+    <string name="btn_register_account">Daftar Akun Warga Baru</string>
+    <string name="signing_in_label">Menghubungkan ke server…</string>
+    <string name="nav_kejadian">Kejadian</string>
+    <string name="nav_event">Event</string>
+    <string name="nav_kuliner">Kuliner</string>
+    <string name="nav_sekitar">Sekitar</string>
+    <string name="nav_chat">Chat</string>
+    <string name="emergency_112_title">Command Center 112</string>
+    <string name="emergency_112_subtitle">Darurat Kota Surabaya 24 Jam</string>
+    <string name="btn_call_112">Hubungi 112</string>
+    <string name="btn_bookmarks">Tersimpan</string>
+    <string name="btn_profile">Profil &amp; Admin</string>
+    <string name="btn_propose_event">Usulkan Event</string>
+    <string name="btn_report_incident">Lapor Kejadian</string>
+    <string name="btn_add_culinary">Tambah Kuliner</string>
+    <string name="btn_open_maps">Petunjuk Arah Maps</string>
+    <string name="btn_verify_incident">Bantu Verifikasi</string>
+    <string name="btn_verified_incident">Sudah Diverifikasi</string>
+    <string name="btn_greet_chat">Sapa</string>
+    <string name="btn_update_gps">Perbarui GPS</string>
+    <string name="btn_privacy_radius">Radius &amp; Privasi</string>
+    <string name="admin_mode_label">Mode Admin Surabaya</string>
+    <string name="admin_queue_banner">Antrean Persetujuan Event Warga</string>
+    <string name="btn_approve_event">Setujui Tayang</string>
+    <string name="btn_reject_event">Tolak</string>
+    <string name="btn_sign_out">Keluar Akun</string>
+    <string name="status_open">Buka</string>
+    <string name="status_closed">Tutup</string>
+    <string name="empty_bookmarks">Belum ada tempat atau info yang disimpan.</string>
+    <string name="search_culinary_hint">Cari rawon, penyetan, kopi, daerah…</string>
+    <string name="chat_input_hint">Tulis pesan untuk warga…</string>
+</resources>

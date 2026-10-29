@@ -1,0 +1,1128 @@
+[
+  {
+    "id": "_pb_users_auth_",
+    "name": "users",
+    "type": "auth",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "users_name",
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": 80,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "sbyusr01",
+        "name": "district",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": 60,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "sbyusr02",
+        "name": "bio",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": 240,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "sbyusr03",
+        "name": "search_radius_km",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": 1,
+          "max": 50,
+          "noDecimal": false
+        }
+      },
+      {
+        "system": false,
+        "id": "sbyusr04",
+        "name": "is_discoverable",
+        "type": "bool",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      },
+      {
+        "system": false,
+        "id": "sbyusr05",
+        "name": "is_admin",
+        "type": "bool",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      }
+    ],
+    "indexes": [],
+    "listRule": "id = @request.auth.id",
+    "viewRule": "id = @request.auth.id",
+    "createRule": "",
+    "updateRule": "id = @request.auth.id",
+    "deleteRule": "id = @request.auth.id",
+    "options": {
+      "allowEmailAuth": true,
+      "allowOAuth2Auth": true,
+      "allowUsernameAuth": true,
+      "exceptEmailDomains": null,
+      "manageRule": null,
+      "minPasswordLength": 6,
+      "onlyEmailDomains": null,
+      "onlyVerified": false,
+      "requireEmail": true
+    }
+  },
+  {
+    "id": "sbycolbookmark1",
+    "name": "bookmarks",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbybm001",
+        "name": "user_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbybm002",
+        "name": "target_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbybm003",
+        "name": "target_type",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 30, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbybm004",
+        "name": "title",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 140, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbybm005",
+        "name": "subtitle",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 200, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbybm006",
+        "name": "district",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "viewRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "createRule": "@request.auth.id != '' && @request.data.user_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "options": {}
+  },
+  {
+    "id": "sbycolnearbypr1",
+    "name": "nearby_profiles",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbynp001",
+        "name": "user_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbynp002",
+        "name": "display_name",
+        "type": "text",
+        "required": true,
+        "presentable": true,
+        "unique": false,
+        "options": { "min": 1, "max": 80, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbynp003",
+        "name": "avatar_color_hex",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 16, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbynp004",
+        "name": "bio",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 240, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbynp005",
+        "name": "district",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbynp006",
+        "name": "interests",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 200, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbynp007",
+        "name": "lat",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": -90, "max": 90, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbynp008",
+        "name": "lng",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": -180, "max": 180, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbynp009",
+        "name": "is_discoverable",
+        "type": "bool",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id)",
+    "viewRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id)",
+    "createRule": "@request.auth.id != '' && @request.data.user_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "options": {}
+  },
+  {
+    "id": "sbycolincident1",
+    "name": "incidents",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbyin001",
+        "name": "author_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin002",
+        "name": "author_name",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 80, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin003",
+        "name": "title",
+        "type": "text",
+        "required": true,
+        "presentable": true,
+        "unique": false,
+        "options": { "min": 2, "max": 140, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin004",
+        "name": "description",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 3, "max": 1200, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin005",
+        "name": "category",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 40, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin006",
+        "name": "severity",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 30, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin007",
+        "name": "district",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin008",
+        "name": "address",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 180, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin009",
+        "name": "lat",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": -90, "max": 90, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbyin010",
+        "name": "lng",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": -180, "max": 180, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbyin011",
+        "name": "image_key",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin012",
+        "name": "verified_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyin013",
+        "name": "verified_by_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin014",
+        "name": "comment_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolinccmmnt1",
+    "name": "incident_comments",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbyic001",
+        "name": "incident_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyic002",
+        "name": "author_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyic003",
+        "name": "author_name",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 80, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyic004",
+        "name": "text",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 500, "pattern": "" }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": null,
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolevents001",
+    "name": "events",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbyev001",
+        "name": "proposer_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev002",
+        "name": "proposer_name",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 80, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev003",
+        "name": "title",
+        "type": "text",
+        "required": true,
+        "presentable": true,
+        "unique": false,
+        "options": { "min": 2, "max": 140, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev004",
+        "name": "category",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 40, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev005",
+        "name": "event_date_text",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev006",
+        "name": "time_text",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 50, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev007",
+        "name": "venue_name",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 100, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev008",
+        "name": "district",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev009",
+        "name": "address",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 180, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev010",
+        "name": "lat",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": -90, "max": 90, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbyev011",
+        "name": "lng",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": -180, "max": 180, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbyev012",
+        "name": "price_label",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 50, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev013",
+        "name": "description",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 1200, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev014",
+        "name": "image_key",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev015",
+        "name": "status",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 20, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev016",
+        "name": "admin_note",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 300, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev017",
+        "name": "interested_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyev018",
+        "name": "interested_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "viewRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "createRule": "@request.auth.id != '' && @request.data.proposer_id = @request.auth.id && (@request.data.status = 'PENDING' || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "updateRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com' || status = 'APPROVED' || (proposer_id = @request.auth.id && status = 'PENDING' && @request.data.status = 'PENDING'))",
+    "deleteRule": "@request.auth.id != '' && (proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolculinary1",
+    "name": "culinary",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbycl001",
+        "name": "created_by",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl002",
+        "name": "author_name",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 80, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl003",
+        "name": "name",
+        "type": "text",
+        "required": true,
+        "presentable": true,
+        "unique": false,
+        "options": { "min": 2, "max": 100, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl004",
+        "name": "category",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 40, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl005",
+        "name": "description",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 1000, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl006",
+        "name": "district",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl007",
+        "name": "address",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 180, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl008",
+        "name": "price_range",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl009",
+        "name": "open_hour",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 23, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbycl010",
+        "name": "close_hour",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 24, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbycl011",
+        "name": "lat",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": -90, "max": 90, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbycl012",
+        "name": "lng",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": -180, "max": 180, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbycl013",
+        "name": "image_key",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 60, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl014",
+        "name": "rating_avg",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 5, "noDecimal": false }
+      },
+      {
+        "system": false,
+        "id": "sbycl015",
+        "name": "review_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != '' && (created_by = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolculrev001",
+    "name": "culinary_reviews",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbycr001",
+        "name": "culinary_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycr002",
+        "name": "author_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycr003",
+        "name": "author_name",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 80, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycr004",
+        "name": "rating",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 5, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbycr005",
+        "name": "comment",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 500, "pattern": "" }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": null,
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolchatroom1",
+    "name": "chat_rooms",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbyrm001",
+        "name": "room_key",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 128, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm002",
+        "name": "room_type",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 20, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm003",
+        "name": "title",
+        "type": "text",
+        "required": true,
+        "presentable": true,
+        "unique": false,
+        "options": { "min": 1, "max": 100, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm004",
+        "name": "subtitle",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 140, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm005",
+        "name": "participant_uid_1",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm006",
+        "name": "participant_uid_2",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm007",
+        "name": "participant_names",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 160, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm008",
+        "name": "last_message",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 300, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm009",
+        "name": "last_sender_name",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 80, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyrm010",
+        "name": "created_by",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
+    "viewRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
+    "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id && (@request.data.room_type = 'PUBLIC' || @request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)",
+    "updateRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
+    "deleteRule": null,
+    "options": {}
+  },
+  {
+    "id": "sbycolchatmsgs1",
+    "name": "chat_messages",
+    "type": "base",
+    "system": false,
+    "schema": [
+      {
+        "system": false,
+        "id": "sbyms001",
+        "name": "room_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyms002",
+        "name": "room_key",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 128, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyms003",
+        "name": "room_type",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 20, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyms004",
+        "name": "participant_uid_1",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyms005",
+        "name": "participant_uid_2",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyms006",
+        "name": "sender_id",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 64, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyms007",
+        "name": "sender_name",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 80, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyms008",
+        "name": "text",
+        "type": "text",
+        "required": true,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 1, "max": 1000, "pattern": "" }
+      }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
+    "viewRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
+    "createRule": "@request.auth.id != '' && @request.data.sender_id = @request.auth.id && (@request.data.room_type = 'PUBLIC' || @request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)",
+    "updateRule": null,
+    "deleteRule": null,
+    "options": {}
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "name": "Arek Surabaya",
+  "description": "Aplikasi media sosial warga Arek Surabaya untuk info kejadian terkini, agenda event, rekomendasi kuliner, teman sekitar berbasis GPS, dan chat real-time.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
