@@ -1,0 +1,8 @@
+Arek Surabaya - Public Signing Certificate Fingerprints
+Alias: upload
+-------------------------------------------------------
+Owner: CN=Arek Surabaya, OU=Mobile, O=ArekSurabaya, L=Surabaya, ST=Jawa Timur, C=ID
+Issuer: CN=Arek Surabaya, OU=Mobile, O=ArekSurabaya, L=Surabaya, ST=Jawa Timur, C=ID
+Valid from: Thu Oct 29 04:24:15 UTC 2026 until: Mon Mar 16 04:24:15 UTC 2054
+	 SHA1: D7:22:32:FD:C4:16:45:7F:36:38:9B:72:97:F1:FC:E3:0F:88:1D:94
+	 SHA256: AC:8E:BC:0D:D3:14:93:43:F2:F1:B1:30:41:67:79:CB:52:C4:D0:32:A9:F1:07:39:71:F5:AA:F1:F6:82:2E:A4
