@@ -34,4 +34,11 @@
     <string name="empty_bookmarks">Belum ada tempat atau info yang disimpan.</string>
     <string name="search_culinary_hint">Cari rawon, penyetan, kopi, daerah…</string>
     <string name="chat_input_hint">Tulis pesan untuk warga…</string>
+    <string name="incident_comments_title">Pantauan &amp; Komentar Warga (%1$d)</string>
+    <string name="incident_comments_scroll_hint">Geser komentar ↕</string>
+    <string name="incident_comments_empty">Belum ada komentar tambahan. Bagikan pantauan terkini Anda di lokasi ini.</string>
+    <string name="incident_comment_input_hint">Tulis info situasi terkini…</string>
+    <string name="incident_comment_send_cd">Kirim Komentar</string>
+    <string name="incident_desc_read_more">Selengkapnya</string>
+    <string name="incident_desc_show_less">Ringkas</string>
 </resources>

@@ -1,17 +1,27 @@
 package com.example.ui.sheets
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -23,6 +33,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -49,6 +61,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,13 +69,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.model.ChatMessage
@@ -80,10 +104,7 @@ import com.example.ui.components.openGoogleMapsLocation
 import com.example.ui.screens.formatCulinaryCategoryLabel
 import com.example.ui.screens.formatEventCategoryLabel
 import com.example.ui.screens.formatIncidentCategoryLabel
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import com.example.ui.theme.FreshGreenGradient
-import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
@@ -106,228 +127,437 @@ fun IncidentDetailSheetContent(
     onSendComment: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    var commentInput by remember { mutableStateOf("") }
+    val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
-    Column(
+    var commentInput by remember(report.id) { mutableStateOf("") }
+    var isDescriptionExpanded by remember(report.id) { mutableStateOf(false) }
+    var hasDescriptionOverflow by remember(report.id, report.description) { mutableStateOf(false) }
+    var pendingScrollToBottom by remember(report.id) { mutableStateOf(false) }
+    var previousCommentCount by remember(report.id) { mutableIntStateOf(comments.size) }
+
+    val commentListState = rememberLazyListState()
+
+    // Gaya 2: Slimmer base photo height (140.dp) that smoothly shrinks to 84.dp as comments scroll
+    val maxImageHeight = 140.dp
+    val minImageHeight = 84.dp
+    val maxCollapsePx = with(density) { (maxImageHeight - minImageHeight).toPx() }
+    var collapseProgressPx by remember(report.id) { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(report.id, comments.size) {
+        if (comments.isNotEmpty() && (pendingScrollToBottom || (comments.size > previousCommentCount && previousCommentCount > 0))) {
+            commentListState.animateScrollToItem(comments.lastIndex)
+            pendingScrollToBottom = false
+        }
+        previousCommentCount = comments.size
+    }
+
+    val commentNestedScrollConnection = remember(report.id, commentListState, maxCollapsePx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < 0f && (commentListState.canScrollForward || collapseProgressPx > 0f)) {
+                    val previous = collapseProgressPx
+                    val updated = (previous - available.y).coerceIn(0f, maxCollapsePx)
+                    val consumedY = previous - updated
+                    if (consumedY != 0f) {
+                        collapseProgressPx = updated
+                        return Offset(0f, consumedY)
+                    }
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                if (available.y > 0f && collapseProgressPx > 0f) {
+                    val updated = (collapseProgressPx - available.y).coerceIn(0f, maxCollapsePx)
+                    collapseProgressPx = updated
+                }
+                // Consume remaining vertical scroll so swiping comments up/down never drags the sheet closed
+                return Offset(0f, available.y)
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                return Velocity(0f, available.y)
+            }
+        }
+    }
+
+    val submitCommentAction = {
+        val trimmed = commentInput.trim()
+        if (trimmed.isNotEmpty()) {
+            pendingScrollToBottom = true
+            onSendComment(trimmed)
+            commentInput = ""
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+    }
+
+    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
-            .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .imePadding(),
     ) {
-        Image(
-            painter = painterResource(id = resolveImageDrawable(report.imageKey)),
-            contentDescription = report.title,
-            contentScale = ContentScale.Crop,
+        val hasBoundedHeight = maxHeight != Dp.Unspecified && maxHeight < 2000.dp
+        val availableHeight = if (hasBoundedHeight) maxHeight else 680.dp
+        val isKeyboardOpen = isImeVisible || (hasBoundedHeight && maxHeight < 500.dp)
+        val sheetMaxHeight = if (isKeyboardOpen) {
+            availableHeight
+        } else {
+            (availableHeight * 0.90f).coerceIn(420.dp, 760.dp)
+        }
+
+        val currentImageHeight = (maxImageHeight - with(density) { collapseProgressPx.toDp() })
+            .coerceIn(minImageHeight, maxImageHeight)
+        val collapseFraction = if (maxCollapsePx > 0f) (collapseProgressPx / maxCollapsePx).coerceIn(0f, 1f) else 0f
+        val imageCornerRadius = 20.dp - (4.dp * collapseFraction)
+
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(176.dp)
-                .clip(RoundedCornerShape(20.dp)),
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
-                Text(
-                    text = formatIncidentCategoryLabel(report.category),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                )
-            }
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
-                Text(
-                    text = "Dilaporkan ${report.authorName} • ${formatRelativeTimestamp(report.createdAt)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                )
-            }
-        }
-
-        Text(
-            text = report.title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-            modifier = Modifier.fillMaxWidth(),
+                .heightIn(max = sheetMaxHeight)
+                .padding(horizontal = 18.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            // ================= ZONA 1: ATAS (TETAP DI POSISI, FOTO ADAPTIF GAYA 2) =================
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 6.dp else 10.dp),
             ) {
+                AnimatedVisibility(
+                    visible = !isKeyboardOpen,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    Image(
+                        painter = painterResource(id = resolveImageDrawable(report.imageKey)),
+                        contentDescription = report.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(currentImageHeight)
+                            .clip(RoundedCornerShape(imageCornerRadius))
+                            .testTag("sheet_incident_image"),
+                    )
+                }
+
                 Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.LocationOn,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = "${report.address}, Kec. ${report.district}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+                        Text(
+                            text = formatIncidentCategoryLabel(report.category),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
+                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
+                        Text(
+                            text = "Dilaporkan ${report.authorName} • ${formatRelativeTimestamp(report.createdAt)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                FilledTonalButton(
-                    onClick = { openGoogleMapsLocation(context, report.lat, report.lng, report.title) },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.testTag("sheet_incident_maps_btn"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Directions,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Maps", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
 
-        Text(
-            text = report.description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        // Google Maps-style Action Pills Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Button(
-                onClick = onVerify,
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isVerifiedByMe) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("sheet_verify_incident_btn"),
-            ) {
-                Icon(imageVector = Icons.Filled.Verified, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isVerifiedByMe) "Tervalidasi (${report.verifiedCount})" else "Validasi (${report.verifiedCount})",
-                    style = MaterialTheme.typography.labelLarge,
+                    text = report.title,
+                    style = if (isKeyboardOpen) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = if (isKeyboardOpen) 1 else 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            }
 
-            OutlinedButton(
-                onClick = onBookmark,
-                shape = CircleShape,
-                modifier = Modifier.testTag("sheet_bookmark_incident_btn"),
-            ) {
-                Icon(
-                    imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(if (isSaved) "Tersimpan" else "Simpan")
-            }
-        }
-
-        HorizontalDivider()
-
-        Text(
-            text = "Pantauan & Komentar Warga (${comments.size})",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        if (comments.isEmpty()) {
-            Text(
-                text = "Belum ada komentar tambahan. Bagikan pantauan terkini Anda di lokasi ini.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            comments.forEach { cmt ->
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth(),
+                AnimatedVisibility(
+                    visible = !isKeyboardOpen,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
                 ) {
-                    Column(
-                        modifier = Modifier.padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.LocationOn,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    text = "${report.address}, Kec. ${report.district}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            FilledTonalButton(
+                                onClick = { openGoogleMapsLocation(context, report.lat, report.lng, report.title) },
+                                shape = CircleShape,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("sheet_incident_maps_btn"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Directions,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Maps", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = report.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = when {
+                            isKeyboardOpen -> 1
+                            isDescriptionExpanded -> 6
+                            else -> 2
+                        },
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { layoutResult ->
+                            if (!isDescriptionExpanded && !isKeyboardOpen) {
+                                hasDescriptionOverflow = layoutResult.hasVisualOverflow
+                            }
+                        },
+                    )
+                    if (!isKeyboardOpen && (hasDescriptionOverflow || isDescriptionExpanded)) {
+                        Text(
+                            text = stringResource(
+                                if (isDescriptionExpanded) R.string.incident_desc_show_less else R.string.incident_desc_read_more,
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { isDescriptionExpanded = !isDescriptionExpanded }
+                                .padding(vertical = 2.dp),
+                        )
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = !isKeyboardOpen,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            onClick = onVerify,
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isVerifiedByMe) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("sheet_verify_incident_btn"),
+                        ) {
+                            Icon(imageVector = Icons.Filled.Verified, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = cmt.authorName,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = formatRelativeTimestamp(cmt.createdAt),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = if (isVerifiedByMe) "Tervalidasi (${report.verifiedCount})" else "Validasi (${report.verifiedCount})",
+                                style = MaterialTheme.typography.labelLarge,
                             )
                         }
-                        Text(
-                            text = cmt.text,
-                            style = MaterialTheme.typography.bodySmall,
+
+                        OutlinedButton(
+                            onClick = onBookmark,
+                            shape = CircleShape,
+                            modifier = Modifier.testTag("sheet_bookmark_incident_btn"),
+                        ) {
+                            Icon(
+                                imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(if (isSaved) "Tersimpan" else "Simpan")
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.8f))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.incident_comments_title, comments.size),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (comments.size >= 2) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.incident_comments_scroll_hint),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ================= ZONA 2: TENGAH (SCROLL KOMENTAR MANDIRI NAIK-TURUN) =================
+            val shouldFillCommentArea = !isKeyboardOpen && (comments.size >= 3 || collapseProgressPx > 0.5f)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = shouldFillCommentArea)
+                    .heightIn(min = if (comments.isEmpty()) 52.dp else 68.dp)
+                    .nestedScroll(commentNestedScrollConnection),
+            ) {
+                LazyColumn(
+                    state = commentListState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("incident_comments_list"),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp),
+                ) {
+                    if (comments.isEmpty()) {
+                        item(key = "empty_comments_placeholder") {
+                            Text(
+                                text = stringResource(R.string.incident_comments_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 6.dp),
+                            )
+                        }
+                    } else {
+                        items(
+                            items = comments,
+                            key = { cmt -> cmt.id.ifBlank { "${cmt.authorName}_${cmt.createdAt}_${cmt.text.hashCode()}" } },
+                        ) { cmt ->
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = BorderStroke(0.5.dp, OutlineVariantLight.copy(alpha = 0.65f)),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = cmt.authorName,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            text = formatRelativeTimestamp(cmt.createdAt),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Text(
+                                        text = cmt.text,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ================= ZONA 3: BAWAH (KOLOM INPUT TETAP MENEMPEL DI BAWAH) =================
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.6f))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = commentInput,
+                        onValueChange = { commentInput = it },
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.incident_comment_input_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        shape = CircleShape,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { submitCommentAction() }),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("incident_comment_input"),
+                    )
+                    IconButton(
+                        onClick = submitCommentAction,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                            .testTag("incident_comment_send_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = stringResource(R.string.incident_comment_send_cd),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
             }
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = commentInput,
-                onValueChange = { commentInput = it },
-                placeholder = { Text("Tulis info situasi terkini…", style = MaterialTheme.typography.bodySmall) },
-                shape = CircleShape,
-                singleLine = true,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("incident_comment_input"),
-            )
-            IconButton(
-                onClick = {
-                    if (commentInput.isNotBlank()) {
-                        onSendComment(commentInput)
-                        commentInput = ""
-                    }
-                },
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-                    .testTag("incident_comment_send_btn"),
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Kirim Komentar",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
     }
 }
 
