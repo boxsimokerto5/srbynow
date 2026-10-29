@@ -41,4 +41,10 @@
     <string name="incident_comment_send_cd">Kirim Komentar</string>
     <string name="incident_desc_read_more">Selengkapnya</string>
     <string name="incident_desc_show_less">Ringkas</string>
+    <string name="kuliner_reviews_title">Ulasan Warga (%1$d)</string>
+    <string name="kuliner_reviews_scroll_hint">Geser ulasan ↕</string>
+    <string name="kuliner_reviews_empty">Belum ada ulasan warga. Jadilah yang pertama memberikan ulasan &amp; rating!</string>
+    <string name="kuliner_review_input_hint">Bagaimana rasa &amp; suasananya?</string>
+    <string name="kuliner_review_send_label">Kirim</string>
+    <string name="event_details_scroll_hint">Geser detail ↕</string>
 </resources>

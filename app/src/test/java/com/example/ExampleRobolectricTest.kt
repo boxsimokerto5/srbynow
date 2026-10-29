@@ -16,8 +16,13 @@ import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.test.core.app.ApplicationProvider
+import com.example.data.model.CulinaryReview
+import com.example.data.model.CulinarySpot
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
+import com.example.data.model.SurabayaEvent
+import com.example.ui.sheets.CulinaryDetailSheetContent
+import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import org.junit.Assert.assertEquals
@@ -135,5 +140,140 @@ class ExampleRobolectricTest {
       .height
     assertTrue("Expected restored image height > shrunk ($restoredImageHeight > $shrunkImageHeight)", restoredImageHeight > shrunkImageHeight)
     composeTestRule.onNodeWithText("Pantauan situasi nomor 1 di lokasi masih ramai lancar.").assertIsDisplayed()
+  }
+
+  @Test
+  fun `culinary detail sheet shrinks photo dynamically with Gaya 2 as reviews scroll`() {
+    val spot = CulinarySpot(
+      id = "cul_1",
+      name = "Rawon Setan Embong Malang",
+      category = "LEGENDARIS",
+      description = "Rawon legendaris kuah hitam pekat daging empuk mantap.",
+      district = "Genteng",
+      priceRange = "Rp 30.000 - Rp 45.000",
+      ratingAvg = 4.9,
+      reviewCount = 10,
+    )
+    val reviews = (1..10).map { idx ->
+      CulinaryReview(
+        id = "rev_$idx",
+        culinaryId = "cul_1",
+        authorName = "Pecinta Rawon $idx",
+        rating = 5,
+        comment = "Ulasan rasa rawon nomor $idx sangat gurih dan mantap!",
+        createdAt = System.currentTimeMillis() - (11 - idx) * 60_000L,
+      )
+    }
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(820.dp)) {
+          CulinaryDetailSheetContent(
+            spot = spot,
+            reviews = reviews,
+            isSaved = false,
+            onBookmark = {},
+            onSubmitReview = { _, _ -> },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("sheet_kuliner_image").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Rawon Setan Embong Malang").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("sheet_kuliner_maps_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("kuliner_review_input").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Ulasan rasa rawon nomor 1 sangat gurih dan mantap!").assertIsDisplayed()
+
+    val initialHeight = composeTestRule
+      .onNodeWithTag("sheet_kuliner_image")
+      .getUnclippedBoundsInRoot()
+      .height
+    assertTrue("Expected initial image height ~140dp, got $initialHeight", initialHeight >= 136.dp)
+
+    // Scroll reviews downward (finger swipes UP on review list)
+    composeTestRule.onNodeWithTag("kuliner_reviews_list").performTouchInput {
+      swipeUp()
+    }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("kuliner_reviews_list").performTouchInput {
+      swipeUp()
+    }
+    composeTestRule.waitForIdle()
+
+    val shrunkHeight = composeTestRule
+      .onNodeWithTag("sheet_kuliner_image")
+      .getUnclippedBoundsInRoot()
+      .height
+    assertTrue("Expected shrunk culinary image height < initial ($shrunkHeight < $initialHeight)", shrunkHeight < initialHeight)
+
+    composeTestRule.onNodeWithTag("sheet_kuliner_image").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Rawon Setan Embong Malang").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("kuliner_review_input").assertIsDisplayed()
+  }
+
+  @Test
+  fun `event detail sheet shrinks photo dynamically with Gaya 2 as details scroll`() {
+    val event = SurabayaEvent(
+      id = "ev_1",
+      title = "Festival Rujak Uleg Surabaya",
+      category = "FESTIVAL",
+      eventDateText = "12 Mei 2026",
+      timeText = "08:00 - 14:00",
+      venueName = "Jalan Kembang Jepun",
+      district = "Pabean Cantikan",
+      description = (1..8).joinToString("\n") { "Rundown sesi $it: Parade cobek uleg raksasa dan kuliner khas Surabaya bersama ratusan chef dan ribuan warga kota." },
+      status = "PENDING",
+      interestedCount = 45,
+    )
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(640.dp)) {
+          EventDetailSheetContent(
+            event = event,
+            isAdmin = true,
+            isSaved = false,
+            isInterested = false,
+            onToggleInterest = {},
+            onToggleBookmark = {},
+            onModerate = { _, _ -> },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("sheet_event_image").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Festival Rujak Uleg Surabaya").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Jalan Kembang Jepun").assertIsDisplayed()
+
+    val initialHeight = composeTestRule
+      .onNodeWithTag("sheet_event_image")
+      .getUnclippedBoundsInRoot()
+      .height
+    assertTrue("Expected initial event image height ~140dp, got $initialHeight", initialHeight >= 136.dp)
+
+    // Scroll details downward (finger swipes UP on details scroll)
+    composeTestRule.onNodeWithTag("event_details_scroll").performTouchInput {
+      swipeUp()
+    }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("event_details_scroll").performTouchInput {
+      swipeUp()
+    }
+    composeTestRule.waitForIdle()
+
+    val shrunkHeight = composeTestRule
+      .onNodeWithTag("sheet_event_image")
+      .getUnclippedBoundsInRoot()
+      .height
+    assertTrue("Expected shrunk event image height < initial ($shrunkHeight < $initialHeight)", shrunkHeight < initialHeight)
+
+    composeTestRule.onNodeWithTag("sheet_event_image").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Festival Rujak Uleg Surabaya").assertIsDisplayed()
   }
 }
