@@ -30,38 +30,43 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validasi Secret KEYSTORE_PASSPHRASE
-        env:
-          KEYSTORE_PASSPHRASE: ${{ secrets.KEYSTORE_PASSPHRASE }}
-        run: |
-          if [ -z "${KEYSTORE_PASSPHRASE}" ]; then
-            echo "::error::Secret KEYSTORE_PASSPHRASE belum diatur! Buka GitHub Repository -> Settings -> Secrets and variables -> Actions -> New repository secret, lalu buat secret bernama KEYSTORE_PASSPHRASE berisi password rahasia pilihan Anda."
-            exit 1
-          fi
-
       - name: Setup JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
-      - name: Setup Android SDK & Licenses
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Accept Android SDK Licenses
         run: |
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update > /dev/null || true
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
-      - name: Setup Gradle (Wrapper Version)
+      - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: wrapper
+          gradle-version: "9.3.1"
 
       - name: Siapkan File Konfigurasi Lokal (.env & debug.keystore)
         run: |
           [ -f .env ] || cp .env.example .env
-          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
+          if [ ! -f debug.keystore ]; then
+            if [ -f debug.keystore.base64 ]; then
+              tr -d '[:space:]' < debug.keystore.base64 | base64 -d > debug.keystore
+            else
+              keytool -genkeypair -v \
+                -keystore debug.keystore \
+                -storetype PKCS12 \
+                -keyalg RSA \
+                -keysize 2048 \
+                -validity 10000 \
+                -alias androiddebugkey \
+                -storepass android \
+                -keypass android \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
           fi
 
       - name: Buat atau Pulihkan Release Signature Key (Otomatis & Permanen)
@@ -69,6 +74,8 @@ jobs:
         env:
           KEYSTORE_PASSPHRASE: ${{ secrets.KEYSTORE_PASSPHRASE }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REPO_ID: ${{ github.repository_id }}
+          OWNER_ID: ${{ github.repository_owner_id }}
         run: |
           set -euo pipefail
 
@@ -76,10 +83,50 @@ jobs:
           FINGERPRINT_FILE=".signing/SHA-FINGERPRINTS.txt"
           TEMP_KEYSTORE="${RUNNER_TEMP}/my-upload-key.jks"
 
-          # Turunkan password keystore 32 karakter deterministik dari KEYSTORE_PASSPHRASE
-          # (Memenuhi syarat minimal 6 karakter keytool & konsisten di semua build)
-          DERIVED_PASS="$(printf '%s' "${KEYSTORE_PASSPHRASE}:arek-surabaya-jks" | sha256sum | cut -c1-32)"
-          echo "::add-mask::${DERIVED_PASS}"
+          # Password internal JKS (32 karakter, konsisten untuk repositori ini)
+          INTERNAL_JKS_PASS="$(printf '%s' "arek-surabaya-jks:${REPO_ID}:${OWNER_ID}" | sha256sum | cut -c1-32)"
+          echo "::add-mask::${INTERNAL_JKS_PASS}"
+
+          # Passphrase enkripsi GPG otomatis (dipakai bila user belum membuat secret KEYSTORE_PASSPHRASE)
+          AUTO_GPG_PASS="$(printf '%s' "arek-surabaya-gpg:${REPO_ID}:${OWNER_ID}" | sha256sum | cut -c1-48)"
+          echo "::add-mask::${AUTO_GPG_PASS}"
+
+          if [ -n "${KEYSTORE_PASSPHRASE}" ]; then
+            ACTIVE_GPG_PASS="${KEYSTORE_PASSPHRASE}"
+            USING_CUSTOM_SECRET="true"
+          else
+            ACTIVE_GPG_PASS="${AUTO_GPG_PASS}"
+            USING_CUSTOM_SECRET="false"
+            echo "::notice::Mode Otomatis Aktif: Keystore dienkripsi otomatis tanpa perlu mengatur secret manual. (Opsional: Anda tetap bisa menambahkan secret KEYSTORE_PASSPHRASE kapan saja)."
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          save_to_vault() {
+            local tmp_index="${RUNNER_TEMP}/vault.index"
+            rm -f "${tmp_index}"
+            GIT_INDEX_FILE="${tmp_index}" git update-index --add "${ENCRYPTED_KEYSTORE}" "${FINGERPRINT_FILE}"
+            local tree_sha
+            tree_sha="$(GIT_INDEX_FILE="${tmp_index}" git write-tree)"
+            local commit_sha
+            commit_sha="$(git commit-tree "${tree_sha}" -m "chore(signing): store permanent release keystore [skip ci]")"
+            git push --force origin "${commit_sha}:refs/heads/signing-vault"
+            rm -f "${tmp_index}"
+          }
+
+          persist_to_branch() {
+            if [ "${GITHUB_REF_TYPE}" = "branch" ]; then
+              git add "${ENCRYPTED_KEYSTORE}" "${FINGERPRINT_FILE}"
+              if ! git diff --cached --quiet; then
+                git commit -m "chore(signing): persist encrypted Android release keystore [skip ci]"
+                git push origin "HEAD:refs/heads/${TARGET_BRANCH}" || {
+                  git pull --rebase origin "${TARGET_BRANCH}"
+                  git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+                }
+              fi
+            fi
+          }
 
           TARGET_BRANCH="${GITHUB_REF_NAME}"
           if [ "${GITHUB_REF_TYPE}" != "branch" ]; then
@@ -88,11 +135,22 @@ jobs:
 
           # Sinkronisasi terbaru dari branch agar tidak membuat key ganda bila ada commit baru
           git fetch origin "${TARGET_BRANCH}" || true
-          if [ "${GITHUB_REF_TYPE}" = "branch" ]; then
-            git rebase "origin/${TARGET_BRANCH}" || true
+          if [ "${GITHUB_REF_TYPE}" = "branch" ] && git show-ref --verify --quiet "refs/remotes/origin/${TARGET_BRANCH}"; then
+            git rebase "origin/${TARGET_BRANCH}" || git reset --hard "origin/${TARGET_BRANCH}"
           fi
 
           mkdir -p .signing
+
+          # Pulihkan dari branch cadangan 'signing-vault' apabila push baru menimpa folder .signing di branch utama
+          VAULT_RESTORED="false"
+          if [ ! -f "${ENCRYPTED_KEYSTORE}" ]; then
+            if git fetch origin signing-vault:refs/remotes/origin/signing-vault 2>/dev/null; then
+              if git checkout refs/remotes/origin/signing-vault -- "${ENCRYPTED_KEYSTORE}" "${FINGERPRINT_FILE}" 2>/dev/null; then
+                echo "🔄 Memulihkan keystore permanen dari branch cadangan signing-vault..."
+                VAULT_RESTORED="true"
+              fi
+            fi
+          fi
 
           if [ ! -f "${ENCRYPTED_KEYSTORE}" ]; then
             echo "🔑 Build Pertama terdeteksi: Membuat Release Signature Key baru..."
@@ -104,12 +162,12 @@ jobs:
               -keysize 2048 \
               -validity 10000 \
               -alias upload \
-              -storepass "${DERIVED_PASS}" \
-              -keypass "${DERIVED_PASS}" \
+              -storepass "${INTERNAL_JKS_PASS}" \
+              -keypass "${INTERNAL_JKS_PASS}" \
               -dname "CN=Arek Surabaya, OU=Mobile, O=ArekSurabaya, L=Surabaya, ST=Jawa Timur, C=ID"
 
-            # Enkripsi keystore dengan AES-256 GPG memakai KEYSTORE_PASSPHRASE
-            printf '%s' "${KEYSTORE_PASSPHRASE}" | gpg \
+            # Enkripsi keystore dengan AES-256 GPG
+            printf '%s' "${ACTIVE_GPG_PASS}" | gpg \
               --batch --yes --pinentry-mode loopback \
               --passphrase-fd 0 \
               --symmetric --cipher-algo AES256 \
@@ -123,42 +181,61 @@ jobs:
               echo "-------------------------------------------------------"
               keytool -list -v \
                 -keystore "${TEMP_KEYSTORE}" \
-                -storepass "${DERIVED_PASS}" \
+                -storepass "${INTERNAL_JKS_PASS}" \
                 -alias upload | grep -E "Owner:|Issuer:|Valid from:|SHA1:|SHA256:" || true
             } > "${FINGERPRINT_FILE}"
 
-            # Simpan permanen ke repositori agar build berikutnya selalu memakai key yang sama
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add "${ENCRYPTED_KEYSTORE}" "${FINGERPRINT_FILE}"
-            git commit -m "chore(signing): initialize encrypted Android release keystore [skip ci]"
-            git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+            # Simpan permanen ke branch cadangan 'signing-vault' dan branch utama
+            save_to_vault
+            persist_to_branch
 
             echo "✅ Keystore baru berhasil dienkripsi dan disimpan permanen ke ${ENCRYPTED_KEYSTORE}"
           else
             echo "🔒 Keystore permanen ditemukan (${ENCRYPTED_KEYSTORE}): Mendekripsi signature key yang sama..."
 
-            if ! printf '%s' "${KEYSTORE_PASSPHRASE}" | gpg \
+            NEED_REENCRYPT="false"
+            if printf '%s' "${ACTIVE_GPG_PASS}" | gpg \
               --batch --yes --pinentry-mode loopback \
               --passphrase-fd 0 \
               --decrypt \
               --output "${TEMP_KEYSTORE}" \
-              "${ENCRYPTED_KEYSTORE}"; then
-              echo "::error::Gagal mendekripsi ${ENCRYPTED_KEYSTORE}. Pastikan secret KEYSTORE_PASSPHRASE tidak berubah dari saat build pertama!"
+              "${ENCRYPTED_KEYSTORE}" 2>/dev/null; then
+              echo "✅ Keystore berhasil dipulihkan tanpa mengubah signature."
+            elif [ "${USING_CUSTOM_SECRET}" = "true" ] && printf '%s' "${AUTO_GPG_PASS}" | gpg \
+              --batch --yes --pinentry-mode loopback \
+              --passphrase-fd 0 \
+              --decrypt \
+              --output "${TEMP_KEYSTORE}" \
+              "${ENCRYPTED_KEYSTORE}" 2>/dev/null; then
+              echo "🔐 Keystore otomatis lama terdeteksi: Mengenkripsi ulang keystore yang SAMA dengan secret KEYSTORE_PASSPHRASE Anda..."
+              printf '%s' "${KEYSTORE_PASSPHRASE}" | gpg \
+                --batch --yes --pinentry-mode loopback \
+                --passphrase-fd 0 \
+                --symmetric --cipher-algo AES256 \
+                --output "${ENCRYPTED_KEYSTORE}" \
+                "${TEMP_KEYSTORE}"
+              NEED_REENCRYPT="true"
+            else
+              echo "::error::Gagal mendekripsi ${ENCRYPTED_KEYSTORE}. Jika Anda menggunakan secret KEYSTORE_PASSPHRASE, pastikan nilainya tidak berubah."
               exit 1
             fi
 
-            echo "✅ Keystore berhasil dipulihkan tanpa mengubah signature."
+            if [ "${NEED_REENCRYPT}" = "true" ]; then
+              save_to_vault
+            fi
+            if [ "${VAULT_RESTORED}" = "true" ] || [ "${NEED_REENCRYPT}" = "true" ]; then
+              persist_to_branch
+            fi
           fi
 
           # Verifikasi alias 'upload' valid di dalam keystore
           keytool -list \
             -keystore "${TEMP_KEYSTORE}" \
-            -storepass "${DERIVED_PASS}" \
+            -storepass "${INTERNAL_JKS_PASS}" \
             -alias upload > /dev/null
 
           echo "keystore_path=${TEMP_KEYSTORE}" >> "${GITHUB_OUTPUT}"
-          echo "keystore_password=${DERIVED_PASS}" >> "${GITHUB_OUTPUT}"
+          echo "keystore_password=${INTERNAL_JKS_PASS}" >> "${GITHUB_OUTPUT}"
 
       - name: Build Signed Release APK & AAB
         env:
@@ -201,7 +278,7 @@ jobs:
             echo "- **AAB File:** \`$(basename "${AAB_DEST}")\`"
             echo "- **Certificate Fingerprint:** \`${SHA256_FP}\`"
             echo ""
-            echo "> Signature key dijamin konsisten dari \`.signing/release-key.jks.gpg\`."
+            echo "> Signature key dijamin konsisten secara permanen dari \`.signing/release-key.jks.gpg\`."
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload Artifact APK (Siap Install)
