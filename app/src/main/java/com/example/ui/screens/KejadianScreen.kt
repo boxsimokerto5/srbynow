@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,11 +60,11 @@ import com.example.data.model.BookmarkItem
 import com.example.data.model.IncidentReport
 import com.example.data.model.UiState
 import com.example.data.util.formatRelativeTimestamp
-import com.example.data.util.resolveImageDrawable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import com.example.ui.components.CategoryFilterRow
 import com.example.ui.components.EmptyFeedPlaceholder
+import com.example.ui.components.SurabayaRemoteOrFallbackImage
 import com.example.ui.components.openEmergencyDialer112
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.MintSoftGradient
@@ -309,8 +307,9 @@ private fun IncidentCompactCard(
                     .fillMaxWidth()
                     .height(136.dp),
             ) {
-                Image(
-                    painter = painterResource(id = resolveImageDrawable(report.imageKey)),
+                SurabayaRemoteOrFallbackImage(
+                    imageUrl = report.photoUrl,
+                    fallbackImageKey = report.imageKey,
                     contentDescription = report.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),

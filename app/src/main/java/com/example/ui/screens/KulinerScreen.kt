@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,11 +58,11 @@ import com.example.data.model.CulinarySpot
 import com.example.data.model.UiState
 import com.example.data.util.formatOperatingHours
 import com.example.data.util.isCulinaryOpenNow
-import com.example.data.util.resolveImageDrawable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.graphics.Color
 import com.example.ui.components.CategoryFilterRow
 import com.example.ui.components.EmptyFeedPlaceholder
+import com.example.ui.components.SurabayaRemoteOrFallbackImage
 import com.example.ui.theme.ClosedGrayBg
 import com.example.ui.theme.ClosedGrayText
 import com.example.ui.theme.OpenGreenBg
@@ -297,8 +295,9 @@ private fun CulinaryCompactCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Image(
-                painter = painterResource(id = resolveImageDrawable(spot.imageKey)),
+            SurabayaRemoteOrFallbackImage(
+                imageUrl = spot.photoUrl,
+                fallbackImageKey = spot.imageKey,
                 contentDescription = spot.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

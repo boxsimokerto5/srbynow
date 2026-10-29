@@ -171,6 +171,7 @@ fun SurabayaMainHub(
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val isLiveGps by viewModel.isLiveGpsActive.collectAsStateWithLifecycle()
+    val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
     val myNearbyProfile by viewModel.myNearbyProfile.collectAsStateWithLifecycle()
     val allDiscoverableCitizens by viewModel.allDiscoverableCitizens.collectAsStateWithLifecycle()
 
@@ -216,6 +217,7 @@ fun SurabayaMainHub(
 
     val currentDistrict = userAccount?.district ?: "Genteng"
     val effectiveName = userAccount?.displayName?.ifBlank { displayName } ?: displayName
+    val currentAvatarUrl = userAccount?.avatarUrl.orEmpty().ifBlank { myNearbyProfile?.avatarUrl.orEmpty() }
     val userInitials = effectiveName.trim()
         .split(" ")
         .filter { it.isNotBlank() }
@@ -236,6 +238,7 @@ fun SurabayaMainHub(
                     isAdmin = isAdmin,
                     bookmarkCount = bookmarks.size,
                     userInitials = userInitials,
+                    avatarUrl = currentAvatarUrl,
                     onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
                     onOpenProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
                 )
@@ -410,8 +413,9 @@ fun SurabayaMainHub(
                 ActiveBottomSheet.CreateIncident -> {
                     CreateIncidentSheetContent(
                         defaultDistrict = currentDistrict,
-                        onSubmit = { title, desc, cat, sev, dist, addr ->
-                            viewModel.submitIncident(title, desc, cat, sev, dist, addr)
+                        isSubmitting = isSubmitting,
+                        onSubmit = { title, desc, cat, sev, dist, addr, photoUri ->
+                            viewModel.submitIncident(title, desc, cat, sev, dist, addr, photoUri, context)
                         },
                     )
                 }
@@ -437,8 +441,21 @@ fun SurabayaMainHub(
                 ActiveBottomSheet.ProposeEvent -> {
                     ProposeEventSheetContent(
                         defaultDistrict = currentDistrict,
-                        onSubmit = { title, cat, dateTxt, timeTxt, venue, dist, addr, price, desc ->
-                            viewModel.submitEventProposal(title, cat, dateTxt, timeTxt, venue, dist, addr, price, desc)
+                        isSubmitting = isSubmitting,
+                        onSubmit = { title, cat, dateTxt, timeTxt, venue, dist, addr, price, desc, photoUri ->
+                            viewModel.submitEventProposal(
+                                title = title,
+                                category = cat,
+                                eventDateText = dateTxt,
+                                timeText = timeTxt,
+                                venueName = venue,
+                                district = dist,
+                                address = addr,
+                                priceLabel = price,
+                                description = desc,
+                                photoUri = photoUri,
+                                context = context,
+                            )
                         },
                     )
                 }
@@ -458,8 +475,20 @@ fun SurabayaMainHub(
                 ActiveBottomSheet.CreateCulinary -> {
                     CreateCulinarySheetContent(
                         defaultDistrict = currentDistrict,
-                        onSubmit = { name, cat, desc, dist, addr, price, openH, closeH ->
-                            viewModel.submitCulinarySpot(name, cat, desc, dist, addr, price, openH, closeH)
+                        isSubmitting = isSubmitting,
+                        onSubmit = { name, cat, desc, dist, addr, price, openH, closeH, photoUri ->
+                            viewModel.submitCulinarySpot(
+                                name = name,
+                                category = cat,
+                                description = desc,
+                                district = dist,
+                                address = addr,
+                                priceRange = price,
+                                openHour = openH,
+                                closeHour = closeH,
+                                photoUri = photoUri,
+                                context = context,
+                            )
                         },
                     )
                 }
@@ -470,9 +499,10 @@ fun SurabayaMainHub(
                         userEmail = email,
                         isAdmin = isAdmin,
                         focusPrivacyOnly = true,
+                        isSubmitting = isSubmitting,
                         onToggleAdmin = { viewModel.toggleAdminMode(it) },
-                        onSaveProfile = { name, dist, bio, ints, rad, disc ->
-                            viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc)
+                        onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
+                            viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context)
                         },
                         onSignOut = {},
                     )
@@ -484,9 +514,10 @@ fun SurabayaMainHub(
                         userEmail = email,
                         isAdmin = isAdmin,
                         focusPrivacyOnly = false,
+                        isSubmitting = isSubmitting,
                         onToggleAdmin = { viewModel.toggleAdminMode(it) },
-                        onSaveProfile = { name, dist, bio, ints, rad, disc ->
-                            viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc)
+                        onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
+                            viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context)
                         },
                         onSignOut = {
                             viewModel.dismissSheet()

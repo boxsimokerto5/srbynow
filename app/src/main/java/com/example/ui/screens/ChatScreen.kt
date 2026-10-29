@@ -439,6 +439,7 @@ fun StartDirectChatSheetContent(
                                 name = peer.displayName,
                                 colorHex = peer.avatarColorHex,
                                 sizeDp = 42,
+                                avatarUrl = peer.avatarUrl,
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(

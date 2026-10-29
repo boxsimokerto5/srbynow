@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -80,7 +79,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -99,7 +97,7 @@ import com.example.data.model.SurabayaEvent
 import com.example.data.util.formatOperatingHours
 import com.example.data.util.formatRelativeTimestamp
 import com.example.data.util.isCulinaryOpenNow
-import com.example.data.util.resolveImageDrawable
+import com.example.ui.components.SurabayaRemoteOrFallbackImage
 import com.example.ui.components.openGoogleMapsLocation
 import com.example.ui.screens.formatCulinaryCategoryLabel
 import com.example.ui.screens.formatEventCategoryLabel
@@ -237,8 +235,9 @@ fun IncidentDetailSheetContent(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    Image(
-                        painter = painterResource(id = resolveImageDrawable(report.imageKey)),
+                    SurabayaRemoteOrFallbackImage(
+                        imageUrl = report.photoUrl,
+                        fallbackImageKey = report.imageKey,
                         contentDescription = report.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -660,8 +659,9 @@ fun EventDetailSheetContent(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    Image(
-                        painter = painterResource(id = resolveImageDrawable(event.imageKey)),
+                    SurabayaRemoteOrFallbackImage(
+                        imageUrl = event.photoUrl,
+                        fallbackImageKey = event.imageKey,
                         contentDescription = event.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -1000,8 +1000,9 @@ fun CulinaryDetailSheetContent(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    Image(
-                        painter = painterResource(id = resolveImageDrawable(spot.imageKey)),
+                    SurabayaRemoteOrFallbackImage(
+                        imageUrl = spot.photoUrl,
+                        fallbackImageKey = spot.imageKey,
                         contentDescription = spot.name,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier

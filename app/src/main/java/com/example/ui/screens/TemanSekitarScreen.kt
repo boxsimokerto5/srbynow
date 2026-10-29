@@ -294,6 +294,7 @@ private fun NearbyPeerCard(
                         name = peer.displayName,
                         colorHex = peer.avatarColorHex,
                         sizeDp = 46,
+                        avatarUrl = peer.avatarUrl,
                     )
                     Column {
                         Text(

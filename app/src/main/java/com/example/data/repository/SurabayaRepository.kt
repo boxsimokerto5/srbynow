@@ -12,11 +12,16 @@ import com.example.data.model.IncidentReport
 import com.example.data.model.NearbyProfile
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UserAccount
+import com.example.data.pocketbase.MultipartFilePart
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.pocketbase.PocketBaseException
 import com.example.data.seed.SurabayaCuratedSeed
 import com.example.data.util.OperationType
+import com.example.data.util.PreparedPhoto
 import com.example.data.util.SurabayaDistricts
+import com.example.data.util.defaultCulinaryImageKey
+import com.example.data.util.defaultEventImageKey
+import com.example.data.util.defaultIncidentImageKey
 import com.example.data.util.logBackendError
 import com.example.data.util.parsePocketBaseTimestamp
 import java.util.UUID
@@ -227,6 +232,8 @@ class SurabayaRepository(
         isDiscoverable: Boolean,
         lat: Double,
         lng: Double,
+        avatarPhoto: PreparedPhoto? = null,
+        onPhotoSchemaMissing: (() -> Unit)? = null,
     ) {
         val uid = requireUserId()
         val cleanName = displayName.trim().take(80).ifEmpty { "Warga Surabaya" }
@@ -234,6 +241,7 @@ class SurabayaRepository(
         val cleanBio = bio.trim().take(240)
         val cleanInterests = interests.trim().take(200)
         val clampedRadius = searchRadiusKm.coerceIn(1.0, 50.0)
+        var missingAvatarSchema = false
 
         try {
             val userPatch = JSONObject().apply {
@@ -243,7 +251,35 @@ class SurabayaRepository(
                 put("search_radius_km", clampedRadius)
                 put("is_discoverable", isDiscoverable)
             }
-            pb.updateRecord("users", uid, userPatch)
+            if (avatarPhoto != null) {
+                val userFields = mapOf(
+                    "name" to cleanName,
+                    "district" to cleanDistrict,
+                    "bio" to cleanBio,
+                    "search_radius_km" to clampedRadius.toString(),
+                    "is_discoverable" to isDiscoverable.toString(),
+                )
+                val updatedUser = try {
+                    pb.updateRecordMultipart(
+                        collection = "users",
+                        recordId = uid,
+                        fields = userFields,
+                        filePart = MultipartFilePart("avatar", avatarPhoto.fileName, avatarPhoto.mimeType, avatarPhoto.bytes),
+                    )
+                } catch (e: PocketBaseException) {
+                    if (e.statusCode == 400) {
+                        missingAvatarSchema = true
+                        pb.updateRecord("users", uid, userPatch)
+                    } else {
+                        throw e
+                    }
+                }
+                if (updatedUser.optString("avatar").isBlank()) {
+                    missingAvatarSchema = true
+                }
+            } else {
+                pb.updateRecord("users", uid, userPatch)
+            }
 
             val existingNearby = pb.getOneOrNull("nearby_profiles", uid)
             if (existingNearby != null) {
@@ -256,7 +292,37 @@ class SurabayaRepository(
                     put("lng", lng)
                     put("is_discoverable", isDiscoverable)
                 }
-                pb.updateRecord("nearby_profiles", uid, nearbyPatch)
+                if (avatarPhoto != null) {
+                    val nearbyFields = mapOf(
+                        "display_name" to cleanName,
+                        "bio" to cleanBio,
+                        "district" to cleanDistrict,
+                        "interests" to cleanInterests,
+                        "lat" to lat.toString(),
+                        "lng" to lng.toString(),
+                        "is_discoverable" to isDiscoverable.toString(),
+                    )
+                    val updatedNearby = try {
+                        pb.updateRecordMultipart(
+                            collection = "nearby_profiles",
+                            recordId = uid,
+                            fields = nearbyFields,
+                            filePart = MultipartFilePart("avatar", avatarPhoto.fileName, avatarPhoto.mimeType, avatarPhoto.bytes),
+                        )
+                    } catch (e: PocketBaseException) {
+                        if (e.statusCode == 400) {
+                            missingAvatarSchema = true
+                            pb.updateRecord("nearby_profiles", uid, nearbyPatch)
+                        } else {
+                            throw e
+                        }
+                    }
+                    if (updatedNearby.optString("avatar").isBlank()) {
+                        missingAvatarSchema = true
+                    }
+                } else {
+                    pb.updateRecord("nearby_profiles", uid, nearbyPatch)
+                }
             } else {
                 val createPayload = JSONObject().apply {
                     put("id", uid)
@@ -270,7 +336,43 @@ class SurabayaRepository(
                     put("lng", lng)
                     put("is_discoverable", isDiscoverable)
                 }
-                pb.createRecord("nearby_profiles", createPayload)
+                if (avatarPhoto != null) {
+                    val createFields = mapOf(
+                        "id" to uid,
+                        "user_id" to uid,
+                        "display_name" to cleanName,
+                        "avatar_color_hex" to "#006B5E",
+                        "bio" to cleanBio,
+                        "district" to cleanDistrict,
+                        "interests" to cleanInterests,
+                        "lat" to lat.toString(),
+                        "lng" to lng.toString(),
+                        "is_discoverable" to isDiscoverable.toString(),
+                    )
+                    val createdNearby = try {
+                        pb.createRecordMultipart(
+                            collection = "nearby_profiles",
+                            fields = createFields,
+                            filePart = MultipartFilePart("avatar", avatarPhoto.fileName, avatarPhoto.mimeType, avatarPhoto.bytes),
+                        )
+                    } catch (e: PocketBaseException) {
+                        if (e.statusCode == 400) {
+                            missingAvatarSchema = true
+                            pb.createRecord("nearby_profiles", createPayload)
+                        } else {
+                            throw e
+                        }
+                    }
+                    if (createdNearby.optString("avatar").isBlank()) {
+                        missingAvatarSchema = true
+                    }
+                } else {
+                    pb.createRecord("nearby_profiles", createPayload)
+                }
+            }
+
+            if (avatarPhoto != null && missingAvatarSchema) {
+                onPhotoSchemaMissing?.invoke()
             }
         } catch (ce: CancellationException) {
             throw ce
@@ -353,21 +455,28 @@ class SurabayaRepository(
         severity: String,
         district: String,
         address: String,
-        imageKey: String = "kejadian_kota",
+        imageKey: String = defaultIncidentImageKey(category),
+        photo: PreparedPhoto? = null,
+        onPhotoSchemaMissing: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
         val recordId = PocketBaseClient.deterministicPbId("inc_${UUID.randomUUID()}")
         val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val cleanAuthor = authorName.trim().take(80).ifEmpty { "Warga Surabaya" }
+        val cleanTitle = title.trim().take(140)
+        val cleanDesc = description.trim().take(1200)
+        val cleanDistrict = district.trim().take(60)
+        val cleanAddress = address.trim().take(180)
         val payload = JSONObject().apply {
             put("id", recordId)
             put("author_id", uid)
-            put("author_name", authorName.trim().take(80).ifEmpty { "Warga Surabaya" })
-            put("title", title.trim().take(140))
-            put("description", description.trim().take(1200))
+            put("author_name", cleanAuthor)
+            put("title", cleanTitle)
+            put("description", cleanDesc)
             put("category", category)
             put("severity", severity)
-            put("district", district.trim().take(60))
-            put("address", address.trim().take(180))
+            put("district", cleanDistrict)
+            put("address", cleanAddress)
             put("lat", lat)
             put("lng", lng)
             put("image_key", imageKey)
@@ -376,7 +485,45 @@ class SurabayaRepository(
             put("comment_count", 0)
         }
         return try {
-            val created = pb.createRecord("incidents", payload)
+            val created = if (photo != null) {
+                val fields = mapOf(
+                    "id" to recordId,
+                    "author_id" to uid,
+                    "author_name" to cleanAuthor,
+                    "title" to cleanTitle,
+                    "description" to cleanDesc,
+                    "category" to category,
+                    "severity" to severity,
+                    "district" to cleanDistrict,
+                    "address" to cleanAddress,
+                    "lat" to lat.toString(),
+                    "lng" to lng.toString(),
+                    "image_key" to imageKey,
+                    "verified_count" to "1",
+                    "verified_by_uids" to uid,
+                    "comment_count" to "0",
+                )
+                val resp = try {
+                    pb.createRecordMultipart(
+                        collection = "incidents",
+                        fields = fields,
+                        filePart = MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes),
+                    )
+                } catch (e: PocketBaseException) {
+                    if (e.statusCode == 400) {
+                        onPhotoSchemaMissing?.invoke()
+                        return pb.createRecord("incidents", payload).optString("id").ifBlank { recordId }
+                    } else {
+                        throw e
+                    }
+                }
+                if (resp.optString("photo").isBlank()) {
+                    onPhotoSchemaMissing?.invoke()
+                }
+                resp
+            } else {
+                pb.createRecord("incidents", payload)
+            }
             created.optString("id").ifBlank { recordId }
         } catch (ce: CancellationException) {
             throw ce
@@ -509,26 +656,37 @@ class SurabayaRepository(
         address: String,
         priceLabel: String,
         description: String,
-        imageKey: String = "event_festival",
+        imageKey: String = defaultEventImageKey(category),
+        photo: PreparedPhoto? = null,
+        onPhotoSchemaMissing: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
         val recordId = PocketBaseClient.deterministicPbId("ev_${UUID.randomUUID()}")
         val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val cleanProposer = proposerName.trim().take(80).ifEmpty { "Warga Surabaya" }
+        val cleanTitle = title.trim().take(140)
+        val cleanDate = eventDateText.trim().take(60)
+        val cleanTime = timeText.trim().take(50)
+        val cleanVenue = venueName.trim().take(100)
+        val cleanDistrict = district.trim().take(60)
+        val cleanAddress = address.trim().take(180)
+        val cleanPrice = priceLabel.trim().take(50).ifEmpty { "Gratis" }
+        val cleanDesc = description.trim().take(1200)
         val payload = JSONObject().apply {
             put("id", recordId)
             put("proposer_id", uid)
-            put("proposer_name", proposerName.trim().take(80).ifEmpty { "Warga Surabaya" })
-            put("title", title.trim().take(140))
+            put("proposer_name", cleanProposer)
+            put("title", cleanTitle)
             put("category", category)
-            put("event_date_text", eventDateText.trim().take(60))
-            put("time_text", timeText.trim().take(50))
-            put("venue_name", venueName.trim().take(100))
-            put("district", district.trim().take(60))
-            put("address", address.trim().take(180))
+            put("event_date_text", cleanDate)
+            put("time_text", cleanTime)
+            put("venue_name", cleanVenue)
+            put("district", cleanDistrict)
+            put("address", cleanAddress)
             put("lat", lat)
             put("lng", lng)
-            put("price_label", priceLabel.trim().take(50).ifEmpty { "Gratis" })
-            put("description", description.trim().take(1200))
+            put("price_label", cleanPrice)
+            put("description", cleanDesc)
             put("image_key", imageKey)
             put("status", "PENDING")
             put("admin_note", "")
@@ -536,7 +694,49 @@ class SurabayaRepository(
             put("interested_uids", uid)
         }
         return try {
-            val created = pb.createRecord("events", payload)
+            val created = if (photo != null) {
+                val fields = mapOf(
+                    "id" to recordId,
+                    "proposer_id" to uid,
+                    "proposer_name" to cleanProposer,
+                    "title" to cleanTitle,
+                    "category" to category,
+                    "event_date_text" to cleanDate,
+                    "time_text" to cleanTime,
+                    "venue_name" to cleanVenue,
+                    "district" to cleanDistrict,
+                    "address" to cleanAddress,
+                    "lat" to lat.toString(),
+                    "lng" to lng.toString(),
+                    "price_label" to cleanPrice,
+                    "description" to cleanDesc,
+                    "image_key" to imageKey,
+                    "status" to "PENDING",
+                    "admin_note" to "",
+                    "interested_count" to "1",
+                    "interested_uids" to uid,
+                )
+                val resp = try {
+                    pb.createRecordMultipart(
+                        collection = "events",
+                        fields = fields,
+                        filePart = MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes),
+                    )
+                } catch (e: PocketBaseException) {
+                    if (e.statusCode == 400) {
+                        onPhotoSchemaMissing?.invoke()
+                        return pb.createRecord("events", payload).optString("id").ifBlank { recordId }
+                    } else {
+                        throw e
+                    }
+                }
+                if (resp.optString("photo").isBlank()) {
+                    onPhotoSchemaMissing?.invoke()
+                }
+                resp
+            } else {
+                pb.createRecord("events", payload)
+            }
             created.optString("id").ifBlank { recordId }
         } catch (ce: CancellationException) {
             throw ce
@@ -618,30 +818,80 @@ class SurabayaRepository(
         priceRange: String,
         openHour: Int,
         closeHour: Int,
+        imageKey: String = defaultCulinaryImageKey(category),
+        photo: PreparedPhoto? = null,
+        onPhotoSchemaMissing: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
         val recordId = PocketBaseClient.deterministicPbId("kul_${UUID.randomUUID()}")
         val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val cleanAuthor = authorName.trim().take(80).ifEmpty { "Warga Surabaya" }
+        val cleanName = name.trim().take(100)
+        val cleanDesc = description.trim().take(1000)
+        val cleanDistrict = district.trim().take(60)
+        val cleanAddress = address.trim().take(180)
+        val cleanPrice = priceRange.trim().take(60).ifEmpty { "Rp 15.000 - Rp 30.000" }
+        val safeOpen = openHour.coerceIn(0, 23)
+        val safeClose = closeHour.coerceIn(0, 24)
         val payload = JSONObject().apply {
             put("id", recordId)
             put("created_by", uid)
-            put("author_name", authorName.trim().take(80).ifEmpty { "Warga Surabaya" })
-            put("name", name.trim().take(100))
+            put("author_name", cleanAuthor)
+            put("name", cleanName)
             put("category", category)
-            put("description", description.trim().take(1000))
-            put("district", district.trim().take(60))
-            put("address", address.trim().take(180))
-            put("price_range", priceRange.trim().take(60).ifEmpty { "Rp 15.000 - Rp 30.000" })
-            put("open_hour", openHour.coerceIn(0, 23))
-            put("close_hour", closeHour.coerceIn(0, 24))
+            put("description", cleanDesc)
+            put("district", cleanDistrict)
+            put("address", cleanAddress)
+            put("price_range", cleanPrice)
+            put("open_hour", safeOpen)
+            put("close_hour", safeClose)
             put("lat", lat)
             put("lng", lng)
-            put("image_key", "kuliner_rawon")
+            put("image_key", imageKey)
             put("rating_avg", 5.0)
             put("review_count", 1)
         }
         return try {
-            val created = pb.createRecord("culinary", payload)
+            val created = if (photo != null) {
+                val fields = mapOf(
+                    "id" to recordId,
+                    "created_by" to uid,
+                    "author_name" to cleanAuthor,
+                    "name" to cleanName,
+                    "category" to category,
+                    "description" to cleanDesc,
+                    "district" to cleanDistrict,
+                    "address" to cleanAddress,
+                    "price_range" to cleanPrice,
+                    "open_hour" to safeOpen.toString(),
+                    "close_hour" to safeClose.toString(),
+                    "lat" to lat.toString(),
+                    "lng" to lng.toString(),
+                    "image_key" to imageKey,
+                    "rating_avg" to "5.0",
+                    "review_count" to "1",
+                )
+                val resp = try {
+                    pb.createRecordMultipart(
+                        collection = "culinary",
+                        fields = fields,
+                        filePart = MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes),
+                    )
+                } catch (e: PocketBaseException) {
+                    if (e.statusCode == 400) {
+                        onPhotoSchemaMissing?.invoke()
+                        return pb.createRecord("culinary", payload).optString("id").ifBlank { recordId }
+                    } else {
+                        throw e
+                    }
+                }
+                if (resp.optString("photo").isBlank()) {
+                    onPhotoSchemaMissing?.invoke()
+                }
+                resp
+            } else {
+                pb.createRecord("culinary", payload)
+            }
             created.optString("id").ifBlank { recordId }
         } catch (ce: CancellationException) {
             throw ce
@@ -876,6 +1126,7 @@ class SurabayaRepository(
             searchRadiusKm = j.optDouble("search_radius_km", 10.0).takeIf { !it.isNaN() && it > 0.0 } ?: 10.0,
             isDiscoverable = if (j.has("is_discoverable")) j.optBoolean("is_discoverable", true) else true,
             isAdmin = j.optBoolean("is_admin", false) || email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true),
+            avatarUrl = pb.buildFileUrl("users", id, j.optString("avatar")),
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
             updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
         )
@@ -892,40 +1143,49 @@ class SurabayaRepository(
         createdAt = parsePocketBaseTimestamp(j.optString("created")),
     )
 
-    private fun mapNearbyProfile(j: JSONObject): NearbyProfile = NearbyProfile(
-        id = j.optString("id"),
-        userId = j.optString("user_id"),
-        displayName = j.optString("display_name", "Warga Surabaya"),
-        avatarColorHex = j.optString("avatar_color_hex").ifBlank { "#006B5E" },
-        bio = j.optString("bio"),
-        district = j.optString("district").ifBlank { "Genteng" },
-        interests = j.optString("interests").ifBlank { "Kuliner, Ngopi, Keliling Kota" },
-        lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
-        lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
-        isDiscoverable = j.optBoolean("is_discoverable", true),
-        createdAt = parsePocketBaseTimestamp(j.optString("created")),
-        updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
-    )
+    private fun mapNearbyProfile(j: JSONObject): NearbyProfile {
+        val id = j.optString("id")
+        return NearbyProfile(
+            id = id,
+            userId = j.optString("user_id"),
+            displayName = j.optString("display_name", "Warga Surabaya"),
+            avatarColorHex = j.optString("avatar_color_hex").ifBlank { "#006B5E" },
+            avatarUrl = pb.buildFileUrl("nearby_profiles", id, j.optString("avatar")),
+            bio = j.optString("bio"),
+            district = j.optString("district").ifBlank { "Genteng" },
+            interests = j.optString("interests").ifBlank { "Kuliner, Ngopi, Keliling Kota" },
+            lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
+            lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+            isDiscoverable = j.optBoolean("is_discoverable", true),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
 
-    private fun mapIncident(j: JSONObject): IncidentReport = IncidentReport(
-        id = j.optString("id"),
-        authorId = j.optString("author_id"),
-        authorName = j.optString("author_name", "Warga Surabaya"),
-        title = j.optString("title"),
-        description = j.optString("description"),
-        category = j.optString("category", "INFO_WARGA").ifBlank { "INFO_WARGA" },
-        severity = j.optString("severity", "INFO").ifBlank { "INFO" },
-        district = j.optString("district", "Genteng").ifBlank { "Genteng" },
-        address = j.optString("address"),
-        lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
-        lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
-        imageKey = j.optString("image_key").ifBlank { "kejadian_kota" },
-        verifiedCount = j.optInt("verified_count", 0),
-        verifiedByUids = decodeUidList(j.optString("verified_by_uids")),
-        commentCount = j.optInt("comment_count", 0),
-        createdAt = parsePocketBaseTimestamp(j.optString("created")),
-        updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
-    )
+    private fun mapIncident(j: JSONObject): IncidentReport {
+        val id = j.optString("id")
+        val cat = j.optString("category", "INFO_WARGA").ifBlank { "INFO_WARGA" }
+        return IncidentReport(
+            id = id,
+            authorId = j.optString("author_id"),
+            authorName = j.optString("author_name", "Warga Surabaya"),
+            title = j.optString("title"),
+            description = j.optString("description"),
+            category = cat,
+            severity = j.optString("severity", "INFO").ifBlank { "INFO" },
+            district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+            address = j.optString("address"),
+            lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
+            lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+            imageKey = j.optString("image_key").ifBlank { defaultIncidentImageKey(cat) },
+            photoUrl = pb.buildFileUrl("incidents", id, j.optString("photo")),
+            verifiedCount = j.optInt("verified_count", 0),
+            verifiedByUids = decodeUidList(j.optString("verified_by_uids")),
+            commentCount = j.optInt("comment_count", 0),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
 
     private fun mapIncidentComment(j: JSONObject): IncidentComment = IncidentComment(
         id = j.optString("id"),
@@ -936,50 +1196,60 @@ class SurabayaRepository(
         createdAt = parsePocketBaseTimestamp(j.optString("created")),
     )
 
-    private fun mapEvent(j: JSONObject): SurabayaEvent = SurabayaEvent(
-        id = j.optString("id"),
-        proposerId = j.optString("proposer_id"),
-        proposerName = j.optString("proposer_name", "Warga Surabaya"),
-        title = j.optString("title"),
-        category = j.optString("category", "FESTIVAL").ifBlank { "FESTIVAL" },
-        eventDateText = j.optString("event_date_text"),
-        timeText = j.optString("time_text"),
-        venueName = j.optString("venue_name"),
-        district = j.optString("district", "Genteng").ifBlank { "Genteng" },
-        address = j.optString("address"),
-        lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
-        lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
-        priceLabel = j.optString("price_label").ifBlank { "Gratis" },
-        description = j.optString("description"),
-        imageKey = j.optString("image_key").ifBlank { "event_festival" },
-        status = j.optString("status", "PENDING").ifBlank { "PENDING" },
-        adminNote = j.optString("admin_note"),
-        interestedCount = j.optInt("interested_count", 0),
-        interestedUids = decodeUidList(j.optString("interested_uids")),
-        createdAt = parsePocketBaseTimestamp(j.optString("created")),
-        updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
-    )
+    private fun mapEvent(j: JSONObject): SurabayaEvent {
+        val id = j.optString("id")
+        val cat = j.optString("category", "FESTIVAL").ifBlank { "FESTIVAL" }
+        return SurabayaEvent(
+            id = id,
+            proposerId = j.optString("proposer_id"),
+            proposerName = j.optString("proposer_name", "Warga Surabaya"),
+            title = j.optString("title"),
+            category = cat,
+            eventDateText = j.optString("event_date_text"),
+            timeText = j.optString("time_text"),
+            venueName = j.optString("venue_name"),
+            district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+            address = j.optString("address"),
+            lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
+            lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+            priceLabel = j.optString("price_label").ifBlank { "Gratis" },
+            description = j.optString("description"),
+            imageKey = j.optString("image_key").ifBlank { defaultEventImageKey(cat) },
+            photoUrl = pb.buildFileUrl("events", id, j.optString("photo")),
+            status = j.optString("status", "PENDING").ifBlank { "PENDING" },
+            adminNote = j.optString("admin_note"),
+            interestedCount = j.optInt("interested_count", 0),
+            interestedUids = decodeUidList(j.optString("interested_uids")),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
 
-    private fun mapCulinarySpot(j: JSONObject): CulinarySpot = CulinarySpot(
-        id = j.optString("id"),
-        createdBy = j.optString("created_by"),
-        authorName = j.optString("author_name", "Warga Surabaya"),
-        name = j.optString("name"),
-        category = j.optString("category", "LEGENDARIS").ifBlank { "LEGENDARIS" },
-        description = j.optString("description"),
-        district = j.optString("district", "Genteng").ifBlank { "Genteng" },
-        address = j.optString("address"),
-        priceRange = j.optString("price_range").ifBlank { "Rp 20.000 - Rp 35.000" },
-        openHour = j.optInt("open_hour", 8),
-        closeHour = j.optInt("close_hour", 22),
-        lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
-        lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
-        imageKey = j.optString("image_key").ifBlank { "kuliner_rawon" },
-        ratingAvg = j.optDouble("rating_avg", 4.8),
-        reviewCount = j.optInt("review_count", 1),
-        createdAt = parsePocketBaseTimestamp(j.optString("created")),
-        updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
-    )
+    private fun mapCulinarySpot(j: JSONObject): CulinarySpot {
+        val id = j.optString("id")
+        val cat = j.optString("category", "LEGENDARIS").ifBlank { "LEGENDARIS" }
+        return CulinarySpot(
+            id = id,
+            createdBy = j.optString("created_by"),
+            authorName = j.optString("author_name", "Warga Surabaya"),
+            name = j.optString("name"),
+            category = cat,
+            description = j.optString("description"),
+            district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+            address = j.optString("address"),
+            priceRange = j.optString("price_range").ifBlank { "Rp 20.000 - Rp 35.000" },
+            openHour = j.optInt("open_hour", 8),
+            closeHour = j.optInt("close_hour", 22),
+            lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
+            lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+            imageKey = j.optString("image_key").ifBlank { defaultCulinaryImageKey(cat) },
+            photoUrl = pb.buildFileUrl("culinary", id, j.optString("photo")),
+            ratingAvg = j.optDouble("rating_avg", 4.8),
+            reviewCount = j.optInt("review_count", 1),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
 
     private fun mapCulinaryReview(j: JSONObject): CulinaryReview = CulinaryReview(
         id = j.optString("id"),

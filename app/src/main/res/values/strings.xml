@@ -47,4 +47,11 @@
     <string name="kuliner_review_input_hint">Bagaimana rasa &amp; suasananya?</string>
     <string name="kuliner_review_send_label">Kirim</string>
     <string name="event_details_scroll_hint">Geser detail ↕</string>
+    <string name="photo_picker_add_title">Tambah Foto Asli dari Galeri</string>
+    <string name="photo_picker_add_subtitle">Opsional • Otomatis dikompres ringan (JPEG) agar unggahan cepat</string>
+    <string name="photo_picker_change_btn">Ganti Foto</string>
+    <string name="photo_picker_remove_btn">Hapus</string>
+    <string name="avatar_picker_change_btn">Ubah Foto Profil</string>
+    <string name="submitting_upload_label">Mengunggah ke Server…</string>
+    <string name="form_hint_complete_fields">Lengkapi kolom wajib di atas agar tombol kirim aktif.</string>
 </resources>

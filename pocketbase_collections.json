@@ -80,6 +80,28 @@
         "presentable": false,
         "unique": false,
         "options": {}
+      },
+      {
+        "system": false,
+        "id": "sbyusr06",
+        "name": "avatar",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "thumbs": [
+            "200x200"
+          ],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
       }
     ],
     "indexes": [],
@@ -270,6 +292,28 @@
         "presentable": false,
         "unique": false,
         "options": {}
+      },
+      {
+        "system": false,
+        "id": "sbynp010",
+        "name": "avatar",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "thumbs": [
+            "200x200"
+          ],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
       }
     ],
     "indexes": [],
@@ -425,6 +469,29 @@
         "presentable": false,
         "unique": false,
         "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyin015",
+        "name": "photo",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "thumbs": [
+            "400x300",
+            "800x600"
+          ],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
       }
     ],
     "indexes": [],
@@ -675,6 +742,29 @@
         "presentable": false,
         "unique": false,
         "options": { "min": null, "max": 2000, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev019",
+        "name": "photo",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "thumbs": [
+            "400x300",
+            "800x600"
+          ],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
       }
     ],
     "indexes": [],
@@ -840,6 +930,29 @@
         "presentable": false,
         "unique": false,
         "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbycl016",
+        "name": "photo",
+        "type": "file",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "mimeTypes": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "thumbs": [
+            "400x300",
+            "800x600"
+          ],
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "protected": false
+        }
       }
     ],
     "indexes": [],

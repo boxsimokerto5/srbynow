@@ -1,10 +1,19 @@
 package com.example.ui.sheets
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,10 +29,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.BookmarkRemove
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -43,23 +54,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.R
 import com.example.data.model.BookmarkItem
 import com.example.data.model.NearbyProfile
 import com.example.data.model.UserAccount
 import com.example.data.util.SurabayaDistricts
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import com.example.ui.components.EmptyFeedPlaceholder
+import com.example.ui.components.FormPhotoPickerSection
 import com.example.ui.components.GoogleMapsSheetHandleHeader
+import com.example.ui.components.InitialsAvatar
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaOnPrimaryContainer
@@ -70,7 +83,16 @@ import kotlin.math.roundToInt
 @Composable
 fun CreateIncidentSheetContent(
     defaultDistrict: String,
-    onSubmit: (title: String, desc: String, category: String, severity: String, district: String, address: String) -> Unit,
+    isSubmitting: Boolean = false,
+    onSubmit: (
+        title: String,
+        desc: String,
+        category: String,
+        severity: String,
+        district: String,
+        address: String,
+        photoUri: Uri?,
+    ) -> Unit,
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -78,6 +100,11 @@ fun CreateIncidentSheetContent(
     var severity by remember { mutableStateOf("INFO") }
     var district by remember { mutableStateOf(defaultDistrict) }
     var address by remember { mutableStateOf("") }
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    val isFormValid = title.trim().length >= 3 &&
+        description.trim().length >= 3 &&
+        address.trim().length >= 2
 
     Column(
         modifier = Modifier
@@ -90,12 +117,21 @@ fun CreateIncidentSheetContent(
     ) {
         GoogleMapsSheetHandleHeader(
             title = "Laporkan Kejadian Surabaya",
-            subtitle = "Bagikan info jalan, cuaca, atau kondisi fasilitas kota secara akurat.",
+            subtitle = "Bagikan info jalan, cuaca, atau kondisi fasilitas kota secara akurat beserta foto lokasi.",
+        )
+
+        FormPhotoPickerSection(
+            selectedPhotoUri = selectedPhotoUri,
+            onPhotoSelected = { selectedPhotoUri = it },
+            enabled = !isSubmitting,
+            title = "Tambah Foto Kejadian / Lokasi",
+            subtitle = stringResource(R.string.photo_picker_add_subtitle),
         )
 
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
+            enabled = !isSubmitting,
             label = { Text("Judul Kejadian") },
             placeholder = { Text("Contoh: Pohon tumbang di Jl. Darmo") },
             shape = RoundedCornerShape(16.dp),
@@ -116,7 +152,7 @@ fun CreateIncidentSheetContent(
             ).forEach { (key, label) ->
                 FilterChip(
                     selected = category == key,
-                    onClick = { category = key },
+                    onClick = { if (!isSubmitting) category = key },
                     label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     shape = CircleShape,
                 )
@@ -127,18 +163,23 @@ fun CreateIncidentSheetContent(
             listOf("INFO" to "Info Biasa", "PENTING" to "Penting", "DARURAT" to "Darurat").forEach { (key, label) ->
                 FilterChip(
                     selected = severity == key,
-                    onClick = { severity = key },
+                    onClick = { if (!isSubmitting) severity = key },
                     label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     shape = CircleShape,
                 )
             }
         }
 
-        DistrictPickerChips(selectedDistrict = district, onSelect = { district = it })
+        DistrictPickerChips(
+            selectedDistrict = district,
+            enabled = !isSubmitting,
+            onSelect = { district = it },
+        )
 
         OutlinedTextField(
             value = address,
             onValueChange = { address = it },
+            enabled = !isSubmitting,
             label = { Text("Nama Jalan / Patokan Lokasi") },
             placeholder = { Text("Contoh: Depan Taman Bungkul arah Selatan") },
             shape = RoundedCornerShape(16.dp),
@@ -151,6 +192,7 @@ fun CreateIncidentSheetContent(
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
+            enabled = !isSubmitting,
             label = { Text("Kronologi / Detail Situasi") },
             shape = RoundedCornerShape(16.dp),
             minLines = 3,
@@ -159,18 +201,36 @@ fun CreateIncidentSheetContent(
                 .testTag("form_incident_desc"),
         )
 
+        if (!isFormValid && !isSubmitting) {
+            Text(
+                text = stringResource(R.string.form_hint_complete_fields),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         Button(
             onClick = {
-                onSubmit(title, description, category, severity, district, address)
+                onSubmit(title, description, category, severity, district, address, selectedPhotoUri)
             },
-            enabled = title.trim().length >= 3 && description.trim().length >= 5 && address.trim().length >= 3,
+            enabled = isFormValid && !isSubmitting,
             shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
                 .testTag("submit_incident_btn"),
         ) {
-            Text("Publikasikan Laporan Warga")
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.submitting_upload_label))
+            } else {
+                Text("Publikasikan Laporan Warga")
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -181,6 +241,7 @@ fun CreateIncidentSheetContent(
 @Composable
 fun ProposeEventSheetContent(
     defaultDistrict: String,
+    isSubmitting: Boolean = false,
     onSubmit: (
         title: String,
         category: String,
@@ -191,6 +252,7 @@ fun ProposeEventSheetContent(
         address: String,
         price: String,
         desc: String,
+        photoUri: Uri?,
     ) -> Unit,
 ) {
     var title by remember { mutableStateOf("") }
@@ -202,6 +264,12 @@ fun ProposeEventSheetContent(
     var address by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("Gratis") }
     var description by remember { mutableStateOf("") }
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    val isFormValid = title.trim().length >= 3 &&
+        venue.trim().length >= 2 &&
+        address.trim().length >= 2 &&
+        description.trim().length >= 3
 
     Column(
         modifier = Modifier
@@ -217,9 +285,18 @@ fun ProposeEventSheetContent(
             subtitle = "Usulan event akan masuk ke antrean moderasi dan tayang publik setelah disetujui Admin.",
         )
 
+        FormPhotoPickerSection(
+            selectedPhotoUri = selectedPhotoUri,
+            onPhotoSelected = { selectedPhotoUri = it },
+            enabled = !isSubmitting,
+            title = "Tambah Poster / Foto Event",
+            subtitle = stringResource(R.string.photo_picker_add_subtitle),
+        )
+
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
+            enabled = !isSubmitting,
             label = { Text("Nama Event / Acara") },
             shape = RoundedCornerShape(16.dp),
             singleLine = true,
@@ -238,7 +315,7 @@ fun ProposeEventSheetContent(
             ).forEach { (k, label) ->
                 FilterChip(
                     selected = category == k,
-                    onClick = { category = k },
+                    onClick = { if (!isSubmitting) category = k },
                     label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     shape = CircleShape,
                 )
@@ -249,6 +326,7 @@ fun ProposeEventSheetContent(
             OutlinedTextField(
                 value = dateText,
                 onValueChange = { dateText = it },
+                enabled = !isSubmitting,
                 label = { Text("Tanggal") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -257,6 +335,7 @@ fun ProposeEventSheetContent(
             OutlinedTextField(
                 value = timeText,
                 onValueChange = { timeText = it },
+                enabled = !isSubmitting,
                 label = { Text("Jam (WIB)") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -268,6 +347,7 @@ fun ProposeEventSheetContent(
             OutlinedTextField(
                 value = venue,
                 onValueChange = { venue = it },
+                enabled = !isSubmitting,
                 label = { Text("Nama Tempat / Venue") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -278,6 +358,7 @@ fun ProposeEventSheetContent(
             OutlinedTextField(
                 value = price,
                 onValueChange = { price = it },
+                enabled = !isSubmitting,
                 label = { Text("Tiket") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -285,11 +366,16 @@ fun ProposeEventSheetContent(
             )
         }
 
-        DistrictPickerChips(selectedDistrict = district, onSelect = { district = it })
+        DistrictPickerChips(
+            selectedDistrict = district,
+            enabled = !isSubmitting,
+            onSelect = { district = it },
+        )
 
         OutlinedTextField(
             value = address,
             onValueChange = { address = it },
+            enabled = !isSubmitting,
             label = { Text("Alamat Lengkap") },
             shape = RoundedCornerShape(16.dp),
             singleLine = true,
@@ -301,6 +387,7 @@ fun ProposeEventSheetContent(
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
+            enabled = !isSubmitting,
             label = { Text("Deskripsi Kegiatan") },
             shape = RoundedCornerShape(16.dp),
             minLines = 3,
@@ -309,18 +396,47 @@ fun ProposeEventSheetContent(
                 .testTag("form_event_desc"),
         )
 
+        if (!isFormValid && !isSubmitting) {
+            Text(
+                text = stringResource(R.string.form_hint_complete_fields),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         Button(
             onClick = {
-                onSubmit(title, category, dateText, timeText, venue, district, address, price, description)
+                onSubmit(
+                    title,
+                    category,
+                    dateText,
+                    timeText,
+                    venue,
+                    district,
+                    address,
+                    price,
+                    description,
+                    selectedPhotoUri,
+                )
             },
-            enabled = title.trim().length >= 3 && venue.trim().length >= 2 && address.trim().length >= 3 && description.trim().length >= 5,
+            enabled = isFormValid && !isSubmitting,
             shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
                 .testTag("submit_event_proposal_btn"),
         ) {
-            Text("Kirim Usulan ke Admin")
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.submitting_upload_label))
+            } else {
+                Text("Kirim Usulan ke Admin")
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -331,6 +447,7 @@ fun ProposeEventSheetContent(
 @Composable
 fun CreateCulinarySheetContent(
     defaultDistrict: String,
+    isSubmitting: Boolean = false,
     onSubmit: (
         name: String,
         category: String,
@@ -340,6 +457,7 @@ fun CreateCulinarySheetContent(
         priceRange: String,
         openHour: Int,
         closeHour: Int,
+        photoUri: Uri?,
     ) -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
@@ -350,6 +468,11 @@ fun CreateCulinarySheetContent(
     var openHourStr by remember { mutableStateOf("9") }
     var closeHourStr by remember { mutableStateOf("22") }
     var description by remember { mutableStateOf("") }
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    val isFormValid = name.trim().length >= 2 &&
+        address.trim().length >= 2 &&
+        description.trim().length >= 3
 
     Column(
         modifier = Modifier
@@ -362,12 +485,21 @@ fun CreateCulinarySheetContent(
     ) {
         GoogleMapsSheetHandleHeader(
             title = "Rekomendasikan Kuliner Surabaya",
-            subtitle = "Tambahkan warung legendaris, penyetan malam, atau kedai kopi favoritmu.",
+            subtitle = "Tambahkan warung legendaris, penyetan malam, atau kedai kopi favoritmu beserta foto hidangan.",
+        )
+
+        FormPhotoPickerSection(
+            selectedPhotoUri = selectedPhotoUri,
+            onPhotoSelected = { selectedPhotoUri = it },
+            enabled = !isSubmitting,
+            title = "Tambah Foto Menu / Warung",
+            subtitle = stringResource(R.string.photo_picker_add_subtitle),
         )
 
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
+            enabled = !isSubmitting,
             label = { Text("Nama Warung / Tempat Makan") },
             shape = RoundedCornerShape(16.dp),
             singleLine = true,
@@ -386,18 +518,23 @@ fun CreateCulinarySheetContent(
             ).forEach { (k, label) ->
                 FilterChip(
                     selected = category == k,
-                    onClick = { category = k },
+                    onClick = { if (!isSubmitting) category = k },
                     label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     shape = CircleShape,
                 )
             }
         }
 
-        DistrictPickerChips(selectedDistrict = district, onSelect = { district = it })
+        DistrictPickerChips(
+            selectedDistrict = district,
+            enabled = !isSubmitting,
+            onSelect = { district = it },
+        )
 
         OutlinedTextField(
             value = address,
             onValueChange = { address = it },
+            enabled = !isSubmitting,
             label = { Text("Alamat Jalan") },
             shape = RoundedCornerShape(16.dp),
             singleLine = true,
@@ -410,6 +547,7 @@ fun CreateCulinarySheetContent(
             OutlinedTextField(
                 value = priceRange,
                 onValueChange = { priceRange = it },
+                enabled = !isSubmitting,
                 label = { Text("Kisaran Harga") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -418,6 +556,7 @@ fun CreateCulinarySheetContent(
             OutlinedTextField(
                 value = openHourStr,
                 onValueChange = { openHourStr = it.filter(Char::isDigit).take(2) },
+                enabled = !isSubmitting,
                 label = { Text("Buka") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -426,6 +565,7 @@ fun CreateCulinarySheetContent(
             OutlinedTextField(
                 value = closeHourStr,
                 onValueChange = { closeHourStr = it.filter(Char::isDigit).take(2) },
+                enabled = !isSubmitting,
                 label = { Text("Tutup") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -436,6 +576,7 @@ fun CreateCulinarySheetContent(
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
+            enabled = !isSubmitting,
             label = { Text("Menu Andalan & Keunggulan") },
             shape = RoundedCornerShape(16.dp),
             minLines = 3,
@@ -443,6 +584,14 @@ fun CreateCulinarySheetContent(
                 .fillMaxWidth()
                 .testTag("form_kuliner_desc"),
         )
+
+        if (!isFormValid && !isSubmitting) {
+            Text(
+                text = stringResource(R.string.form_hint_complete_fields),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         Button(
             onClick = {
@@ -455,16 +604,27 @@ fun CreateCulinarySheetContent(
                     priceRange,
                     openHourStr.toIntOrNull() ?: 8,
                     closeHourStr.toIntOrNull() ?: 22,
+                    selectedPhotoUri,
                 )
             },
-            enabled = name.trim().length >= 2 && address.trim().length >= 3 && description.trim().length >= 5,
+            enabled = isFormValid && !isSubmitting,
             shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
                 .testTag("submit_kuliner_btn"),
         ) {
-            Text("Simpan Kuliner ke Direktori")
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.submitting_upload_label))
+            } else {
+                Text("Simpan Kuliner ke Direktori")
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -550,8 +710,17 @@ fun ProfileAndPrivacySheetContent(
     userEmail: String,
     isAdmin: Boolean,
     focusPrivacyOnly: Boolean,
+    isSubmitting: Boolean = false,
     onToggleAdmin: (Boolean) -> Unit,
-    onSaveProfile: (name: String, district: String, bio: String, interests: String, radiusKm: Double, discoverable: Boolean) -> Unit,
+    onSaveProfile: (
+        name: String,
+        district: String,
+        bio: String,
+        interests: String,
+        radiusKm: Double,
+        discoverable: Boolean,
+        avatarUri: Uri?,
+    ) -> Unit,
     onSignOut: () -> Unit,
 ) {
     var displayName by remember(userAccount?.displayName) { mutableStateOf(userAccount?.displayName ?: "Warga Surabaya") }
@@ -565,6 +734,16 @@ fun ProfileAndPrivacySheetContent(
     }
     var isDiscoverable by remember(userAccount?.isDiscoverable) {
         mutableStateOf(userAccount?.isDiscoverable ?: true)
+    }
+    var selectedAvatarUri by remember { mutableStateOf<Uri?>(null) }
+
+    val existingAvatarUrl = userAccount?.avatarUrl.orEmpty().ifBlank { nearbyProfile?.avatarUrl.orEmpty() }
+    val avatarPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) {
+            selectedAvatarUri = uri
+        }
     }
 
     Column(
@@ -582,6 +761,93 @@ fun ProfileAndPrivacySheetContent(
         )
 
         if (!focusPrivacyOnly) {
+            // Avatar Photo Picker Row
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF5FBF7),
+                border = BorderStroke(1.dp, OutlineVariantLight),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(58.dp)
+                            .clip(CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        InitialsAvatar(
+                            name = displayName,
+                            colorHex = nearbyProfile?.avatarColorHex ?: "#0F9D76",
+                            sizeDp = 58,
+                            avatarUrl = existingAvatarUrl,
+                        )
+                        if (selectedAvatarUri != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(selectedAvatarUri)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Pratinjau Foto Profil",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clip(CircleShape)
+                                    .testTag("profile_avatar_preview"),
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Foto Profil Warga",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = if (selectedAvatarUri != null) {
+                                "Foto baru dipilih • Tekan Simpan Pengaturan"
+                            } else {
+                                "Tampil di pojok atas, Teman Sekitar & ruang chat"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            if (!isSubmitting) {
+                                avatarPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                                )
+                            }
+                        },
+                        enabled = !isSubmitting,
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .height(48.dp)
+                            .testTag("profile_pick_avatar_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AddAPhoto,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.avatar_picker_change_btn),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
+
             // Admin Mode Switch Card (Soft Light-Green Gradient)
             Box(
                 modifier = Modifier
@@ -623,6 +889,7 @@ fun ProfileAndPrivacySheetContent(
                     Switch(
                         checked = isAdmin,
                         onCheckedChange = onToggleAdmin,
+                        enabled = !isSubmitting,
                         modifier = Modifier.testTag("admin_mode_switch"),
                     )
                 }
@@ -631,6 +898,7 @@ fun ProfileAndPrivacySheetContent(
             OutlinedTextField(
                 value = displayName,
                 onValueChange = { displayName = it },
+                enabled = !isSubmitting,
                 label = { Text("Nama Tampilan Warga") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -640,6 +908,7 @@ fun ProfileAndPrivacySheetContent(
             OutlinedTextField(
                 value = bio,
                 onValueChange = { bio = it },
+                enabled = !isSubmitting,
                 label = { Text("Bio Singkat Sapaan") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -649,6 +918,7 @@ fun ProfileAndPrivacySheetContent(
             OutlinedTextField(
                 value = interests,
                 onValueChange = { interests = it },
+                enabled = !isSubmitting,
                 label = { Text("Minat / Hobi (pisahkan koma)") },
                 shape = RoundedCornerShape(16.dp),
                 singleLine = true,
@@ -656,7 +926,11 @@ fun ProfileAndPrivacySheetContent(
             )
         }
 
-        DistrictPickerChips(selectedDistrict = district, onSelect = { district = it })
+        DistrictPickerChips(
+            selectedDistrict = district,
+            enabled = !isSubmitting,
+            onSelect = { district = it },
+        )
 
         // GPS Radius & Discoverability Controls
         Surface(
@@ -684,6 +958,7 @@ fun ProfileAndPrivacySheetContent(
                 Slider(
                     value = radiusSlider,
                     onValueChange = { radiusSlider = it },
+                    enabled = !isSubmitting,
                     valueRange = 1f..35f,
                     modifier = Modifier.testTag("gps_radius_slider"),
                 )
@@ -703,6 +978,7 @@ fun ProfileAndPrivacySheetContent(
                     Switch(
                         checked = isDiscoverable,
                         onCheckedChange = { isDiscoverable = it },
+                        enabled = !isSubmitting,
                         modifier = Modifier.testTag("discoverable_switch"),
                     )
                 }
@@ -718,24 +994,38 @@ fun ProfileAndPrivacySheetContent(
                     interests,
                     radiusSlider.roundToInt().toDouble(),
                     isDiscoverable,
+                    selectedAvatarUri,
                 )
             },
+            enabled = displayName.trim().length >= 2 && !isSubmitting,
             shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
                 .testTag("save_profile_privacy_btn"),
         ) {
-            Text("Simpan Pengaturan")
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.submitting_upload_label))
+            } else {
+                Text("Simpan Pengaturan")
+            }
         }
 
         if (!focusPrivacyOnly) {
             HorizontalDivider()
             OutlinedButton(
                 onClick = onSignOut,
+                enabled = !isSubmitting,
                 shape = CircleShape,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(48.dp)
                     .testTag("sign_out_button"),
             ) {
                 Icon(Icons.AutoMirrored.Filled.Logout, null, modifier = Modifier.size(17.dp))
@@ -752,6 +1042,7 @@ fun ProfileAndPrivacySheetContent(
 @Composable
 private fun DistrictPickerChips(
     selectedDistrict: String,
+    enabled: Boolean = true,
     onSelect: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -760,10 +1051,10 @@ private fun DistrictPickerChips(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            SurabayaDistricts.names().take(8).forEach { name ->
+            SurabayaDistricts.names().forEach { name ->
                 FilterChip(
                     selected = selectedDistrict.equals(name, ignoreCase = true),
-                    onClick = { onSelect(name) },
+                    onClick = { if (enabled) onSelect(name) },
                     label = { Text(name, style = MaterialTheme.typography.labelSmall) },
                     shape = CircleShape,
                 )

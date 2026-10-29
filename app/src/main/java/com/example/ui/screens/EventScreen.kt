@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,7 +54,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,11 +62,11 @@ import com.example.R
 import com.example.data.model.BookmarkItem
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UiState
-import com.example.data.util.resolveImageDrawable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import com.example.ui.components.CategoryFilterRow
 import com.example.ui.components.EmptyFeedPlaceholder
+import com.example.ui.components.SurabayaRemoteOrFallbackImage
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
@@ -412,8 +410,9 @@ private fun ApprovedEventCard(
                     .fillMaxWidth()
                     .height(132.dp),
             ) {
-                Image(
-                    painter = painterResource(id = resolveImageDrawable(event.imageKey)),
+                SurabayaRemoteOrFallbackImage(
+                    imageUrl = event.photoUrl,
+                    fallbackImageKey = event.imageKey,
                     contentDescription = event.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
@@ -586,6 +585,18 @@ private fun MyProposalEventCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (event.photoUrl.isNotBlank()) {
+                SurabayaRemoteOrFallbackImage(
+                    imageUrl = event.photoUrl,
+                    fallbackImageKey = event.imageKey,
+                    contentDescription = event.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -662,6 +673,18 @@ private fun PendingModerationCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
+            if (event.photoUrl.isNotBlank()) {
+                SurabayaRemoteOrFallbackImage(
+                    imageUrl = event.photoUrl,
+                    fallbackImageKey = event.imageKey,
+                    contentDescription = event.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(116.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

@@ -3,6 +3,9 @@ package com.example.ui.components
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,14 +28,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -44,16 +54,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.R
+import com.example.data.util.resolveImageDrawable
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.HeaderMintGradient
 import com.example.ui.theme.MintSoftGradient
+import com.example.ui.theme.OpenGreenBg
+import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimaryDeep
@@ -103,6 +119,7 @@ fun SurabayaCompactTopBar(
     isAdmin: Boolean,
     bookmarkCount: Int,
     userInitials: String,
+    avatarUrl: String = "",
     onOpenBookmarks: () -> Unit,
     onOpenProfile: () -> Unit,
 ) {
@@ -256,6 +273,19 @@ fun SurabayaCompactTopBar(
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                             )
+                            if (avatarUrl.isNotBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(avatarUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = stringResource(R.string.btn_profile),
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clip(CircleShape),
+                                )
+                            }
                         }
                     }
                 }
@@ -399,6 +429,7 @@ fun InitialsAvatar(
     name: String,
     colorHex: String,
     sizeDp: Int = 44,
+    avatarUrl: String = "",
 ) {
     val initials = name.trim()
         .split(" ")
@@ -428,5 +459,222 @@ fun InitialsAvatar(
             color = Color.White,
             fontWeight = FontWeight.Bold,
         )
+        if (avatarUrl.isNotBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(avatarUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(CircleShape),
+            )
+        }
     }
 }
+
+@Composable
+fun SurabayaRemoteOrFallbackImage(
+    imageUrl: String,
+    fallbackImageKey: String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+) {
+    val fallbackPainter = painterResource(id = resolveImageDrawable(fallbackImageKey))
+    if (imageUrl.isNotBlank()) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(imageUrl)
+                .crossfade(true)
+                .build(),
+            placeholder = fallbackPainter,
+            error = fallbackPainter,
+            contentDescription = contentDescription,
+            contentScale = contentScale,
+            modifier = modifier,
+        )
+    } else {
+        Image(
+            painter = fallbackPainter,
+            contentDescription = contentDescription,
+            contentScale = contentScale,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+fun FormPhotoPickerSection(
+    selectedPhotoUri: Uri?,
+    onPhotoSelected: (Uri?) -> Unit,
+    enabled: Boolean = true,
+    title: String = stringResource(R.string.photo_picker_add_title),
+    subtitle: String = stringResource(R.string.photo_picker_add_subtitle),
+) {
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) {
+            onPhotoSelected(uri)
+        }
+    }
+
+    val launchGallery = {
+        if (enabled) {
+            photoPickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+            )
+        }
+    }
+
+    if (selectedPhotoUri == null) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = Color(0xFFF3FBF7),
+            border = BorderStroke(1.dp, OutlineVariantLight),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .clickable(enabled = enabled, onClick = launchGallery)
+                .testTag("form_pick_photo_btn"),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(MintSoftGradient),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AddAPhoto,
+                        contentDescription = title,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ToskaOnPrimaryContainer,
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    } else {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = Color(0xFFF6FBF8),
+            border = BorderStroke(1.dp, OutlineVariantLight),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(152.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(selectedPhotoUri)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .testTag("form_photo_preview"),
+                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = OpenGreenBg.copy(alpha = 0.94f),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = OpenGreenText,
+                                modifier = Modifier.size(13.dp),
+                            )
+                            Text(
+                                text = "Foto Siap Diunggah",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = OpenGreenText,
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = launchGallery,
+                        enabled = enabled,
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .testTag("form_change_photo_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PhotoLibrary,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.photo_picker_change_btn))
+                    }
+                    FilledTonalButton(
+                        onClick = { onPhotoSelected(null) },
+                        enabled = enabled,
+                        shape = CircleShape,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Color(0xFFFFEFEF),
+                            contentColor = Color(0xFF93000A),
+                        ),
+                        modifier = Modifier
+                            .height(48.dp)
+                            .testTag("form_remove_photo_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DeleteOutline,
+                            contentDescription = stringResource(R.string.photo_picker_remove_btn),
+                            modifier = Modifier.size(17.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.photo_picker_remove_btn))
+                    }
+                }
+            }
+        }
+    }
+}
+

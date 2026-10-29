@@ -152,3 +152,20 @@ fun resolveImageDrawable(imageKey: String): Int {
         else -> R.drawable.img_hero_surabaya_1793207382246
     }
 }
+
+fun defaultIncidentImageKey(category: String): String = when (category) {
+    "FASILITAS", "CUACA_BANJIR" -> "hero_surabaya"
+    else -> "kejadian_kota"
+}
+
+fun defaultEventImageKey(category: String): String = when (category) {
+    "KULINER_BAZAR" -> "kuliner_rawon"
+    "OLAHRAGA", "KOMUNITAS" -> "hero_surabaya"
+    else -> "event_festival"
+}
+
+fun defaultCulinaryImageKey(category: String): String = when (category) {
+    "KOPI_NONGKRONG" -> "event_festival"
+    else -> "kuliner_rawon"
+}
+

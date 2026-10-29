@@ -2,11 +2,13 @@ package com.example.data.repository
 
 import com.example.data.model.NearbyProfile
 import com.example.data.pocketbase.PocketBaseClient
+import com.example.data.util.PreparedPhoto
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -14,6 +16,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -31,9 +34,11 @@ class SurabayaPocketBaseRepositoryTest {
     // collectionName -> (recordId -> JSONObject)
     private val collectionsDb = ConcurrentHashMap<String, ConcurrentHashMap<String, JSONObject>>()
     private val seq = AtomicInteger(1)
+    private val rejectMultipartFiles = AtomicBoolean(false)
 
     @Before
     fun setUp() {
+        rejectMultipartFiles.set(false)
         server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/api/health") { ex ->
             respondJson(ex, 200, JSONObject().put("code", 200).put("message", "API is healthy."))
@@ -154,7 +159,88 @@ class SurabayaPocketBaseRepositoryTest {
         assertEquals("Siap Mas Raka, sudah saya setujui di aplikasi!", messagesSeenByRaka[1].text)
     }
 
-    // --- Minimal In-Memory PocketBase 0.22 HTTP Server Mock ---
+    @Test
+    fun `multipart photo upload resolves PocketBase file URLs and falls back gracefully if schema missing`() = runBlocking {
+        val client = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val repo = SurabayaRepository(client)
+
+        val session = client.registerAndSignIn(
+            name = "Eko Wahyudi",
+            email = "eko@surabaya.id",
+            password = "password123",
+            district = "Rungkut",
+        )
+
+        val dummyJpeg = PreparedPhoto(
+            fileName = "kejadian_rungkut.jpg",
+            mimeType = "image/jpeg",
+            bytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xD9.toByte()),
+        )
+
+        var missingSchemaCallbackCalled = false
+        val incId = repo.createIncident(
+            authorName = session.displayName,
+            title = "Genangan Air di Jalan Raya Rungkut",
+            description = " Pengendara motor harap ambil lajur kanan.",
+            category = "CUACA_BANJIR",
+            severity = "PENTING",
+            district = "Rungkut",
+            address = "Jl. Raya Rungkut Madya",
+            photo = dummyJpeg,
+            onPhotoSchemaMissing = { missingSchemaCallbackCalled = true },
+        )
+
+        assertFalse(missingSchemaCallbackCalled)
+        val uploadedIncident = repo.observeIncidents().first().first { it.id == incId }
+        assertTrue(
+            "Expected PocketBase file URL for uploaded incident photo, got: ${uploadedIncident.photoUrl}",
+            uploadedIncident.photoUrl.startsWith("$baseUrl/api/files/incidents/$incId/"),
+        )
+
+        // Avatar upload updates both users & nearby_profiles
+        val avatarPhoto = PreparedPhoto(
+            fileName = "avatar_eko.jpg",
+            mimeType = "image/jpeg",
+            bytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x01, 0xD9.toByte()),
+        )
+        repo.updateProfileAndPrivacy(
+            displayName = "Eko Wahyudi SBY",
+            district = "Rungkut",
+            bio = "Warga Rungkut aktif",
+            interests = "Kuliner, Gowes",
+            searchRadiusKm = 12.0,
+            isDiscoverable = true,
+            lat = -7.31,
+            lng = 112.78,
+            avatarPhoto = avatarPhoto,
+        )
+        val updatedAccount = repo.observeUserAccount(session.userId).first()
+        assertTrue(updatedAccount?.avatarUrl.orEmpty().contains("/api/files/users/${session.userId}/"))
+
+        // Simulate server before pocketbase_collections.json re-import (HTTP 400 on multipart)
+        rejectMultipartFiles.set(true)
+        var fallbackNotified = false
+        val spotId = repo.createCulinarySpot(
+            authorName = session.displayName,
+            name = "Rawon Kalkulator Taman Bungkul",
+            category = "RAWON_SOTO",
+            description = "Kuah kluwek pekat khas Surabaya.",
+            district = "Wonokromo",
+            address = "Taman Bungkul",
+            priceRange = "Rp 25.000",
+            openHour = 10,
+            closeHour = 23,
+            photo = dummyJpeg,
+            onPhotoSchemaMissing = { fallbackNotified = true },
+        )
+
+        assertTrue("Should notify caller when server photo column is missing", fallbackNotified)
+        val savedSpot = repo.observeCulinarySpots().first().first { it.id == spotId }
+        assertEquals("Rawon Kalkulator Taman Bungkul", savedSpot.name)
+        assertEquals("", savedSpot.photoUrl)
+    }
+
+    // --- Minimal In-Memory PocketBase 0.22 HTTP Server Mock (JSON + multipart/form-data) ---
 
     private fun handleCollectionsEndpoint(ex: HttpExchange) {
         val rawPath = ex.requestURI.path.removePrefix("/api/collections/")
@@ -163,7 +249,9 @@ class SurabayaPocketBaseRepositoryTest {
         val actionOrSub = segments.getOrNull(1).orEmpty()
         val recordId = segments.getOrNull(2).orEmpty()
         val table = collectionsDb.computeIfAbsent(collection) { ConcurrentHashMap() }
-        val bodyStr = ex.requestBody.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        val contentType = ex.requestHeaders.getFirst("Content-Type").orEmpty()
+        val rawBytes = ex.requestBody.use { it.readBytes() }
+        val bodyStr = String(rawBytes, Charsets.UTF_8)
 
         if (collection == "users" && actionOrSub == "auth-with-password" && ex.requestMethod == "POST") {
             val req = JSONObject(bodyStr)
@@ -200,7 +288,16 @@ class SurabayaPocketBaseRepositoryTest {
                     }
                 }
                 "POST" -> {
-                    val incoming = JSONObject(bodyStr)
+                    val isMultipart = contentType.startsWith("multipart/form-data", ignoreCase = true)
+                    if (isMultipart && rejectMultipartFiles.get()) {
+                        respondJson(ex, 400, JSONObject().put("code", 400).put("message", "Failed to create record: unknown file field."))
+                        return
+                    }
+                    val incoming = if (isMultipart) {
+                        parseMultipartPayload(bodyStr, contentType)
+                    } else {
+                        JSONObject(bodyStr)
+                    }
                     val id = incoming.optString("id").ifBlank {
                         PocketBaseClient.deterministicPbId("rec_${seq.getAndIncrement()}")
                     }
@@ -214,11 +311,20 @@ class SurabayaPocketBaseRepositoryTest {
                     respondJson(ex, 200, stored)
                 }
                 "PATCH" -> {
+                    val isMultipart = contentType.startsWith("multipart/form-data", ignoreCase = true)
+                    if (isMultipart && rejectMultipartFiles.get()) {
+                        respondJson(ex, 400, JSONObject().put("code", 400).put("message", "Failed to update record."))
+                        return
+                    }
                     val existing = table[recordId]
                     if (existing == null) {
                         respondJson(ex, 404, JSONObject().put("message", "Not found"))
                     } else {
-                        val patch = JSONObject(bodyStr)
+                        val patch = if (isMultipart) {
+                            parseMultipartPayload(bodyStr, contentType)
+                        } else {
+                            JSONObject(bodyStr)
+                        }
                         val merged = JSONObject(existing.toString())
                         val keys = patch.keys()
                         while (keys.hasNext()) {
@@ -237,6 +343,39 @@ class SurabayaPocketBaseRepositoryTest {
                 }
             }
         }
+    }
+
+    private fun parseMultipartPayload(bodyStr: String, contentType: String): JSONObject {
+        val boundary = contentType.substringAfter("boundary=", "").trim().trim('"')
+        val result = JSONObject()
+        if (boundary.isBlank()) return result
+        val parts = bodyStr.split("--$boundary")
+        for (rawPart in parts) {
+            val part = rawPart.trim('\r', '\n')
+            if (part.isBlank() || part == "--") continue
+            val splitIdx = part.indexOf("\r\n\r\n")
+            if (splitIdx <= 0) continue
+            val headers = part.substring(0, splitIdx)
+            val content = part.substring(splitIdx + 4).removeSuffix("\r\n")
+            val nameMatch = Regex("name=\"([^\"]+)\"").find(headers) ?: continue
+            val fieldName = nameMatch.groupValues[1]
+            val fileMatch = Regex("filename=\"([^\"]+)\"").find(headers)
+            if (fileMatch != null) {
+                val origName = fileMatch.groupValues[1]
+                val storedFileName = origName.substringBeforeLast(".") + "_pbtest." + origName.substringAfterLast(".", "jpg")
+                result.put(fieldName, storedFileName)
+            } else {
+                when {
+                    content == "true" -> result.put(fieldName, true)
+                    content == "false" -> result.put(fieldName, false)
+                    content.toIntOrNull() != null && !content.startsWith("0") -> result.put(fieldName, content.toInt())
+                    content == "0" -> result.put(fieldName, 0)
+                    content.toDoubleOrNull() != null -> result.put(fieldName, content.toDouble())
+                    else -> result.put(fieldName, content)
+                }
+            }
+        }
+        return result
     }
 
     private fun parseQueryParam(rawQuery: String?, key: String): String {

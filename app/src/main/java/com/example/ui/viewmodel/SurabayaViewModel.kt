@@ -1,5 +1,7 @@
 package com.example.ui.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,6 +18,7 @@ import com.example.data.model.SurabayaEvent
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
 import com.example.data.repository.SurabayaRepository
+import com.example.data.util.ImageUploadHelper
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.calculateDistanceKm
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -87,6 +90,9 @@ class SurabayaViewModel(
 
     private val _isLiveGpsActive = MutableStateFlow(false)
     val isLiveGpsActive: StateFlow<Boolean> = _isLiveGpsActive.asStateFlow()
+
+    private val _isSubmitting = MutableStateFlow(false)
+    val isSubmitting: StateFlow<Boolean> = _isSubmitting.asStateFlow()
 
     // User account & Admin streams
     val userAccount: StateFlow<UserAccount?> = repository.observeUserAccount(currentUserId)
@@ -321,9 +327,31 @@ class SurabayaViewModel(
         interests: String,
         searchRadiusKm: Double,
         isDiscoverable: Boolean,
+        avatarUri: Uri? = null,
+        context: Context? = null,
     ) {
+        if (_isSubmitting.value) return
+        val appCtx = context?.applicationContext
         viewModelScope.launch {
+            _isSubmitting.value = true
             try {
+                val preparedAvatar = if (avatarUri != null && appCtx != null) {
+                    val compressed = ImageUploadHelper.preparePhotoFromUri(
+                        context = appCtx,
+                        uri = avatarUri,
+                        prefix = "avatar",
+                        maxDimensionPx = 640,
+                        initialJpegQuality = 84,
+                    )
+                    if (compressed == null) {
+                        notifyMessage("Foto profil tidak dapat diproses, silakan pilih gambar lain.")
+                        return@launch
+                    }
+                    compressed
+                } else {
+                    null
+                }
+
                 val (districtLat, districtLng) = if (_isLiveGpsActive.value) {
                     _userLat.value to _userLng.value
                 } else {
@@ -331,6 +359,8 @@ class SurabayaViewModel(
                 }
                 _userLat.value = districtLat
                 _userLng.value = districtLng
+
+                var photoSchemaMissing = false
                 repository.updateProfileAndPrivacy(
                     displayName = displayName,
                     district = district,
@@ -340,11 +370,21 @@ class SurabayaViewModel(
                     isDiscoverable = isDiscoverable,
                     lat = districtLat,
                     lng = districtLng,
+                    avatarPhoto = preparedAvatar,
+                    onPhotoSchemaMissing = { photoSchemaMissing = true },
                 )
-                notifyMessage("Pengaturan profil & privasi disimpan")
                 dismissSheet()
+                if (preparedAvatar != null && photoSchemaMissing) {
+                    notifyMessage("Profil disimpan, namun kolom avatar belum di-import di PocketBase Admin.")
+                } else if (preparedAvatar != null) {
+                    notifyMessage("Foto profil & pengaturan berhasil diperbarui!")
+                } else {
+                    notifyMessage("Pengaturan profil & privasi disimpan")
+                }
             } catch (e: Exception) {
                 notifyMessage("Gagal menyimpan pengaturan: ${e.localizedMessage ?: "Error"}")
+            } finally {
+                _isSubmitting.value = false
             }
         }
     }
@@ -387,9 +427,26 @@ class SurabayaViewModel(
         severity: String,
         district: String,
         address: String,
+        photoUri: Uri? = null,
+        context: Context? = null,
     ) {
+        if (_isSubmitting.value) return
+        val appCtx = context?.applicationContext
         viewModelScope.launch {
+            _isSubmitting.value = true
             try {
+                val preparedPhoto = if (photoUri != null && appCtx != null) {
+                    val compressed = ImageUploadHelper.preparePhotoFromUri(appCtx, photoUri, prefix = "kejadian")
+                    if (compressed == null) {
+                        notifyMessage("Foto gagal diproses, silakan pilih foto lain dari galeri.")
+                        return@launch
+                    }
+                    compressed
+                } else {
+                    null
+                }
+
+                var photoSchemaMissing = false
                 repository.createIncident(
                     authorName = currentDisplayName(),
                     title = title,
@@ -398,11 +455,19 @@ class SurabayaViewModel(
                     severity = severity,
                     district = district,
                     address = address,
+                    photo = preparedPhoto,
+                    onPhotoSchemaMissing = { photoSchemaMissing = true },
                 )
                 dismissSheet()
-                notifyMessage("Laporan kejadian berhasil dipublikasikan")
+                if (preparedPhoto != null && photoSchemaMissing) {
+                    notifyMessage("Laporan tayang! Untuk menampilkan foto, import ulang pocketbase_collections.json di Admin.")
+                } else {
+                    notifyMessage("Laporan kejadian berhasil dipublikasikan!")
+                }
             } catch (e: Exception) {
-                notifyMessage("Gagal mengirim laporan: ${e.localizedMessage ?: ""}")
+                notifyMessage("Gagal mengirim laporan: ${e.localizedMessage ?: "Periksa koneksi internet"}")
+            } finally {
+                _isSubmitting.value = false
             }
         }
     }
@@ -438,9 +503,26 @@ class SurabayaViewModel(
         address: String,
         priceLabel: String,
         description: String,
+        photoUri: Uri? = null,
+        context: Context? = null,
     ) {
+        if (_isSubmitting.value) return
+        val appCtx = context?.applicationContext
         viewModelScope.launch {
+            _isSubmitting.value = true
             try {
+                val preparedPhoto = if (photoUri != null && appCtx != null) {
+                    val compressed = ImageUploadHelper.preparePhotoFromUri(appCtx, photoUri, prefix = "event")
+                    if (compressed == null) {
+                        notifyMessage("Poster/foto event gagal diproses, silakan pilih gambar lain.")
+                        return@launch
+                    }
+                    compressed
+                } else {
+                    null
+                }
+
+                var photoSchemaMissing = false
                 repository.proposeEvent(
                     proposerName = currentDisplayName(),
                     title = title,
@@ -452,11 +534,19 @@ class SurabayaViewModel(
                     address = address,
                     priceLabel = priceLabel,
                     description = description,
+                    photo = preparedPhoto,
+                    onPhotoSchemaMissing = { photoSchemaMissing = true },
                 )
                 dismissSheet()
-                notifyMessage("Usulan event dikirim! Menunggu persetujuan Admin.")
+                if (preparedPhoto != null && photoSchemaMissing) {
+                    notifyMessage("Usulan event terkirim! Import ulang pocketbase_collections.json di Admin agar poster tampil.")
+                } else {
+                    notifyMessage("Usulan event dikirim! Menunggu persetujuan Admin.")
+                }
             } catch (e: Exception) {
-                notifyMessage("Gagal mengusulkan event: ${e.localizedMessage ?: ""}")
+                notifyMessage("Gagal mengusulkan event: ${e.localizedMessage ?: "Periksa koneksi internet"}")
+            } finally {
+                _isSubmitting.value = false
             }
         }
     }
@@ -495,9 +585,26 @@ class SurabayaViewModel(
         priceRange: String,
         openHour: Int,
         closeHour: Int,
+        photoUri: Uri? = null,
+        context: Context? = null,
     ) {
+        if (_isSubmitting.value) return
+        val appCtx = context?.applicationContext
         viewModelScope.launch {
+            _isSubmitting.value = true
             try {
+                val preparedPhoto = if (photoUri != null && appCtx != null) {
+                    val compressed = ImageUploadHelper.preparePhotoFromUri(appCtx, photoUri, prefix = "kuliner")
+                    if (compressed == null) {
+                        notifyMessage("Foto kuliner gagal diproses, silakan pilih gambar lain.")
+                        return@launch
+                    }
+                    compressed
+                } else {
+                    null
+                }
+
+                var photoSchemaMissing = false
                 repository.createCulinarySpot(
                     authorName = currentDisplayName(),
                     name = name,
@@ -508,11 +615,19 @@ class SurabayaViewModel(
                     priceRange = priceRange,
                     openHour = openHour,
                     closeHour = closeHour,
+                    photo = preparedPhoto,
+                    onPhotoSchemaMissing = { photoSchemaMissing = true },
                 )
                 dismissSheet()
-                notifyMessage("Rekomendasi kuliner berhasil ditambahkan!")
+                if (preparedPhoto != null && photoSchemaMissing) {
+                    notifyMessage("Kuliner tersimpan! Import ulang pocketbase_collections.json di Admin agar foto tampil.")
+                } else {
+                    notifyMessage("Rekomendasi kuliner berhasil ditambahkan!")
+                }
             } catch (e: Exception) {
-                notifyMessage("Gagal menambah kuliner")
+                notifyMessage("Gagal menambah kuliner: ${e.localizedMessage ?: "Periksa koneksi internet"}")
+            } finally {
+                _isSubmitting.value = false
             }
         }
     }

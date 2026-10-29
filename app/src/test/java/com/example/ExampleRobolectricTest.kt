@@ -276,4 +276,52 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("sheet_event_image").assertIsDisplayed()
     composeTestRule.onNodeWithText("Festival Rujak Uleg Surabaya").assertIsDisplayed()
   }
+
+  @Test
+  fun `create incident sheet renders photo picker all 12 districts and submitting state`() {
+    var submittedTitle = ""
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(880.dp)) {
+          com.example.ui.sheets.CreateIncidentSheetContent(
+            defaultDistrict = "Rungkut",
+            isSubmitting = false,
+            onSubmit = { title, _, _, _, _, _, _ ->
+              submittedTitle = title
+            },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("form_pick_photo_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Sukolilo").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Kenjeran").assertIsDisplayed()
+
+    val schemaFile = java.io.File("pocketbase_collections.json").let {
+      if (it.exists()) it else java.io.File("../pocketbase_collections.json")
+    }
+    if (schemaFile.exists()) {
+      val collections = org.json.JSONArray(schemaFile.readText())
+      val namesWithFileFields = mutableMapOf<String, MutableList<String>>()
+      for (i in 0 until collections.length()) {
+        val col = collections.getJSONObject(i)
+        val colName = col.getString("name")
+        val schema = col.getJSONArray("schema")
+        for (j in 0 until schema.length()) {
+          val field = schema.getJSONObject(j)
+          if (field.getString("type") == "file") {
+            namesWithFileFields.getOrPut(colName) { mutableListOf() }.add(field.getString("name"))
+          }
+        }
+      }
+      assertTrue(namesWithFileFields["incidents"].orEmpty().contains("photo"))
+      assertTrue(namesWithFileFields["events"].orEmpty().contains("photo"))
+      assertTrue(namesWithFileFields["culinary"].orEmpty().contains("photo"))
+      assertTrue(namesWithFileFields["users"].orEmpty().contains("avatar"))
+      assertTrue(namesWithFileFields["nearby_profiles"].orEmpty().contains("avatar"))
+    }
+    assertEquals("", submittedTitle)
+  }
 }

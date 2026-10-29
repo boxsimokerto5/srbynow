@@ -35,8 +35,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
@@ -47,6 +49,30 @@ class PocketBaseException(
     val statusCode: Int,
     override val message: String,
 ) : IOException(message)
+
+data class MultipartFilePart(
+    val fieldName: String,
+    val fileName: String,
+    val mimeType: String = "image/jpeg",
+    val bytes: ByteArray,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MultipartFilePart) return false
+        return fieldName == other.fieldName &&
+            fileName == other.fileName &&
+            mimeType == other.mimeType &&
+            bytes.contentEquals(other.bytes)
+    }
+
+    override fun hashCode(): Int {
+        var result = fieldName.hashCode()
+        result = 31 * result + fileName.hashCode()
+        result = 31 * result + mimeType.hashCode()
+        result = 31 * result + bytes.contentHashCode()
+        return result
+    }
+}
 
 class PocketBaseClient(
     baseUrlInput: String,
@@ -59,9 +85,9 @@ class PocketBaseClient(
         private set
 
     private val httpClient: OkHttpClient = httpClientOverride ?: OkHttpClient.Builder()
-        .connectTimeout(12, TimeUnit.SECONDS)
-        .readTimeout(18, TimeUnit.SECONDS)
-        .writeTimeout(18, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(25, TimeUnit.SECONDS)
+        .writeTimeout(35, TimeUnit.SECONDS)
         .build()
 
     private val sseClient: OkHttpClient = httpClient.newBuilder()
@@ -309,12 +335,72 @@ class PocketBaseClient(
         created
     }
 
+    suspend fun createRecordMultipart(
+        collection: String,
+        fields: Map<String, String>,
+        filePart: MultipartFilePart? = null,
+    ): JSONObject = withContext(Dispatchers.IO) {
+        val multipartBody = buildMultipartBody(fields, filePart)
+        val raw = executeRequestBody(
+            method = "POST",
+            path = "/api/collections/$collection/records",
+            reqBody = multipartBody,
+            includeAuth = true,
+        )
+        val created = if (raw.isBlank()) JSONObject() else JSONObject(raw)
+        notifyCollectionChanged(collection)
+        created
+    }
+
     suspend fun updateRecord(
         collection: String,
         recordId: String,
         payload: JSONObject,
     ): JSONObject = withContext(Dispatchers.IO) {
         val updated = executeJson("PATCH", "/api/collections/$collection/records/$recordId", payload, includeAuth = true)
+        syncUserSessionAfterPatch(collection, recordId, updated)
+        notifyCollectionChanged(collection)
+        updated
+    }
+
+    suspend fun updateRecordMultipart(
+        collection: String,
+        recordId: String,
+        fields: Map<String, String>,
+        filePart: MultipartFilePart? = null,
+    ): JSONObject = withContext(Dispatchers.IO) {
+        val multipartBody = buildMultipartBody(fields, filePart)
+        val raw = executeRequestBody(
+            method = "PATCH",
+            path = "/api/collections/$collection/records/$recordId",
+            reqBody = multipartBody,
+            includeAuth = true,
+        )
+        val updated = if (raw.isBlank()) JSONObject() else JSONObject(raw)
+        syncUserSessionAfterPatch(collection, recordId, updated)
+        notifyCollectionChanged(collection)
+        updated
+    }
+
+    fun buildFileUrl(
+        collection: String,
+        recordId: String,
+        fileName: String,
+        thumb: String? = null,
+    ): String {
+        val cleanId = recordId.trim()
+        val cleanFile = fileName.trim()
+        if (cleanId.isEmpty() || cleanFile.isEmpty()) return ""
+        val encodedFile = encodeParam(cleanFile).replace("+", "%20")
+        val base = "$baseUrl/api/files/$collection/$cleanId/$encodedFile"
+        return if (!thumb.isNullOrBlank()) "$base?thumb=${encodeParam(thumb)}" else base
+    }
+
+    private suspend fun syncUserSessionAfterPatch(
+        collection: String,
+        recordId: String,
+        updated: JSONObject,
+    ) {
         if (collection == "users" && recordId == _sessionFlow.value?.userId) {
             val cur = _sessionFlow.value
             if (cur != null) {
@@ -327,8 +413,24 @@ class PocketBaseClient(
                 saveSession(nextSession)
             }
         }
-        notifyCollectionChanged(collection)
-        updated
+    }
+
+    private fun buildMultipartBody(
+        fields: Map<String, String>,
+        filePart: MultipartFilePart?,
+    ): MultipartBody {
+        val builder = MultipartBody.Builder().setType(MultipartBody.FORM)
+        for ((key, value) in fields) {
+            builder.addFormDataPart(key, value)
+        }
+        if (filePart != null && filePart.bytes.isNotEmpty()) {
+            builder.addFormDataPart(
+                filePart.fieldName,
+                filePart.fileName,
+                filePart.bytes.toRequestBody(filePart.mimeType.toMediaType()),
+            )
+        }
+        return builder.build()
     }
 
     suspend fun deleteRecord(
@@ -511,7 +613,15 @@ class PocketBaseClient(
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val reqBody = bodyJson?.toString()?.toRequestBody(mediaType)
             ?: if (method == "POST" || method == "PATCH") "{}".toRequestBody(mediaType) else null
+        return executeRequestBody(method, path, reqBody, includeAuth)
+    }
 
+    private fun executeRequestBody(
+        method: String,
+        path: String,
+        reqBody: RequestBody?,
+        includeAuth: Boolean,
+    ): String {
         val req = Request.Builder()
             .url("$baseUrl$path")
             .applyAuth(includeAuth)
