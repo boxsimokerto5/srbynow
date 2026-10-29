@@ -36,13 +36,27 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK Licenses
+      - name: Setup Android SDK & Licenses
         run: |
-          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --update > /dev/null || true
-          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          sudo mkdir -p "${SDK_ROOT}/licenses"
+          sudo chown -R "$(id -u):$(id -g)" "${SDK_ROOT}" || true
+
+          echo "ANDROID_HOME=${SDK_ROOT}" >> "${GITHUB_ENV}"
+          echo "ANDROID_SDK_ROOT=${SDK_ROOT}" >> "${GITHUB_ENV}"
+          if [ -d "${SDK_ROOT}/platform-tools" ]; then
+            echo "${SDK_ROOT}/platform-tools" >> "${GITHUB_PATH}"
+          fi
+
+          # Tulis hash lisensi resmi Android SDK agar Gradle dapat mengunduh SDK 36.1 otomatis
+          printf "\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n85435445a95c234340d05367a999a69d7b46701c\n" > "${SDK_ROOT}/licenses/android-sdk-license"
+          printf "\n84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f2910\n" > "${SDK_ROOT}/licenses/android-sdk-preview-license"
+
+          SDKMANAGER="$(find "${SDK_ROOT}/cmdline-tools" -path "*/bin/sdkmanager" -type f 2>/dev/null | sort -V | tail -n 1 || command -v sdkmanager || true)"
+          if [ -n "${SDKMANAGER}" ]; then
+            echo "Menggunakan sdkmanager: ${SDKMANAGER}"
+            yes | "${SDKMANAGER}" --licenses > /dev/null || true
+          fi
 
       - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
