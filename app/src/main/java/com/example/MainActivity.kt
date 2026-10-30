@@ -1,5 +1,6 @@
 package com.example
 
+import android.content.Intent
 import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -66,6 +67,7 @@ import com.example.data.model.UiState
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.repository.SurabayaRepository
 import com.example.ui.auth.AuthScreen
+import com.example.ui.auth.OAuthRedirectBus
 import com.example.ui.auth.performSignOut
 import com.example.ui.components.SurabayaCompactTopBar
 import com.example.ui.screens.ChatScreen
@@ -91,6 +93,7 @@ import com.example.ui.viewmodel.SurabayaViewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        OAuthRedirectBus.handleIncomingIntent(intent)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
                 AndroidColor.TRANSPARENT,
@@ -106,6 +109,11 @@ class MainActivity : ComponentActivity() {
                 AppNavigation()
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        OAuthRedirectBus.handleIncomingIntent(intent)
     }
 }
 
@@ -476,7 +484,7 @@ fun SurabayaMainHub(
                     CreateCulinarySheetContent(
                         defaultDistrict = currentDistrict,
                         isSubmitting = isSubmitting,
-                        onSubmit = { name, cat, desc, dist, addr, price, openH, closeH, photoUri ->
+                        onSubmit = { name, cat, desc, dist, addr, price, openH, closeH, mapsUrl, gofoodUrl, grabfoodUrl, shopeefoodUrl, photoUris ->
                             viewModel.submitCulinarySpot(
                                 name = name,
                                 category = cat,
@@ -486,7 +494,11 @@ fun SurabayaMainHub(
                                 priceRange = price,
                                 openHour = openH,
                                 closeHour = closeH,
-                                photoUri = photoUri,
+                                mapsUrl = mapsUrl,
+                                gofoodUrl = gofoodUrl,
+                                grabfoodUrl = grabfoodUrl,
+                                shopeefoodUrl = shopeefoodUrl,
+                                photoUris = photoUris,
                                 context = context,
                             )
                         },

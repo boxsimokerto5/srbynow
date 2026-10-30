@@ -949,10 +949,50 @@
             "400x300",
             "800x600"
           ],
-          "maxSelect": 1,
+          "maxSelect": 4,
           "maxSize": 5242880,
           "protected": false
         }
+      },
+      {
+        "system": false,
+        "id": "sbycl017",
+        "name": "maps_url",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl018",
+        "name": "gofood_url",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl019",
+        "name": "grabfood_url",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl020",
+        "name": "shopeefood_url",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 500, "pattern": "" }
       }
     ],
     "indexes": [],

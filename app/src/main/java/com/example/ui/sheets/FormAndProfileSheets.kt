@@ -32,7 +32,14 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.BookmarkRemove
+import androidx.compose.material.icons.filled.DeliveryDining
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -70,6 +77,7 @@ import com.example.data.model.NearbyProfile
 import com.example.data.model.UserAccount
 import com.example.data.util.SurabayaDistricts
 import com.example.ui.components.EmptyFeedPlaceholder
+import com.example.ui.components.FormMultiPhotoPickerSection
 import com.example.ui.components.FormPhotoPickerSection
 import com.example.ui.components.GoogleMapsSheetHandleHeader
 import com.example.ui.components.InitialsAvatar
@@ -457,18 +465,27 @@ fun CreateCulinarySheetContent(
         priceRange: String,
         openHour: Int,
         closeHour: Int,
-        photoUri: Uri?,
+        mapsUrl: String,
+        gofoodUrl: String,
+        grabfoodUrl: String,
+        shopeefoodUrl: String,
+        photoUris: List<Uri>,
     ) -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("LEGENDARIS") }
     var district by remember { mutableStateOf(defaultDistrict) }
     var address by remember { mutableStateOf("") }
+    var mapsUrl by remember { mutableStateOf("") }
     var priceRange by remember { mutableStateOf("Rp 18.000 - Rp 32.000") }
     var openHourStr by remember { mutableStateOf("9") }
     var closeHourStr by remember { mutableStateOf("22") }
     var description by remember { mutableStateOf("") }
-    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var gofoodUrl by remember { mutableStateOf("") }
+    var grabfoodUrl by remember { mutableStateOf("") }
+    var shopeefoodUrl by remember { mutableStateOf("") }
+    var showDeliveryInputs by remember { mutableStateOf(false) }
+    var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     val isFormValid = name.trim().length >= 2 &&
         address.trim().length >= 2 &&
@@ -485,15 +502,14 @@ fun CreateCulinarySheetContent(
     ) {
         GoogleMapsSheetHandleHeader(
             title = "Rekomendasikan Kuliner Surabaya",
-            subtitle = "Tambahkan warung legendaris, penyetan malam, atau kedai kopi favoritmu beserta foto hidangan.",
+            subtitle = "Unggah hingga 4 foto menu/warung, titik Google Maps, serta link pesan online.",
         )
 
-        FormPhotoPickerSection(
-            selectedPhotoUri = selectedPhotoUri,
-            onPhotoSelected = { selectedPhotoUri = it },
+        FormMultiPhotoPickerSection(
+            selectedPhotoUris = selectedPhotoUris,
+            onPhotosChanged = { selectedPhotoUris = it.take(4) },
+            maxPhotos = 4,
             enabled = !isSubmitting,
-            title = "Tambah Foto Menu / Warung",
-            subtitle = stringResource(R.string.photo_picker_add_subtitle),
         )
 
         OutlinedTextField(
@@ -543,6 +559,27 @@ fun CreateCulinarySheetContent(
                 .testTag("form_kuliner_address"),
         )
 
+        OutlinedTextField(
+            value = mapsUrl,
+            onValueChange = { mapsUrl = it },
+            enabled = !isSubmitting,
+            label = { Text(stringResource(R.string.kuliner_maps_link_label)) },
+            placeholder = { Text(stringResource(R.string.kuliner_maps_link_placeholder)) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Map,
+                    contentDescription = null,
+                    tint = ToskaPrimaryDeep,
+                    modifier = Modifier.size(19.dp),
+                )
+            },
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_kuliner_maps_url"),
+        )
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = priceRange,
@@ -571,6 +608,129 @@ fun CreateCulinarySheetContent(
                 singleLine = true,
                 modifier = Modifier.weight(0.6f),
             )
+        }
+
+        // Expandable Online Food Delivery Links Section (GoFood, GrabFood, ShopeeFood)
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = Color(0xFFF6FBF8),
+            border = BorderStroke(1.dp, OutlineVariantLight),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isSubmitting) { showDeliveryInputs = !showDeliveryInputs }
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .testTag("form_kuliner_toggle_delivery_btn"),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DeliveryDining,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Column {
+                            Text(
+                                text = stringResource(R.string.kuliner_delivery_section_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = ToskaOnPrimaryContainer,
+                            )
+                            Text(
+                                text = "Sematkan GoFood, GrabFood, atau ShopeeFood",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = if (showDeliveryInputs) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                    )
+                }
+
+                AnimatedVisibility(visible = showDeliveryInputs) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = gofoodUrl,
+                            onValueChange = { gofoodUrl = it },
+                            enabled = !isSubmitting,
+                            label = { Text(stringResource(R.string.kuliner_gofood_label)) },
+                            placeholder = { Text("https://gofood.link/…") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.DeliveryDining,
+                                    contentDescription = null,
+                                    tint = Color(0xFFC62828),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("form_kuliner_gofood_url"),
+                        )
+
+                        OutlinedTextField(
+                            value = grabfoodUrl,
+                            onValueChange = { grabfoodUrl = it },
+                            enabled = !isSubmitting,
+                            label = { Text(stringResource(R.string.kuliner_grabfood_label)) },
+                            placeholder = { Text("https://r.grab.com/…") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Storefront,
+                                    contentDescription = null,
+                                    tint = Color(0xFF00880C),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("form_kuliner_grabfood_url"),
+                        )
+
+                        OutlinedTextField(
+                            value = shopeefoodUrl,
+                            onValueChange = { shopeefoodUrl = it },
+                            enabled = !isSubmitting,
+                            label = { Text(stringResource(R.string.kuliner_shopeefood_label)) },
+                            placeholder = { Text("https://shopee.co.id/universal-link/now-food/…") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.ShoppingBag,
+                                    contentDescription = null,
+                                    tint = Color(0xFFD84315),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("form_kuliner_shopeefood_url"),
+                        )
+                    }
+                }
+            }
         }
 
         OutlinedTextField(
@@ -604,7 +764,11 @@ fun CreateCulinarySheetContent(
                     priceRange,
                     openHourStr.toIntOrNull() ?: 8,
                     closeHourStr.toIntOrNull() ?: 22,
-                    selectedPhotoUri,
+                    mapsUrl,
+                    gofoodUrl,
+                    grabfoodUrl,
+                    shopeefoodUrl,
+                    selectedPhotoUris,
                 )
             },
             enabled = isFormValid && !isSubmitting,

@@ -585,7 +585,11 @@ class SurabayaViewModel(
         priceRange: String,
         openHour: Int,
         closeHour: Int,
-        photoUri: Uri? = null,
+        mapsUrl: String = "",
+        gofoodUrl: String = "",
+        grabfoodUrl: String = "",
+        shopeefoodUrl: String = "",
+        photoUris: List<Uri> = emptyList(),
         context: Context? = null,
     ) {
         if (_isSubmitting.value) return
@@ -593,18 +597,27 @@ class SurabayaViewModel(
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
-                val preparedPhoto = if (photoUri != null && appCtx != null) {
-                    val compressed = ImageUploadHelper.preparePhotoFromUri(appCtx, photoUri, prefix = "kuliner")
-                    if (compressed == null) {
-                        notifyMessage("Foto kuliner gagal diproses, silakan pilih gambar lain.")
-                        return@launch
+                val preparedPhotos = buildList {
+                    if (appCtx != null) {
+                        for ((idx, uri) in photoUris.take(4).withIndex()) {
+                            val compressed = ImageUploadHelper.preparePhotoFromUri(
+                                context = appCtx,
+                                uri = uri,
+                                prefix = "kuliner${idx + 1}",
+                            )
+                            if (compressed != null) {
+                                add(compressed)
+                            }
+                        }
                     }
-                    compressed
-                } else {
-                    null
+                }
+                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                    notifyMessage("Foto kuliner gagal diproses, silakan pilih gambar lain.")
+                    return@launch
                 }
 
                 var photoSchemaMissing = false
+                var multiPhotoFallbackUsed = false
                 repository.createCulinarySpot(
                     authorName = currentDisplayName(),
                     name = name,
@@ -615,14 +628,25 @@ class SurabayaViewModel(
                     priceRange = priceRange,
                     openHour = openHour,
                     closeHour = closeHour,
-                    photo = preparedPhoto,
+                    mapsUrl = mapsUrl,
+                    gofoodUrl = gofoodUrl,
+                    grabfoodUrl = grabfoodUrl,
+                    shopeefoodUrl = shopeefoodUrl,
+                    photos = preparedPhotos,
                     onPhotoSchemaMissing = { photoSchemaMissing = true },
+                    onMultiPhotoFallbackUsed = { multiPhotoFallbackUsed = true },
                 )
                 dismissSheet()
-                if (preparedPhoto != null && photoSchemaMissing) {
-                    notifyMessage("Kuliner tersimpan! Import ulang pocketbase_collections.json di Admin agar foto tampil.")
-                } else {
-                    notifyMessage("Rekomendasi kuliner berhasil ditambahkan!")
+                when {
+                    preparedPhotos.isNotEmpty() && photoSchemaMissing -> {
+                        notifyMessage("Kuliner tersimpan! Import ulang pocketbase_collections.json di Admin agar foto tampil.")
+                    }
+                    multiPhotoFallbackUsed -> {
+                        notifyMessage("Kuliner tersimpan dengan 1 foto! Import ulang pocketbase_collections.json di Admin untuk mengaktifkan hingga 4 foto.")
+                    }
+                    else -> {
+                        notifyMessage("Rekomendasi kuliner berhasil ditambahkan!")
+                    }
                 }
             } catch (e: Exception) {
                 notifyMessage("Gagal menambah kuliner: ${e.localizedMessage ?: "Periksa koneksi internet"}")

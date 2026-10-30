@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.R
+import com.example.data.model.PbOAuth2Provider
 import com.example.data.model.PbUserSession
 import java.io.BufferedReader
 import java.io.IOException
@@ -233,6 +234,87 @@ class PocketBaseClient(
         session
     }
 
+    suspend fun fetchOAuth2Providers(): List<PbOAuth2Provider> = withContext(Dispatchers.IO) {
+        val json = executeJson("GET", "/api/collections/users/auth-methods", null, includeAuth = false)
+        val arr = json.optJSONArray("authProviders") ?: JSONArray()
+        buildList(arr.length()) {
+            for (i in 0 until arr.length()) {
+                val p = arr.optJSONObject(i) ?: continue
+                add(
+                    PbOAuth2Provider(
+                        name = p.optString("name"),
+                        displayName = p.optString("displayName").ifBlank { p.optString("name") },
+                        state = p.optString("state"),
+                        codeVerifier = p.optString("codeVerifier"),
+                        codeChallenge = p.optString("codeChallenge"),
+                        authUrl = p.optString("authUrl"),
+                    ),
+                )
+            }
+        }
+    }
+
+    suspend fun savePendingOAuth2Flow(
+        providerName: String,
+        codeVerifier: String,
+        state: String,
+        redirectUrl: String = OAUTH2_REDIRECT_URI,
+    ) = withContext(Dispatchers.IO) {
+        dataStore?.edit { prefs ->
+            prefs[KEY_OAUTH_PROVIDER] = providerName
+            prefs[KEY_OAUTH_VERIFIER] = codeVerifier
+            prefs[KEY_OAUTH_STATE] = state
+            prefs[KEY_OAUTH_REDIRECT] = redirectUrl
+        }
+    }
+
+    suspend fun completePendingOAuth2FromCallback(
+        code: String,
+        returnedState: String?,
+    ): PbUserSession = withContext(Dispatchers.IO) {
+        val ds = dataStore ?: throw PocketBaseException(400, "Sesi OAuth2 lokal tidak tersedia.")
+        val prefs = ds.data.first()
+        val provider = prefs[KEY_OAUTH_PROVIDER].orEmpty()
+        val verifier = prefs[KEY_OAUTH_VERIFIER].orEmpty()
+        val expectedState = prefs[KEY_OAUTH_STATE].orEmpty()
+        val redirectUrl = prefs[KEY_OAUTH_REDIRECT].orEmpty().ifBlank { OAUTH2_REDIRECT_URI }
+
+        if (provider.isBlank() || verifier.isBlank()) {
+            throw PocketBaseException(400, "Sesi login sosial telah kedaluwarsa. Silakan ulangi klik ikon login.")
+        }
+        if (expectedState.isNotBlank() && !returnedState.isNullOrBlank() && expectedState != returnedState) {
+            throw PocketBaseException(400, "Validasi keamanan state OAuth2 tidak cocok. Silakan coba lagi.")
+        }
+
+        val body = JSONObject().apply {
+            put("provider", provider)
+            put("code", code.trim())
+            put("codeVerifier", verifier)
+            put("redirectUrl", redirectUrl)
+            put(
+                "createData",
+                JSONObject().apply {
+                    put("district", "Genteng")
+                    put("bio", "Warga aktif Arek Surabaya")
+                    put("search_radius_km", 10.0)
+                    put("is_discoverable", true)
+                },
+            )
+        }
+        val json = executeJson("POST", "/api/collections/users/auth-with-oauth2", body, includeAuth = false)
+        ds.edit { editPrefs ->
+            editPrefs.remove(KEY_OAUTH_PROVIDER)
+            editPrefs.remove(KEY_OAUTH_VERIFIER)
+            editPrefs.remove(KEY_OAUTH_STATE)
+            editPrefs.remove(KEY_OAUTH_REDIRECT)
+        }
+        val session = parseAuthSession(json)
+        saveSession(session)
+        if (enableRealtimeSse) startRealtimeStream()
+        notifyCollectionChanged("*")
+        session
+    }
+
     suspend fun refreshAuth(): PbUserSession? = withContext(Dispatchers.IO) {
         val current = _sessionFlow.value ?: return@withContext null
         if (current.token.isBlank()) return@withContext null
@@ -339,8 +421,18 @@ class PocketBaseClient(
         collection: String,
         fields: Map<String, String>,
         filePart: MultipartFilePart? = null,
+    ): JSONObject = createRecordMultipartFiles(
+        collection = collection,
+        fields = fields,
+        fileParts = listOfNotNull(filePart),
+    )
+
+    suspend fun createRecordMultipartFiles(
+        collection: String,
+        fields: Map<String, String>,
+        fileParts: List<MultipartFilePart>,
     ): JSONObject = withContext(Dispatchers.IO) {
-        val multipartBody = buildMultipartBody(fields, filePart)
+        val multipartBody = buildMultipartBody(fields, fileParts)
         val raw = executeRequestBody(
             method = "POST",
             path = "/api/collections/$collection/records",
@@ -369,7 +461,7 @@ class PocketBaseClient(
         fields: Map<String, String>,
         filePart: MultipartFilePart? = null,
     ): JSONObject = withContext(Dispatchers.IO) {
-        val multipartBody = buildMultipartBody(fields, filePart)
+        val multipartBody = buildMultipartBody(fields, listOfNotNull(filePart))
         val raw = executeRequestBody(
             method = "PATCH",
             path = "/api/collections/$collection/records/$recordId",
@@ -417,18 +509,20 @@ class PocketBaseClient(
 
     private fun buildMultipartBody(
         fields: Map<String, String>,
-        filePart: MultipartFilePart?,
+        fileParts: List<MultipartFilePart>,
     ): MultipartBody {
         val builder = MultipartBody.Builder().setType(MultipartBody.FORM)
         for ((key, value) in fields) {
             builder.addFormDataPart(key, value)
         }
-        if (filePart != null && filePart.bytes.isNotEmpty()) {
-            builder.addFormDataPart(
-                filePart.fieldName,
-                filePart.fileName,
-                filePart.bytes.toRequestBody(filePart.mimeType.toMediaType()),
-            )
+        for (part in fileParts) {
+            if (part.bytes.isNotEmpty()) {
+                builder.addFormDataPart(
+                    part.fieldName,
+                    part.fileName,
+                    part.bytes.toRequestBody(part.mimeType.toMediaType()),
+                )
+            }
         }
         return builder.build()
     }
@@ -668,6 +762,7 @@ class PocketBaseClient(
     companion object {
         private const val TAG = "PocketBaseClient"
         const val BOOTSTRAPPED_ADMIN_EMAIL = "nabilalailatus12@gmail.com"
+        const val OAUTH2_REDIRECT_URI = "areksurabaya://oauth2redirect"
 
         private val KEY_BASE_URL = stringPreferencesKey("pb_base_url")
         private val KEY_TOKEN = stringPreferencesKey("pb_auth_token")
@@ -676,6 +771,10 @@ class PocketBaseClient(
         private val KEY_DISPLAY_NAME = stringPreferencesKey("pb_display_name")
         private val KEY_DISTRICT = stringPreferencesKey("pb_district")
         private val KEY_IS_ADMIN = booleanPreferencesKey("pb_is_admin")
+        private val KEY_OAUTH_PROVIDER = stringPreferencesKey("pb_oauth_provider")
+        private val KEY_OAUTH_VERIFIER = stringPreferencesKey("pb_oauth_verifier")
+        private val KEY_OAUTH_STATE = stringPreferencesKey("pb_oauth_state")
+        private val KEY_OAUTH_REDIRECT = stringPreferencesKey("pb_oauth_redirect")
 
         private val ALL_SUBSCRIPTIONS = listOf(
             "users/*",

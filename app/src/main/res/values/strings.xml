@@ -54,4 +54,19 @@
     <string name="avatar_picker_change_btn">Ubah Foto Profil</string>
     <string name="submitting_upload_label">Mengunggah ke Server…</string>
     <string name="form_hint_complete_fields">Lengkapi kolom wajib di atas agar tombol kirim aktif.</string>
+    <string name="kuliner_multi_photo_title">Tambah Foto Menu / Warung (Maks. 4 Foto)</string>
+    <string name="kuliner_multi_photo_subtitle">Bisa pilih hingga 4 foto • Geser kiri-kanan &amp; klik untuk zoom penuh</string>
+    <string name="kuliner_add_more_photo">Tambah</string>
+    <string name="kuliner_maps_link_label">Link Titik Arah Google Maps (Opsional)</string>
+    <string name="kuliner_maps_link_placeholder">Contoh: https://maps.app.goo.gl/…</string>
+    <string name="kuliner_delivery_section_title">Link Pesan Online (Opsional)</string>
+    <string name="kuliner_gofood_label">Link GoFood</string>
+    <string name="kuliner_grabfood_label">Link GrabFood</string>
+    <string name="kuliner_shopeefood_label">Link ShopeeFood</string>
+    <string name="photo_viewer_close_cd">Tutup tampilan foto penuh</string>
+    <string name="photo_viewer_zoom_hint">Cubit 2 jari atau ketuk 2x untuk zoom • Geser kiri-kanan antar foto</string>
+    <string name="social_auth_divider">atau masuk dengan</string>
+    <string name="social_login_google_cd">Masuk dengan Google</string>
+    <string name="social_login_facebook_cd">Masuk dengan Facebook</string>
+    <string name="social_login_instagram_cd">Masuk dengan Instagram</string>
 </resources>

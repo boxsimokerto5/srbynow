@@ -59,10 +59,14 @@ import com.example.data.model.UiState
 import com.example.data.util.formatOperatingHours
 import com.example.data.util.isCulinaryOpenNow
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import com.example.ui.components.CategoryFilterRow
+import com.example.ui.components.CulinaryDeliveryLinksRow
+import com.example.ui.components.CulinaryPhotoCarousel
 import com.example.ui.components.EmptyFeedPlaceholder
-import com.example.ui.components.SurabayaRemoteOrFallbackImage
+import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
 import com.example.ui.theme.ClosedGrayBg
 import com.example.ui.theme.ClosedGrayText
 import com.example.ui.theme.OpenGreenBg
@@ -100,6 +104,7 @@ fun KulinerScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("ALL") }
     var onlyOpenNow by rememberSaveable { mutableStateOf(false) }
+    var fullscreenViewerTarget by remember { mutableStateOf<Pair<CulinarySpot, Int>?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -233,6 +238,7 @@ fun KulinerScreen(
                                 spot = spot,
                                 isSaved = isSaved,
                                 onClick = { onSelectSpot(spot) },
+                                onPhotoClick = { pageIdx -> fullscreenViewerTarget = spot to pageIdx },
                                 onBookmark = { onToggleBookmark(spot) },
                             )
                         }
@@ -265,6 +271,18 @@ fun KulinerScreen(
                 .testTag("fab_add_culinary"),
         )
     }
+
+    val activeViewer = fullscreenViewerTarget
+    if (activeViewer != null) {
+        val (viewerSpot, startPage) = activeViewer
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrls = viewerSpot.allPhotos,
+            fallbackImageKey = viewerSpot.imageKey,
+            title = viewerSpot.name,
+            initialPage = startPage,
+            onDismiss = { fullscreenViewerTarget = null },
+        )
+    }
 }
 
 @Composable
@@ -272,6 +290,7 @@ private fun CulinaryCompactCard(
     spot: CulinarySpot,
     isSaved: Boolean,
     onClick: () -> Unit,
+    onPhotoClick: (Int) -> Unit,
     onBookmark: () -> Unit,
 ) {
     val isOpen = isCulinaryOpenNow(spot.openHour, spot.closeHour)
@@ -295,14 +314,16 @@ private fun CulinaryCompactCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SurabayaRemoteOrFallbackImage(
-                imageUrl = spot.photoUrl,
+            CulinaryPhotoCarousel(
+                photoUrls = spot.allPhotos,
                 fallbackImageKey = spot.imageKey,
-                contentDescription = spot.name,
-                contentScale = ContentScale.Crop,
+                spotName = spot.name,
+                compactMode = true,
+                onPhotoClick = onPhotoClick,
                 modifier = Modifier
-                    .size(96.dp)
-                    .clip(RoundedCornerShape(16.dp)),
+                    .size(104.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .testTag("kuliner_card_carousel_${spot.id}"),
             )
 
             Column(
@@ -424,6 +445,12 @@ private fun CulinaryCompactCard(
                     color = ToskaPrimaryDeep,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+
+                CulinaryDeliveryLinksRow(
+                    spot = spot,
+                    compact = true,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
         }

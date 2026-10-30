@@ -111,6 +111,15 @@ data class SurabayaEvent(
     val updatedAt: Long? = null,
 )
 
+data class PbOAuth2Provider(
+    val name: String,
+    val displayName: String,
+    val state: String,
+    val codeVerifier: String,
+    val codeChallenge: String,
+    val authUrl: String,
+)
+
 data class CulinarySpot(
     val id: String = "",
     val createdBy: String = "",
@@ -127,11 +136,23 @@ data class CulinarySpot(
     val lng: Double = 112.7521,
     val imageKey: String = "kuliner_rawon",
     val photoUrl: String = "",
+    val photoUrls: List<String> = emptyList(),
+    val mapsUrl: String = "",
+    val gofoodUrl: String = "",
+    val grabfoodUrl: String = "",
+    val shopeefoodUrl: String = "",
     val ratingAvg: Double = 4.8,
     val reviewCount: Int = 1,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
-)
+) {
+    val allPhotos: List<String>
+        get() = when {
+            photoUrls.isNotEmpty() -> photoUrls.filter { it.isNotBlank() }
+            photoUrl.isNotBlank() -> listOf(photoUrl)
+            else -> emptyList()
+        }
+}
 
 data class CulinaryReview(
     val id: String = "",

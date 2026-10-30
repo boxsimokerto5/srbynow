@@ -818,9 +818,14 @@ class SurabayaRepository(
         priceRange: String,
         openHour: Int,
         closeHour: Int,
+        mapsUrl: String = "",
+        gofoodUrl: String = "",
+        grabfoodUrl: String = "",
+        shopeefoodUrl: String = "",
         imageKey: String = defaultCulinaryImageKey(category),
-        photo: PreparedPhoto? = null,
+        photos: List<PreparedPhoto> = emptyList(),
         onPhotoSchemaMissing: (() -> Unit)? = null,
+        onMultiPhotoFallbackUsed: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
         val recordId = PocketBaseClient.deterministicPbId("kul_${UUID.randomUUID()}")
@@ -831,8 +836,14 @@ class SurabayaRepository(
         val cleanDistrict = district.trim().take(60)
         val cleanAddress = address.trim().take(180)
         val cleanPrice = priceRange.trim().take(60).ifEmpty { "Rp 15.000 - Rp 30.000" }
+        val cleanMapsUrl = normalizeExternalUrl(mapsUrl)
+        val cleanGofoodUrl = normalizeExternalUrl(gofoodUrl)
+        val cleanGrabfoodUrl = normalizeExternalUrl(grabfoodUrl)
+        val cleanShopeefoodUrl = normalizeExternalUrl(shopeefoodUrl)
         val safeOpen = openHour.coerceIn(0, 23)
         val safeClose = closeHour.coerceIn(0, 24)
+        val boundedPhotos = photos.take(4)
+
         val payload = JSONObject().apply {
             put("id", recordId)
             put("created_by", uid)
@@ -848,11 +859,15 @@ class SurabayaRepository(
             put("lat", lat)
             put("lng", lng)
             put("image_key", imageKey)
+            put("maps_url", cleanMapsUrl)
+            put("gofood_url", cleanGofoodUrl)
+            put("grabfood_url", cleanGrabfoodUrl)
+            put("shopeefood_url", cleanShopeefoodUrl)
             put("rating_avg", 5.0)
             put("review_count", 1)
         }
         return try {
-            val created = if (photo != null) {
+            val created = if (boundedPhotos.isNotEmpty()) {
                 val fields = mapOf(
                     "id" to recordId,
                     "created_by" to uid,
@@ -868,24 +883,54 @@ class SurabayaRepository(
                     "lat" to lat.toString(),
                     "lng" to lng.toString(),
                     "image_key" to imageKey,
+                    "maps_url" to cleanMapsUrl,
+                    "gofood_url" to cleanGofoodUrl,
+                    "grabfood_url" to cleanGrabfoodUrl,
+                    "shopeefood_url" to cleanShopeefoodUrl,
                     "rating_avg" to "5.0",
                     "review_count" to "1",
                 )
+                val allFileParts = boundedPhotos.mapIndexed { idx, p ->
+                    MultipartFilePart(
+                        fieldName = "photo",
+                        fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                        mimeType = p.mimeType,
+                        bytes = p.bytes,
+                    )
+                }
                 val resp = try {
-                    pb.createRecordMultipart(
+                    pb.createRecordMultipartFiles(
                         collection = "culinary",
                         fields = fields,
-                        filePart = MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes),
+                        fileParts = allFileParts,
                     )
                 } catch (e: PocketBaseException) {
-                    if (e.statusCode == 400) {
+                    if (e.statusCode == 400 && allFileParts.size > 1) {
+                        // Server may still have maxSelect = 1 before re-importing pocketbase_collections.json
+                        try {
+                            val singleResp = pb.createRecordMultipartFiles(
+                                collection = "culinary",
+                                fields = fields,
+                                fileParts = listOf(allFileParts.first()),
+                            )
+                            onMultiPhotoFallbackUsed?.invoke()
+                            singleResp
+                        } catch (fallbackErr: PocketBaseException) {
+                            if (fallbackErr.statusCode == 400) {
+                                onPhotoSchemaMissing?.invoke()
+                                return pb.createRecord("culinary", payload).optString("id").ifBlank { recordId }
+                            } else {
+                                throw fallbackErr
+                            }
+                        }
+                    } else if (e.statusCode == 400) {
                         onPhotoSchemaMissing?.invoke()
                         return pb.createRecord("culinary", payload).optString("id").ifBlank { recordId }
                     } else {
                         throw e
                     }
                 }
-                if (resp.optString("photo").isBlank()) {
+                if (extractFileNames(resp, "photo").isEmpty()) {
                     onPhotoSchemaMissing?.invoke()
                 }
                 resp
@@ -1228,6 +1273,11 @@ class SurabayaRepository(
     private fun mapCulinarySpot(j: JSONObject): CulinarySpot {
         val id = j.optString("id")
         val cat = j.optString("category", "LEGENDARIS").ifBlank { "LEGENDARIS" }
+        val photoFileNames = extractFileNames(j, "photo")
+        val resolvedPhotoUrls = photoFileNames
+            .map { pb.buildFileUrl("culinary", id, it) }
+            .filter { it.isNotBlank() }
+
         return CulinarySpot(
             id = id,
             createdBy = j.optString("created_by"),
@@ -1243,12 +1293,49 @@ class SurabayaRepository(
             lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
             lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
             imageKey = j.optString("image_key").ifBlank { defaultCulinaryImageKey(cat) },
-            photoUrl = pb.buildFileUrl("culinary", id, j.optString("photo")),
+            photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotoUrls,
+            mapsUrl = normalizeExternalUrl(j.optString("maps_url")),
+            gofoodUrl = normalizeExternalUrl(j.optString("gofood_url")),
+            grabfoodUrl = normalizeExternalUrl(j.optString("grabfood_url")),
+            shopeefoodUrl = normalizeExternalUrl(j.optString("shopeefood_url")),
             ratingAvg = j.optDouble("rating_avg", 4.8),
             reviewCount = j.optInt("review_count", 1),
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
             updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
         )
+    }
+
+    private fun extractFileNames(j: JSONObject, fieldName: String): List<String> {
+        val arr = j.optJSONArray(fieldName)
+        if (arr != null) {
+            return buildList(arr.length()) {
+                for (i in 0 until arr.length()) {
+                    val item = arr.optString(i).trim()
+                    if (item.isNotBlank() && item != "null") add(item)
+                }
+            }
+        }
+        val single = j.optString(fieldName).trim()
+        return if (single.isNotBlank() && single != "null" && !single.startsWith("[")) {
+            listOf(single)
+        } else {
+            emptyList()
+        }
+    }
+
+    private fun normalizeExternalUrl(raw: String): String {
+        val trimmed = raw.trim().take(500)
+        if (trimmed.isBlank() || trimmed == "null") return ""
+        return if (
+            trimmed.startsWith("http://", ignoreCase = true) ||
+            trimmed.startsWith("https://", ignoreCase = true) ||
+            trimmed.startsWith("geo:", ignoreCase = true)
+        ) {
+            trimmed
+        } else {
+            "https://$trimmed"
+        }
     }
 
     private fun mapCulinaryReview(j: JSONObject): CulinaryReview = CulinaryReview(

@@ -97,7 +97,11 @@ import com.example.data.model.SurabayaEvent
 import com.example.data.util.formatOperatingHours
 import com.example.data.util.formatRelativeTimestamp
 import com.example.data.util.isCulinaryOpenNow
+import com.example.ui.components.CulinaryDeliveryLinksRow
+import com.example.ui.components.CulinaryPhotoCarousel
+import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
 import com.example.ui.components.SurabayaRemoteOrFallbackImage
+import com.example.ui.components.openCulinaryMapsDirection
 import com.example.ui.components.openGoogleMapsLocation
 import com.example.ui.screens.formatCulinaryCategoryLabel
 import com.example.ui.screens.formatEventCategoryLabel
@@ -899,6 +903,7 @@ fun CulinaryDetailSheetContent(
     var hasDescriptionOverflow by remember(spot.id, spot.description) { mutableStateOf(false) }
     var pendingScrollToBottom by remember(spot.id) { mutableStateOf(false) }
     var previousReviewCount by remember(spot.id) { mutableIntStateOf(reviews.size) }
+    var fullscreenInitialPage by remember(spot.id) { mutableStateOf<Int?>(null) }
 
     val reviewListState = rememberLazyListState()
 
@@ -1000,11 +1005,12 @@ fun CulinaryDetailSheetContent(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    SurabayaRemoteOrFallbackImage(
-                        imageUrl = spot.photoUrl,
+                    CulinaryPhotoCarousel(
+                        photoUrls = spot.allPhotos,
                         fallbackImageKey = spot.imageKey,
-                        contentDescription = spot.name,
-                        contentScale = ContentScale.Crop,
+                        spotName = spot.name,
+                        compactMode = false,
+                        onPhotoClick = { clickedIdx -> fullscreenInitialPage = clickedIdx },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(currentImageHeight)
@@ -1065,12 +1071,36 @@ fun CulinaryDetailSheetContent(
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )
+                        if (spot.address.isNotBlank() || spot.district.isNotBlank()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.LocationOn,
+                                    contentDescription = null,
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                                Text(
+                                    text = listOfNotNull(
+                                        spot.address.takeIf { it.isNotBlank() },
+                                        spot.district.takeIf { it.isNotBlank() }?.let { "Kec. $it" },
+                                    ).joinToString(", "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Button(
-                                onClick = { openGoogleMapsLocation(context, spot.lat, spot.lng, spot.name) },
+                                onClick = { openCulinaryMapsDirection(context, spot) },
                                 shape = CircleShape,
                                 modifier = Modifier
                                     .weight(1f)
@@ -1090,6 +1120,12 @@ fun CulinaryDetailSheetContent(
                                 Text(if (isSaved) "Tersimpan" else "Simpan")
                             }
                         }
+
+                        CulinaryDeliveryLinksRow(
+                            spot = spot,
+                            compact = false,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
 
@@ -1294,6 +1330,17 @@ fun CulinaryDetailSheetContent(
                 }
             }
         }
+    }
+
+    val openPage = fullscreenInitialPage
+    if (openPage != null) {
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrls = spot.allPhotos,
+            fallbackImageKey = spot.imageKey,
+            title = spot.name,
+            initialPage = openPage,
+            onDismiss = { fullscreenInitialPage = null },
+        )
     }
 }
 

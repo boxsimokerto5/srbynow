@@ -77,6 +77,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.util.SurabayaDistricts
@@ -140,6 +141,8 @@ fun AuthScreen(
         }
     }
 
+    val oauthCallback by OAuthRedirectBus.pendingCallback.collectAsStateWithLifecycle()
+
     LaunchedEffect(Unit) {
         val restored = pbClient.restorePersistedSession()
         if (restored != null) {
@@ -147,6 +150,32 @@ fun AuthScreen(
         } else {
             customServerUrl = pbClient.baseUrl
             refreshServerStatus()
+        }
+    }
+
+    LaunchedEffect(oauthCallback) {
+        val callback = oauthCallback ?: return@LaunchedEffect
+        OAuthRedirectBus.consume()
+        if (!callback.error.isNullOrBlank()) {
+            errorMessage = "Login sosial dibatalkan: ${callback.error}"
+            infoMessage = null
+        } else if (!callback.code.isNullOrBlank()) {
+            isLoading = true
+            errorMessage = null
+            infoMessage = "Menyelesaikan verifikasi akun sosial…"
+            try {
+                pbClient.completePendingOAuth2FromCallback(
+                    code = callback.code,
+                    returnedState = callback.state,
+                )
+                isLoading = false
+                infoMessage = null
+                onAuthSuccess()
+            } catch (e: Exception) {
+                isLoading = false
+                infoMessage = null
+                errorMessage = e.localizedMessage ?: "Gagal menyelesaikan login sosial."
+            }
         }
     }
 
@@ -579,6 +608,30 @@ fun AuthScreen(
                             }
                         }
                     }
+
+                    CompactSocialLoginSection(
+                        enabled = !isLoading,
+                        onSelectProvider = { providerKey, providerLabel ->
+                            errorMessage = null
+                            infoMessage = null
+                            scope.launch {
+                                startPocketBaseSocialOAuth2(
+                                    context = context,
+                                    pbClient = pbClient,
+                                    providerKey = providerKey,
+                                    providerLabel = providerLabel,
+                                    onInfo = { msg ->
+                                        infoMessage = msg
+                                        errorMessage = null
+                                    },
+                                    onError = { err ->
+                                        errorMessage = err
+                                        infoMessage = null
+                                    },
+                                )
+                            }
+                        },
+                    )
 
                     // Quick Helper Footer: Copy JSON Schema or Configure Server
                     Row(
