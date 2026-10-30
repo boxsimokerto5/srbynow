@@ -316,7 +316,7 @@ fun AuthScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.img_app_icon_sby_1793207381165),
+                            painter = painterResource(id = R.drawable.app_logo_mascot),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier

@@ -166,7 +166,7 @@ fun SurabayaCompactTopBar(
                     modifier = Modifier.weight(1f),
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.img_app_icon_sby_1793207381165),
+                        painter = painterResource(id = R.drawable.app_logo_mascot),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -1126,20 +1126,14 @@ fun AboutAppDialog(onDismiss: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Box(
+                Image(
+                    painter = painterResource(id = R.drawable.app_logo_mascot),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(ToskaPrimaryDeep),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Info,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                )
                 Column {
                     Text(
                         text = "Tentang Arek Surabaya",
