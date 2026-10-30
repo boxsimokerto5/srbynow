@@ -323,6 +323,12 @@ data class UserMoment(
 
     val isContentQuarantined: Boolean
         get() = contentReportCount >= 3
+
+    val imageResName: String
+        get() = imageKey
+
+    val timestamp: Long?
+        get() = createdAt
 }
 
 data class MomentComment(
@@ -332,7 +338,13 @@ data class MomentComment(
     val authorName: String = "",
     val text: String = "",
     val createdAt: Long? = null,
-)
+) {
+    val comment: String
+        get() = text
+
+    val timestamp: Long?
+        get() = createdAt
+}
 
 data class SurabayaDestination(
     val id: String = "",
@@ -346,6 +358,8 @@ data class SurabayaDestination(
     val ticketPrice: String = "Gratis",
     val operationalHours: String = "08.00 - 22.00 WIB",
     val bestTime: String = "Sore hari",
+    val lat: Double = -7.2575,
+    val lng: Double = 112.7521,
     val imageKey: String = "hero_surabaya",
     val photoUrl: String = "",
     val photoUrls: List<String> = emptyList(),
@@ -365,6 +379,21 @@ data class SurabayaDestination(
             photoUrl.isNotBlank() -> listOf(photoUrl)
             else -> emptyList()
         }
+
+    val firstPhotoUrl: String
+        get() = allPhotos.firstOrNull().orEmpty()
+
+    val imageResName: String
+        get() = imageKey
+
+    val rating: Double
+        get() = ratingAvg
+
+    val reviewsCount: Int
+        get() = reviewCount
+
+    val bestTimeToVisit: String
+        get() = bestTime
 
     val isLinkQuarantined: Boolean
         get() = linkReportCount >= 3
@@ -387,4 +416,10 @@ data class DestinationReview(
     val rating: Int = 5,
     val comment: String = "",
     val createdAt: Long? = null,
-)
+) {
+    val review: String
+        get() = comment
+
+    val timestamp: Long?
+        get() = createdAt
+}

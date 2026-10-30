@@ -26,9 +26,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Bookmark
@@ -37,9 +40,15 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -1004,5 +1013,310 @@ fun SurabayaDistrictFilterBar(
     }
 }
 
+/**
+ * Utility functions for sharing the app and rating it on the Play Store.
+ */
+fun shareArekSurabayaApp(context: Context) {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Aplikasi Arek Surabaya")
+        putExtra(
+            Intent.EXTRA_TEXT,
+            "Ayo gabung di aplikasi Arek Surabaya! Pantau info kejadian kota, agenda event & festival, kuliner legendaris, direktori wisata, dan kenalan sesama warga Surabaya: https://play.google.com/store/apps/details?id=${context.packageName}",
+        )
+    }
+    context.startActivity(Intent.createChooser(sendIntent, "Bagikan Aplikasi Arek Surabaya").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
 
+fun rateArekSurabayaOnPlayStore(context: Context) {
+    val packageName = context.packageName
+    val marketUri = Uri.parse("market://details?id=$packageName")
+    val marketIntent = Intent(Intent.ACTION_VIEW, marketUri).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET)
+    }
+    try {
+        context.startActivity(marketIntent)
+    } catch (_: Exception) {
+        val webUri = Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+        context.startActivity(Intent(Intent.ACTION_VIEW, webUri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}
 
+/**
+ * Reusable menu row item for app support/settings.
+ */
+@Composable
+fun SupportMenuRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    testTag: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = Color.Transparent,
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(testTag)
+            .minimumInteractiveComponentSize(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(ToskaPrimaryDeep.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Dialog displaying information about the Arek Surabaya application.
+ */
+@Composable
+fun AboutAppDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(ToskaPrimaryDeep),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Tentang Arek Surabaya",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "Versi 1.0.0 • Komunitas Kota Pahlawan",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ToskaPrimaryDeep,
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = "Arek Surabaya adalah wadah digital terpadu warga Kota Pahlawan untuk saling berbagi informasi kejadian kota terkini, agenda event & festival, rekomendasi kuliner legendaris, direktori wisata kota, mencari teman sekitar berbasis radius GPS, serta obrolan komunitas warga.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF0F9F5),
+                    border = BorderStroke(1.dp, OutlineVariantLight),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "🏛️ Fitur Utama Aplikasi:",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = ToskaPrimaryDeep,
+                        )
+                        Text(text = "• Info Kejadian & Warga (Anti Hoaks & Peta)", style = MaterialTheme.typography.bodySmall)
+                        Text(text = "• Agenda Event & Festival Surabaya", style = MaterialTheme.typography.bodySmall)
+                        Text(text = "• Direktori Kuliner Legendaris & Modern", style = MaterialTheme.typography.bodySmall)
+                        Text(text = "• Teman Sekitar Aman (Jarak Presisi Terlindungi)", style = MaterialTheme.typography.bodySmall)
+                        Text(text = "• Momen & Obrolan Real-time Warga", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                Text(
+                    text = "Dikembangkan dengan semangat gotong royong untuk memajukan solidaritas warga Surabaya.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimaryDeep),
+            ) {
+                Text("Tutup")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = {
+                    onDismiss()
+                    shareArekSurabayaApp(context)
+                },
+                shape = CircleShape,
+            ) {
+                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Bagikan")
+            }
+        },
+        shape = RoundedCornerShape(20.dp),
+    )
+}
+
+/**
+ * Dialog displaying the transparent Privacy Policy.
+ */
+@Composable
+fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE8F5E9)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Security,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Kebijakan Privasi",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "Perlindungan Data & Keamanan Warga",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ToskaPrimaryDeep,
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                PrivacyPolicyClause(
+                    title = "1. Lokasi & Radius GPS",
+                    description = "Lokasi GPS Anda hanya digunakan untuk menghitung jarak perkiraan antarwarga di menu Teman Sekitar dan menyortir info terdekat. Lokasi presisi rumah Anda TIDAK PERNAH disimpan permanen atau diumbar ke publik.",
+                )
+                PrivacyPolicyClause(
+                    title = "2. Kendali Visibilitas Profil",
+                    description = "Anda memiliki kendali penuh untuk menyembunyikan profil Anda kapan saja dari menu Teman Sekitar melalui tombol 'Tampilkan Profil' di pengaturan akun.",
+                )
+                PrivacyPolicyClause(
+                    title = "3. Pemindaian Konten AI & Moderasi",
+                    description = "Setiap foto yang diunggah dipindai oleh modul AI on-device untuk menyaring konten eksplisit sebelum terbit. Postingan yang dilaporkan warga akan otomatis disamarkan (blur) untuk menjaga kenyamanan komunitas.",
+                )
+                PrivacyPolicyClause(
+                    title = "4. Fitur Blokir & Kebebasan Pengguna",
+                    description = "Anda bebas memblokir warga yang mengganggu dan melaporkan konten bermasalah kapan saja. Pengguna yang diblokir tidak dapat berinteraksi dengan Anda.",
+                )
+                PrivacyPolicyClause(
+                    title = "5. Akun & Penghapusan Data",
+                    description = "Anda dapat keluar dari sesi atau mengajukan permohonan hapus akun melalui tim pengelola kapan saja.",
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimaryDeep),
+            ) {
+                Text("Saya Mengerti")
+            }
+        },
+        shape = RoundedCornerShape(20.dp),
+    )
+}
+
+@Composable
+private fun PrivacyPolicyClause(title: String, description: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = ToskaPrimaryDeep,
+        )
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}

@@ -2162,6 +2162,7 @@ class SurabayaRepository(
 
         val recordId = PocketBaseClient.deterministicPbId("dest_${UUID.randomUUID()}")
         val cleanTitle = title.trim().take(140)
+        val cleanCategory = category.trim().take(50).ifEmpty { "WISATA_SEJARAH" }
         val cleanDesc = description.trim().take(1200)
         val cleanDistrict = district.trim().take(60).ifEmpty { "Genteng" }
         val cleanAddress = address.trim().take(180)
@@ -2175,7 +2176,7 @@ class SurabayaRepository(
             put("created_by", uid)
             put("author_name", "Admin Resmi Surabaya")
             put("title", cleanTitle)
-            put("category", category)
+            put("category", cleanCategory)
             put("description", cleanDesc)
             put("district", cleanDistrict)
             put("address", cleanAddress)
@@ -2194,10 +2195,10 @@ class SurabayaRepository(
             "author_name" to "Admin Resmi Surabaya",
             "title" to cleanTitle,
             "category" to cleanCategory,
-            "description" to cleanDescription,
+            "description" to cleanDesc,
             "address" to cleanAddress,
             "district" to cleanDistrict,
-            "ticket_price" to cleanTicket,
+            "ticket_price" to cleanPrice,
             "operational_hours" to cleanHours,
             "best_time" to cleanBestTime,
             "image_key" to "hero_surabaya",

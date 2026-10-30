@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Emergency
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -35,18 +36,26 @@ import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,7 +81,11 @@ import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.util.formatRelativeTimestamp
 import com.example.data.util.resolveImageDrawable
+import com.example.ui.components.AboutAppDialog
+import com.example.ui.components.PrivacyPolicyDialog
 import com.example.ui.components.openEmergencyDialer112
+import com.example.ui.components.rateArekSurabayaOnPlayStore
+import com.example.ui.components.shareArekSurabayaApp
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.HeaderMintGradient
 import com.example.ui.theme.MintSoftGradient
@@ -109,6 +122,8 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val greetingName = userAccount?.displayName?.ifBlank { "Warga Surabaya" } ?: "Warga Surabaya"
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showPrivacyDialog by remember { mutableStateOf(false) }
 
     val shortcuts = listOf(
         HomeShortcutItem(
@@ -484,6 +499,142 @@ fun HomeScreen(
                 }
             }
         }
+
+        // 7. Community Support & Footer Banner
+        item(key = "home_community_footer") {
+            Spacer(modifier = Modifier.height(14.dp))
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF2FBF6),
+                border = BorderStroke(1.dp, ToskaPrimaryDeep.copy(alpha = 0.2f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .testTag("home_footer_support_card"),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(ToskaPrimaryDeep),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Favorite,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Arek Surabaya • Bangga Kota Pahlawan",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ToskaPrimaryDeep,
+                            )
+                            Text(
+                                text = "Bantu aplikasi ini berkembang untuk warga",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Button(
+                            onClick = { rateArekSurabayaOnPlayStore(context) },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimaryDeep),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("home_btn_rate_playstore"),
+                        ) {
+                            Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Beri Rating", fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { shareArekSurabayaApp(context) },
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("home_btn_share_app"),
+                        ) {
+                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Bagikan", fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.5f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Tentang Aplikasi",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ToskaPrimaryDeep,
+                            modifier = Modifier
+                                .clickable { showAboutDialog = true }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .testTag("home_footer_link_about"),
+                        )
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+                        Text(
+                            text = "Kebijakan Privasi",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ToskaPrimaryDeep,
+                            modifier = Modifier
+                                .clickable { showPrivacyDialog = true }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .testTag("home_footer_link_privacy"),
+                        )
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+                        Text(
+                            text = "v1.0.0",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAboutDialog) {
+        AboutAppDialog(onDismiss = { showAboutDialog = false })
+    }
+    if (showPrivacyDialog) {
+        PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false })
     }
 }
 

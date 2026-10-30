@@ -99,24 +99,23 @@ fun DestinasiScreen(
     val context = LocalContext.current
     var selectedCategory by rememberSaveable { mutableStateOf("ALL") }
     var selectedDistrict by rememberSaveable { mutableStateOf("ALL") }
-    var viewingPhotoUrl by remember { mutableStateOf<String?>(null) }
+    var viewerTarget by remember { mutableStateOf<Pair<SurabayaDestination, Int>?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Category horizontal filter chips
             CategoryFilterRow(
                 categories = destinationCategories,
-                selectedCategory = selectedCategory,
-                onCategorySelected = { selectedCategory = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
+                selectedKey = selectedCategory,
+                onSelect = { selectedCategory = it },
+                tagPrefix = "destinasi_category",
             )
 
             // District filter
             SurabayaDistrictFilterBar(
                 selectedDistrict = selectedDistrict,
-                onDistrictSelected = { selectedDistrict = it },
+                onSelect = { selectedDistrict = it },
+                testTag = "destinasi_district_filter_dropdown",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
@@ -238,7 +237,7 @@ fun DestinasiScreen(
                                             label = destination.title,
                                         )
                                     },
-                                    onPhotoClick = { url -> viewingPhotoUrl = url },
+                                    onPhotoClick = { page -> viewerTarget = destination to page },
                                 )
                             }
                         }
@@ -268,10 +267,14 @@ fun DestinasiScreen(
         }
     }
 
-    viewingPhotoUrl?.let { url ->
+    val activeViewer = viewerTarget
+    if (activeViewer != null) {
         FullscreenZoomablePhotoViewerDialog(
-            photoUrl = url,
-            onDismiss = { viewingPhotoUrl = null },
+            photoUrls = activeViewer.first.allPhotos,
+            fallbackImageKey = activeViewer.first.imageKey,
+            title = activeViewer.first.title,
+            initialPage = activeViewer.second,
+            onDismiss = { viewerTarget = null },
         )
     }
 }
@@ -283,9 +286,9 @@ private fun DestinationCard(
     onOpenDetail: () -> Unit,
     onToggleBookmark: () -> Unit,
     onNavigateMaps: () -> Unit,
-    onPhotoClick: (String) -> Unit,
+    onPhotoClick: (Int) -> Unit,
 ) {
-    val photoModel = destination.firstPhotoUrl.ifBlank { resolveImageDrawable(destination.imageResName) }
+    val photoModel = destination.allPhotos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(destination.imageKey)
 
     Surface(
         onClick = onOpenDetail,
@@ -312,7 +315,7 @@ private fun DestinationCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .clickable { onPhotoClick(destination.firstPhotoUrl.ifBlank { destination.imageResName }) },
+                        .clickable { onPhotoClick(0) },
                 )
 
                 // Category pill

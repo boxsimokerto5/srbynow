@@ -81,13 +81,21 @@ import com.example.data.model.UserAccount
 import com.example.data.util.LinkSecurityValidator
 import com.example.data.util.LinkValidationResult
 import com.example.data.util.SafeLinkCategory
-import com.example.data.util.SurabayaDistricts
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import com.example.ui.components.AboutAppDialog
 import com.example.ui.components.EmptyFeedPlaceholder
 import com.example.ui.components.FormMultiPhotoPickerSection
 import com.example.ui.components.FormPhotoPickerSection
 import com.example.ui.components.GoogleMapsSheetHandleHeader
 import com.example.ui.components.InitialsAvatar
+import com.example.ui.components.PrivacyPolicyDialog
+import com.example.ui.components.SupportMenuRow
 import com.example.ui.components.SurabayaDistrictDropdown
+import com.example.ui.components.rateArekSurabayaOnPlayStore
+import com.example.ui.components.shareArekSurabayaApp
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
@@ -1251,6 +1259,9 @@ fun ProfileAndPrivacySheetContent(
         mutableStateOf(userAccount?.isDiscoverable ?: true)
     }
     var selectedAvatarUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showPrivacyDialog by remember { mutableStateOf(false) }
 
     val existingAvatarUrl = userAccount?.avatarUrl.orEmpty().ifBlank { nearbyProfile?.avatarUrl.orEmpty() }
     val avatarPickerLauncher = rememberLauncherForActivityResult(
@@ -1634,6 +1645,66 @@ fun ProfileAndPrivacySheetContent(
         }
 
         if (!focusPrivacyOnly) {
+            // Section: Tentang & Dukungan Aplikasi
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFFF5FBF7),
+                border = BorderStroke(1.dp, OutlineVariantLight),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("profile_app_support_section"),
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Tentang & Dukungan Aplikasi",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimaryDeep,
+                    )
+
+                    SupportMenuRow(
+                        icon = Icons.Filled.Info,
+                        title = "Tentang Arek Surabaya",
+                        subtitle = "Versi 1.0.0 • Misi & informasi aplikasi",
+                        testTag = "btn_menu_about",
+                        onClick = { showAboutDialog = true },
+                    )
+
+                    HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.5f))
+
+                    SupportMenuRow(
+                        icon = Icons.Filled.Security,
+                        title = "Kebijakan Privasi (Privacy Policy)",
+                        subtitle = "Perlindungan data warga & filter AI",
+                        testTag = "btn_menu_privacy_policy",
+                        onClick = { showPrivacyDialog = true },
+                    )
+
+                    HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.5f))
+
+                    SupportMenuRow(
+                        icon = Icons.Filled.Share,
+                        title = "Bagikan Aplikasi",
+                        subtitle = "Ajak dulur & keluarga bergabung",
+                        testTag = "btn_menu_share_app",
+                        onClick = { shareArekSurabayaApp(context) },
+                    )
+
+                    HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.5f))
+
+                    SupportMenuRow(
+                        icon = Icons.Filled.Star,
+                        title = "Beri Rating di Play Store",
+                        subtitle = "Dukung kami dengan ulasan bintang 5",
+                        testTag = "btn_menu_rate_app",
+                        onClick = { rateArekSurabayaOnPlayStore(context) },
+                    )
+                }
+            }
+
             HorizontalDivider()
             OutlinedButton(
                 onClick = onSignOut,
@@ -1651,6 +1722,13 @@ fun ProfileAndPrivacySheetContent(
         }
 
         Spacer(modifier = Modifier.height(10.dp))
+    }
+
+    if (showAboutDialog) {
+        AboutAppDialog(onDismiss = { showAboutDialog = false })
+    }
+    if (showPrivacyDialog) {
+        PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false })
     }
 }
 
@@ -1705,7 +1783,7 @@ fun CreateMomentSheetContent(
             onPhotosChanged = { selectedPhotoUris = it },
             maxPhotos = 4,
             enabled = !isSubmitting,
-            helperText = "Pilih 1 - 4 foto galeri. Dilindungi pemindai AI konten eksplisit.",
+            subtitle = "Pilih 1 - 4 foto galeri. Dilindungi pemindai AI konten eksplisit.",
         )
 
         OutlinedTextField(
@@ -1875,7 +1953,7 @@ fun CreateDestinationSheetContent(
             onPhotosChanged = { selectedPhotoUris = it },
             maxPhotos = 4,
             enabled = !isSubmitting,
-            helperText = "Foto resmi destinasi (hingga 4 foto).",
+            subtitle = "Foto resmi destinasi (hingga 4 foto).",
         )
 
         OutlinedTextField(

@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
@@ -1834,9 +1835,9 @@ fun MomentDetailSheetContent(
     modifier: Modifier = Modifier,
 ) {
     var commentInput by remember { mutableStateOf("") }
-    var viewingPhotoUrl by remember { mutableStateOf<String?>(null) }
+    var viewingPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val isLiked = currentUserId in moment.likedByUids
-    val photos = moment.allPhotos()
+    val photos = moment.allPhotos
 
     Column(
         modifier = modifier
@@ -1927,22 +1928,27 @@ fun MomentDetailSheetContent(
             item {
                 if (photos.isNotEmpty()) {
                     CulinaryPhotoCarousel(
-                        photos = photos,
-                        fallbackResName = moment.imageResName,
-                        isBlurred = moment.isContentBlurred,
-                        onPhotoClick = { viewingPhotoUrl = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        photoUrls = photos,
+                        fallbackImageKey = moment.imageKey,
+                        spotName = moment.caption.ifBlank { "Momen Arek Surabaya" },
+                        isBlurredSensitive = moment.isContentBlurred,
+                        sensitiveReportCount = moment.contentReportCount,
+                        onPhotoClick = { viewingPhotoIndex = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .clip(RoundedCornerShape(16.dp)),
                     )
-                } else if (moment.imageResName.isNotBlank()) {
+                } else if (moment.imageKey.isNotBlank()) {
                     SurabayaRemoteOrFallbackImage(
-                        photoUrl = "",
-                        resName = moment.imageResName,
+                        imageUrl = "",
+                        fallbackImageKey = moment.imageKey,
                         contentDescription = moment.caption,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(260.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .clickable { viewingPhotoUrl = moment.imageResName },
+                            .clickable { viewingPhotoIndex = 0 },
                     )
                 }
             }
@@ -2081,10 +2087,13 @@ fun MomentDetailSheetContent(
         }
     }
 
-    viewingPhotoUrl?.let { url ->
+    viewingPhotoIndex?.let { pageIdx ->
         FullscreenZoomablePhotoViewerDialog(
-            photoUrl = url,
-            onDismiss = { viewingPhotoUrl = null },
+            photoUrls = photos,
+            fallbackImageKey = moment.imageKey,
+            title = moment.caption.ifBlank { "Momen Arek Surabaya" },
+            initialPage = pageIdx,
+            onDismiss = { viewingPhotoIndex = null },
         )
     }
 }
@@ -2105,8 +2114,8 @@ fun DestinationDetailSheetContent(
     val context = LocalContext.current
     var reviewInput by remember { mutableStateOf("") }
     var ratingInput by remember { mutableIntStateOf(5) }
-    var viewingPhotoUrl by remember { mutableStateOf<String?>(null) }
-    val photos = destination.allPhotos()
+    var viewingPhotoIndex by remember { mutableStateOf<Int?>(null) }
+    val photos = destination.allPhotos
 
     Column(
         modifier = modifier
@@ -2136,22 +2145,27 @@ fun DestinationDetailSheetContent(
             item {
                 if (photos.isNotEmpty()) {
                     CulinaryPhotoCarousel(
-                        photos = photos,
-                        fallbackResName = destination.imageResName,
-                        isBlurred = destination.isContentBlurred,
-                        onPhotoClick = { viewingPhotoUrl = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        photoUrls = photos,
+                        fallbackImageKey = destination.imageKey,
+                        spotName = destination.title,
+                        isBlurredSensitive = destination.isContentBlurred,
+                        sensitiveReportCount = destination.contentReportCount,
+                        onPhotoClick = { viewingPhotoIndex = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp)
+                            .clip(RoundedCornerShape(16.dp)),
                     )
-                } else if (destination.imageResName.isNotBlank()) {
+                } else if (destination.imageKey.isNotBlank()) {
                     SurabayaRemoteOrFallbackImage(
-                        photoUrl = "",
-                        resName = destination.imageResName,
+                        imageUrl = "",
+                        fallbackImageKey = destination.imageKey,
                         contentDescription = destination.title,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(240.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .clickable { viewingPhotoUrl = destination.imageResName },
+                            .clickable { viewingPhotoIndex = 0 },
                     )
                 }
             }
@@ -2432,10 +2446,13 @@ fun DestinationDetailSheetContent(
         }
     }
 
-    viewingPhotoUrl?.let { url ->
+    viewingPhotoIndex?.let { pageIdx ->
         FullscreenZoomablePhotoViewerDialog(
-            photoUrl = url,
-            onDismiss = { viewingPhotoUrl = null },
+            photoUrls = photos,
+            fallbackImageKey = destination.imageKey,
+            title = destination.title,
+            initialPage = pageIdx,
+            onDismiss = { viewingPhotoIndex = null },
         )
     }
 }

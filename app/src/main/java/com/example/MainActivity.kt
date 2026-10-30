@@ -366,7 +366,7 @@ fun SurabayaMainHub(
                                 isAdmin = isAdmin,
                                 onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
                                 onOpenCreateMoment = { viewModel.openSheet(ActiveBottomSheet.CreateMoment) },
-                                onToggleLike = { momentId, count, liked -> viewModel.toggleMomentLike(momentId, count, liked) },
+                                onToggleLike = { moment -> viewModel.toggleMomentLike(moment) },
                                 onReportMoment = { viewModel.reportMomentContent(it) },
                                 onBlockAuthor = { uid, name -> viewModel.blockCitizen(uid, name) },
                             )
@@ -736,8 +736,7 @@ fun SurabayaMainHub(
                             currentUserId = currentUserId,
                             isAdmin = isAdmin,
                             onToggleLike = {
-                                val isLiked = currentUserId in found.likedByUids
-                                viewModel.toggleMomentLike(found.id, found.likesCount, isLiked)
+                                viewModel.toggleMomentLike(found)
                             },
                             onAddComment = { viewModel.submitMomentComment(found.id, it) },
                             onReport = { viewModel.reportMomentContent(found) },
