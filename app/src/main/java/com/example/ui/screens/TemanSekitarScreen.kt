@@ -413,7 +413,9 @@ private fun NearbyPeerCard(
 
             if (tags.isNotEmpty()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     tags.forEach { hobby ->

@@ -7,11 +7,15 @@ import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
+import com.example.data.model.DestinationReview
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
+import com.example.data.model.MomentComment
 import com.example.data.model.NearbyProfile
+import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UserAccount
+import com.example.data.model.UserMoment
 import com.example.data.pocketbase.MultipartFilePart
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.pocketbase.PocketBaseException
@@ -29,6 +33,7 @@ import com.example.data.util.logBackendError
 import com.example.data.util.parsePocketBaseTimestamp
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -53,6 +58,26 @@ class SurabayaRepository(
     private val localBlockedUids = ConcurrentHashMap<String, List<String>>()
     private val localBannedUids = CopyOnWriteArraySet<String>()
     private val localMutationTick = MutableStateFlow(0L)
+
+    private fun escapePbValue(value: String): String = value.replace("'", "\\'")
+
+    private val inMemoryMoments = ConcurrentHashMap<String, UserMoment>()
+    private val inMemoryMomentComments = ConcurrentHashMap<String, CopyOnWriteArrayList<MomentComment>>()
+    private val inMemoryDestinations = ConcurrentHashMap<String, SurabayaDestination>()
+    private val inMemoryDestinationReviews = ConcurrentHashMap<String, CopyOnWriteArrayList<DestinationReview>>()
+
+    init {
+        // Initialize rich starter moments
+        for (item in SurabayaCuratedSeed.starterMoments("system_seed", "Warga Surabaya")) {
+            val m = mapMoment(item)
+            inMemoryMoments[m.id] = m
+        }
+        // Initialize rich starter destinations
+        for (item in SurabayaCuratedSeed.starterDestinations("system_admin")) {
+            val d = mapDestination(item)
+            inMemoryDestinations[d.id] = d
+        }
+    }
 
     private fun bumpMutationTick() {
         localMutationTick.value = localMutationTick.value + 1L
@@ -1884,9 +1909,524 @@ class SurabayaRepository(
         return raw.split("|").map { it.trim() }.filter { it.isNotBlank() }
     }
 
-    private fun escapePbValue(raw: String): String {
-        return raw.replace("\\", "\\\\").replace("'", "\\'")
+    // --- 7. MOMEN WARGA (USER MOMENTS) ---
+
+    fun observeMoments(): Flow<List<UserMoment>> {
+        return combine(
+            pb.observeCollection("moments", pollIntervalMs = 6_000L) {
+                try {
+                    pb.getList(collection = "moments", sort = "-created")
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remoteMoments = remoteList.map(::mapMoment)
+            val combinedMap = inMemoryMoments.toMutableMap()
+            for (m in remoteMoments) {
+                combinedMap[m.id] = m
+            }
+            combinedMap.values
+                .filter { "moments:${it.id}" !in localDeletedRecords && it.authorId !in localBannedUids }
+                .sortedByDescending { it.createdAt ?: 0L }
+        }.catch { e ->
+            Log.w(TAG, "observeMoments fallback: ${e.message}")
+            emit(inMemoryMoments.values.filter { "moments:${it.id}" !in localDeletedRecords }.sortedByDescending { it.createdAt ?: 0L })
+        }
     }
+
+    suspend fun createMoment(
+        authorName: String,
+        authorDistrict: String,
+        caption: String,
+        locationName: String,
+        district: String,
+        photo: PreparedPhoto? = null,
+        photos: List<PreparedPhoto> = emptyList(),
+    ): String {
+        val uid = requireUserId()
+        val recordId = PocketBaseClient.deterministicPbId("mom_${UUID.randomUUID()}")
+        val boundedPhotos = when {
+            photos.isNotEmpty() -> photos.take(4)
+            photo != null -> listOf(photo)
+            else -> emptyList()
+        }
+        val cleanAuthor = authorName.trim().take(80).ifEmpty { "Warga Surabaya" }
+        val cleanCaption = caption.trim().take(1000)
+        val cleanLocation = locationName.trim().take(100)
+        val cleanDistrict = district.trim().take(60).ifEmpty { "Genteng" }
+
+        val payload = JSONObject().apply {
+            put("id", recordId)
+            put("author_id", uid)
+            put("author_name", cleanAuthor)
+            put("author_district", authorDistrict)
+            put("caption", cleanCaption)
+            put("location_name", cleanLocation)
+            put("district", cleanDistrict)
+            put("image_key", "hero_surabaya")
+            put("likes_count", 0)
+            put("liked_by_uids", "")
+            put("comment_count", 0)
+        }
+
+        val fields = mapOf(
+            "id" to recordId,
+            "author_id" to uid,
+            "author_name" to cleanAuthor,
+            "author_district" to authorDistrict,
+            "caption" to cleanCaption,
+            "location_name" to cleanLocation,
+            "district" to cleanDistrict,
+            "image_key" to "hero_surabaya",
+            "likes_count" to "0",
+            "liked_by_uids" to "",
+            "comment_count" to "0",
+        )
+
+        val multipartFiles = boundedPhotos.mapIndexed { idx, p ->
+            MultipartFilePart(
+                fieldName = "photo",
+                fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                mimeType = p.mimeType,
+                bytes = p.bytes,
+            )
+        }
+
+        try {
+            if (multipartFiles.isNotEmpty()) {
+                pb.createRecordMultipartFiles("moments", fields, multipartFiles)
+            } else {
+                pb.createRecord("moments", payload)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "createMoment PB save: ${e.message}, saved to local memory")
+        }
+
+        val moment = UserMoment(
+            id = recordId,
+            authorId = uid,
+            authorName = cleanAuthor,
+            authorDistrict = authorDistrict,
+            caption = cleanCaption,
+            locationName = cleanLocation,
+            district = cleanDistrict,
+            imageKey = "hero_surabaya",
+            likesCount = 0,
+            likedByUids = emptyList(),
+            commentCount = 0,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+        )
+        inMemoryMoments[recordId] = moment
+        bumpMutationTick()
+        return recordId
+    }
+
+    suspend fun toggleMomentLike(moment: UserMoment) {
+        val uid = requireUserId()
+        val isLiked = uid in moment.likedByUids
+        val newUids = if (isLiked) moment.likedByUids - uid else moment.likedByUids + uid
+        val newCount = if (isLiked) maxOf(0, moment.likesCount - 1) else moment.likesCount + 1
+
+        val updated = moment.copy(
+            likesCount = newCount,
+            likedByUids = newUids,
+        )
+        inMemoryMoments[moment.id] = updated
+        bumpMutationTick()
+
+        try {
+            pb.updateRecord("moments", moment.id, JSONObject().apply {
+                put("likes_count", newCount)
+                put("liked_by_uids", newUids.joinToString("|"))
+            })
+        } catch (e: Exception) {
+            Log.w(TAG, "toggleMomentLike PB update: ${e.message}")
+        }
+    }
+
+    fun observeMomentComments(momentId: String): Flow<List<MomentComment>> {
+        return combine(
+            pb.observeCollection("moment_comments", pollIntervalMs = 5_000L) {
+                try {
+                    val filter = "moment_id = '${escapePbValue(momentId)}'"
+                    pb.getList(collection = "moment_comments", filter = filter, sort = "created")
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remote = remoteList.map(::mapMomentComment)
+            val localList = inMemoryMomentComments[momentId] ?: emptyList()
+            (remote + localList).distinctBy { it.id }.sortedBy { it.createdAt ?: 0L }
+        }.catch {
+            emit(inMemoryMomentComments[momentId] ?: emptyList())
+        }
+    }
+
+    suspend fun addMomentComment(momentId: String, text: String): String {
+        val uid = requireUserId()
+        val userRec = pb.getOneOrNull("users", uid)
+        val authorName = userRec?.optString("name").orEmpty().ifBlank {
+            pb.currentSession?.displayName.orEmpty().ifBlank { "Warga Surabaya" }
+        }
+        val cleanText = text.trim().take(500)
+        if (cleanText.isBlank()) return ""
+
+        val commentId = PocketBaseClient.deterministicPbId("mc_${UUID.randomUUID()}")
+        val payload = JSONObject().apply {
+            put("id", commentId)
+            put("moment_id", momentId)
+            put("author_id", uid)
+            put("author_name", authorName)
+            put("text", cleanText)
+        }
+
+        try {
+            pb.createRecord("moment_comments", payload)
+        } catch (e: Exception) {
+            Log.w(TAG, "addMomentComment PB: ${e.message}")
+        }
+
+        val comment = MomentComment(
+            id = commentId,
+            momentId = momentId,
+            authorId = uid,
+            authorName = authorName,
+            text = cleanText,
+            createdAt = System.currentTimeMillis(),
+        )
+        val list = inMemoryMomentComments.getOrPut(momentId) { CopyOnWriteArrayList() }
+        list.add(comment)
+
+        val cur = inMemoryMoments[momentId]
+        if (cur != null) {
+            inMemoryMoments[momentId] = cur.copy(commentCount = cur.commentCount + 1)
+        }
+        bumpMutationTick()
+        return commentId
+    }
+
+    // --- 8. DESTINASI SURABAYA (ADMIN-CURATED ATTRACTIONS) ---
+
+    fun observeDestinations(): Flow<List<SurabayaDestination>> {
+        return combine(
+            pb.observeCollection("destinations", pollIntervalMs = 8_000L) {
+                try {
+                    pb.getList(collection = "destinations", sort = "-created")
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remoteDestinations = remoteList.map(::mapDestination)
+            val combinedMap = inMemoryDestinations.toMutableMap()
+            for (d in remoteDestinations) {
+                combinedMap[d.id] = d
+            }
+            combinedMap.values
+                .filter { "destinations:${it.id}" !in localDeletedRecords && it.createdBy !in localBannedUids }
+                .sortedByDescending { it.ratingAvg }
+        }.catch { e ->
+            Log.w(TAG, "observeDestinations fallback: ${e.message}")
+            emit(inMemoryDestinations.values.filter { "destinations:${it.id}" !in localDeletedRecords }.sortedByDescending { it.ratingAvg })
+        }
+    }
+
+    suspend fun createDestination(
+        title: String,
+        category: String,
+        description: String,
+        district: String,
+        address: String,
+        ticketPrice: String,
+        operationalHours: String,
+        bestTime: String,
+        mapsUrl: String = "",
+        photos: List<PreparedPhoto> = emptyList(),
+    ): String {
+        val uid = requireUserId()
+        // Admin authorization check - only admin accounts can post destinations!
+        val userRec = pb.getOneOrNull("users", uid)
+        val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
+        val isAdmin = email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true) ||
+            userRec?.optBoolean("is_admin", false) == true ||
+            (pb.currentSession?.isAdmin == true)
+        if (!isAdmin) {
+            throw IllegalStateException("Hanya akun Admin resmi Surabaya yang memiliki hak untuk menambah destinasi wisata.")
+        }
+
+        val recordId = PocketBaseClient.deterministicPbId("dest_${UUID.randomUUID()}")
+        val cleanTitle = title.trim().take(140)
+        val cleanDesc = description.trim().take(1200)
+        val cleanDistrict = district.trim().take(60).ifEmpty { "Genteng" }
+        val cleanAddress = address.trim().take(180)
+        val cleanPrice = ticketPrice.trim().take(50).ifEmpty { "Gratis" }
+        val cleanHours = operationalHours.trim().take(50).ifEmpty { "24 Jam" }
+        val cleanBestTime = bestTime.trim().take(50).ifEmpty { "Sore hari" }
+        val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+
+        val payload = JSONObject().apply {
+            put("id", recordId)
+            put("created_by", uid)
+            put("author_name", "Admin Resmi Surabaya")
+            put("title", cleanTitle)
+            put("category", category)
+            put("description", cleanDesc)
+            put("district", cleanDistrict)
+            put("address", cleanAddress)
+            put("ticket_price", cleanPrice)
+            put("operational_hours", cleanHours)
+            put("best_time", cleanBestTime)
+            put("image_key", "hero_surabaya")
+            put("maps_url", cleanMapsUrl)
+            put("rating_avg", 5.0)
+            put("review_count", 0)
+        }
+
+        val fields = mapOf(
+            "id" to recordId,
+            "created_by" to uid,
+            "author_name" to "Admin Resmi Surabaya",
+            "title" to cleanTitle,
+            "category" to cleanCategory,
+            "description" to cleanDescription,
+            "address" to cleanAddress,
+            "district" to cleanDistrict,
+            "ticket_price" to cleanTicket,
+            "operational_hours" to cleanHours,
+            "best_time" to cleanBestTime,
+            "image_key" to "hero_surabaya",
+            "maps_url" to cleanMapsUrl,
+            "rating_avg" to "5.0",
+            "review_count" to "0",
+        )
+
+        val multipartFiles = photos.take(4).mapIndexed { idx, p ->
+            MultipartFilePart(
+                fieldName = "photo",
+                fileName = if (photos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                mimeType = p.mimeType,
+                bytes = p.bytes,
+            )
+        }
+
+        try {
+            if (multipartFiles.isNotEmpty()) {
+                pb.createRecordMultipartFiles("destinations", fields, multipartFiles)
+            } else {
+                pb.createRecord("destinations", payload)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "createDestination PB save: ${e.message}, storing locally")
+        }
+
+        val destination = SurabayaDestination(
+            id = recordId,
+            createdBy = uid,
+            authorName = "Admin Resmi Surabaya",
+            title = cleanTitle,
+            category = category,
+            description = cleanDesc,
+            district = cleanDistrict,
+            address = cleanAddress,
+            ticketPrice = cleanPrice,
+            operationalHours = cleanHours,
+            bestTime = cleanBestTime,
+            imageKey = "hero_surabaya",
+            mapsUrl = cleanMapsUrl,
+            ratingAvg = 5.0,
+            reviewCount = 0,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+        )
+        inMemoryDestinations[recordId] = destination
+        bumpMutationTick()
+        return recordId
+    }
+
+    fun observeDestinationReviews(destinationId: String): Flow<List<DestinationReview>> {
+        return combine(
+            pb.observeCollection("destination_reviews", pollIntervalMs = 6_000L) {
+                try {
+                    val filter = "destination_id = '${escapePbValue(destinationId)}'"
+                    pb.getList(collection = "destination_reviews", filter = filter, sort = "-created")
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remote = remoteList.map(::mapDestinationReview)
+            val localList = inMemoryDestinationReviews[destinationId] ?: emptyList()
+            (remote + localList).distinctBy { it.id }.sortedByDescending { it.createdAt ?: 0L }
+        }.catch {
+            emit(inMemoryDestinationReviews[destinationId] ?: emptyList())
+        }
+    }
+
+    suspend fun addDestinationReview(destinationId: String, rating: Int, comment: String): String {
+        val uid = requireUserId()
+        val userRec = pb.getOneOrNull("users", uid)
+        val authorName = userRec?.optString("name").orEmpty().ifBlank {
+            pb.currentSession?.displayName.orEmpty().ifBlank { "Warga Surabaya" }
+        }
+        val cleanComment = comment.trim().take(500)
+        val clampedRating = rating.coerceIn(1, 5)
+
+        val reviewId = PocketBaseClient.deterministicPbId("dr_${UUID.randomUUID()}")
+        val payload = JSONObject().apply {
+            put("id", reviewId)
+            put("destination_id", destinationId)
+            put("author_id", uid)
+            put("author_name", authorName)
+            put("rating", clampedRating)
+            put("comment", cleanComment)
+        }
+
+        try {
+            pb.createRecord("destination_reviews", payload)
+        } catch (e: Exception) {
+            Log.w(TAG, "addDestinationReview PB: ${e.message}")
+        }
+
+        val review = DestinationReview(
+            id = reviewId,
+            destinationId = destinationId,
+            authorId = uid,
+            authorName = authorName,
+            rating = clampedRating,
+            comment = cleanComment,
+            createdAt = System.currentTimeMillis(),
+        )
+        val list = inMemoryDestinationReviews.getOrPut(destinationId) { CopyOnWriteArrayList() }
+        list.add(0, review)
+
+        val cur = inMemoryDestinations[destinationId]
+        if (cur != null) {
+            val newCount = cur.reviewCount + 1
+            val newAvg = ((cur.ratingAvg * cur.reviewCount) + clampedRating) / newCount
+            inMemoryDestinations[destinationId] = cur.copy(
+                ratingAvg = (newAvg * 10.0).toInt() / 10.0,
+                reviewCount = newCount,
+            )
+        }
+        bumpMutationTick()
+        return reviewId
+    }
+
+    private fun mapMoment(j: JSONObject): UserMoment {
+        val id = j.optString("id")
+        val photoFileNames = extractFileNames(j, "photo")
+        val resolvedPhotoUrls = photoFileNames
+            .map { pb.buildFileUrl("moments", id, it) }
+            .filter { it.isNotBlank() }
+
+        val serverContentCount = j.optInt("content_report_count", 0)
+        val serverContentUids = decodeUidList(j.optString("content_reported_uids"))
+        val overlay = localContentReports["moments:$id"]
+        val effectiveContentCount = when {
+            overlay == null -> serverContentCount
+            overlay.forceOverride -> overlay.count
+            else -> maxOf(serverContentCount, overlay.count)
+        }
+        val effectiveContentUids = when {
+            overlay == null -> serverContentUids
+            overlay.forceOverride -> overlay.uids
+            else -> (serverContentUids + overlay.uids).distinct()
+        }
+
+        return UserMoment(
+            id = id,
+            authorId = j.optString("author_id"),
+            authorName = j.optString("author_name", "Warga Surabaya"),
+            authorDistrict = j.optString("author_district", "Genteng"),
+            caption = j.optString("caption"),
+            locationName = j.optString("location_name"),
+            district = j.optString("district", "Genteng"),
+            imageKey = j.optString("image_key", "hero_surabaya"),
+            photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotoUrls,
+            likesCount = j.optInt("likes_count", 0),
+            likedByUids = decodeUidList(j.optString("liked_by_uids")),
+            commentCount = j.optInt("comment_count", 0),
+            contentReportCount = effectiveContentCount,
+            contentReportedByUids = effectiveContentUids,
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    private fun mapMomentComment(j: JSONObject): MomentComment = MomentComment(
+        id = j.optString("id"),
+        momentId = j.optString("moment_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        text = j.optString("text"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
+    private fun mapDestination(j: JSONObject): SurabayaDestination {
+        val id = j.optString("id")
+        val photoFileNames = extractFileNames(j, "photo")
+        val resolvedPhotoUrls = photoFileNames
+            .map { pb.buildFileUrl("destinations", id, it) }
+            .filter { it.isNotBlank() }
+
+        val serverContentCount = j.optInt("content_report_count", 0)
+        val serverContentUids = decodeUidList(j.optString("content_reported_uids"))
+        val overlay = localContentReports["destinations:$id"]
+        val effectiveContentCount = when {
+            overlay == null -> serverContentCount
+            overlay.forceOverride -> overlay.count
+            else -> maxOf(serverContentCount, overlay.count)
+        }
+        val effectiveContentUids = when {
+            overlay == null -> serverContentUids
+            overlay.forceOverride -> overlay.uids
+            else -> (serverContentUids + overlay.uids).distinct()
+        }
+
+        return SurabayaDestination(
+            id = id,
+            createdBy = j.optString("created_by"),
+            authorName = j.optString("author_name", "Admin Resmi Surabaya"),
+            title = j.optString("title"),
+            category = j.optString("category", "WISATA_SEJARAH"),
+            description = j.optString("description"),
+            district = j.optString("district", "Genteng"),
+            address = j.optString("address"),
+            ticketPrice = j.optString("ticket_price", "Gratis"),
+            operationalHours = j.optString("operational_hours", "24 Jam"),
+            bestTime = j.optString("best_time", "Sore hari"),
+            imageKey = j.optString("image_key", "hero_surabaya"),
+            photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotoUrls,
+            mapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS),
+            ratingAvg = j.optDouble("rating_avg", 4.8),
+            reviewCount = j.optInt("review_count", 0),
+            linkReportCount = j.optInt("link_report_count", 0),
+            linkReportedByUids = decodeUidList(j.optString("link_reported_uids")),
+            contentReportCount = effectiveContentCount,
+            contentReportedByUids = effectiveContentUids,
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    private fun mapDestinationReview(j: JSONObject): DestinationReview = DestinationReview(
+        id = j.optString("id"),
+        destinationId = j.optString("destination_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        rating = j.optInt("rating", 5),
+        comment = j.optString("comment"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
 
     companion object {
         private const val TAG = "SurabayaRepoPB"

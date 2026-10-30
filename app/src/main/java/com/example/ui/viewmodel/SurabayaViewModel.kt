@@ -11,18 +11,21 @@ import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
+import com.example.data.model.DestinationReview
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
+import com.example.data.model.MomentComment
 import com.example.data.model.NearbyProfile
+import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
+import com.example.data.model.UserMoment
 import com.example.data.repository.SurabayaRepository
 import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.ImageSafetyScanResult
 import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
-import com.example.data.util.OnDeviceLiteRtImageScanner
 import com.example.data.util.PreparedPhoto
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.calculateDistanceKm
@@ -41,11 +44,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class MainTab {
+    HOME,
+    MOMEN,
     KEJADIAN,
+    DESTINASI,
+    CHAT,
     EVENT,
     KULINER,
     SEKITAR,
-    CHAT,
 }
 
 sealed interface ActiveBottomSheet {
@@ -55,6 +61,10 @@ sealed interface ActiveBottomSheet {
     data object ProposeEvent : ActiveBottomSheet
     data class CulinaryDetail(val culinaryId: String) : ActiveBottomSheet
     data object CreateCulinary : ActiveBottomSheet
+    data class MomentDetail(val momentId: String) : ActiveBottomSheet
+    data object CreateMoment : ActiveBottomSheet
+    data class DestinationDetail(val destinationId: String) : ActiveBottomSheet
+    data object CreateDestination : ActiveBottomSheet
     data object GpsPrivacySettings : ActiveBottomSheet
     data object BookmarksList : ActiveBottomSheet
     data object ProfileAndAdmin : ActiveBottomSheet
@@ -74,10 +84,10 @@ class SurabayaViewModel(
     val currentUserId: String,
     private val initialDisplayName: String,
     val currentUserEmail: String,
-    private val imageSafetyScanner: ImageSafetyScanner = OnDeviceLiteRtImageScanner(),
+    private val imageSafetyScanner: ImageSafetyScanner = GeminiExplicitImageScanner(),
 ) : ViewModel() {
 
-    private val _selectedTab = MutableStateFlow(MainTab.KEJADIAN)
+    private val _selectedTab = MutableStateFlow(MainTab.HOME)
     val selectedTab: StateFlow<MainTab> = _selectedTab.asStateFlow()
 
     private val _chatSubTab = MutableStateFlow(0)
@@ -318,6 +328,72 @@ class SurabayaViewModel(
         blockedUserIds,
     ) { messages, blockedSet ->
         messages.filter { it.senderId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    // 5. Momen Arek (Moments feed)
+    val momentsState: StateFlow<UiState<List<UserMoment>>> = combine(
+        repository.observeMoments(),
+        blockedUserIds,
+        isAdmin,
+    ) { items, blockedSet, admin ->
+        val filtered = items.filter { item ->
+            item.authorId !in blockedSet && (!item.isContentQuarantined || admin)
+        }
+        UiState.Success(filtered) as UiState<List<UserMoment>>
+    }
+        .catch { e ->
+            Log.w(TAG, "observeMoments error", e)
+            emit(UiState.Error(e.localizedMessage ?: "Gagal memuat Momen Arek"))
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
+    private val selectedMomentIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.MomentDetail)?.momentId }
+
+    val activeMomentComments: StateFlow<List<MomentComment>> = combine(
+        selectedMomentIdFlow.flatMapLatest { momentId ->
+            if (momentId.isNullOrBlank()) {
+                flowOf(emptyList())
+            } else {
+                repository.observeMomentComments(momentId)
+                    .catch { emit(emptyList()) }
+            }
+        },
+        blockedUserIds,
+    ) { comments, blockedSet ->
+        comments.filter { it.authorId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    // 6. Destinasi Surabaya (Official destinations catalog)
+    val destinationsState: StateFlow<UiState<List<SurabayaDestination>>> = combine(
+        repository.observeDestinations(),
+        blockedUserIds,
+        isAdmin,
+    ) { items, blockedSet, admin ->
+        val filtered = items.filter { item ->
+            item.createdBy !in blockedSet && (!item.isContentQuarantined || admin)
+        }
+        UiState.Success(filtered) as UiState<List<SurabayaDestination>>
+    }
+        .catch { e ->
+            Log.w(TAG, "observeDestinations error", e)
+            emit(UiState.Error(e.localizedMessage ?: "Gagal memuat destinasi Surabaya"))
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
+    private val selectedDestinationIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.DestinationDetail)?.destinationId }
+
+    val activeDestinationReviews: StateFlow<List<DestinationReview>> = combine(
+        selectedDestinationIdFlow.flatMapLatest { destinationId ->
+            if (destinationId.isNullOrBlank()) {
+                flowOf(emptyList())
+            } else {
+                repository.observeDestinationReviews(destinationId)
+                    .catch { emit(emptyList()) }
+            }
+        },
+        blockedUserIds,
+    ) { reviews, blockedSet ->
+        reviews.filter { it.authorId !in blockedSet }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
     init {
@@ -1022,6 +1098,217 @@ class SurabayaViewModel(
                 }
             } catch (e: Exception) {
                 notifyMessage("Gagal melaporkan konten kuliner")
+            }
+        }
+    }
+
+    fun toggleMomentLike(moment: UserMoment) {
+        viewModelScope.launch {
+            try {
+                repository.toggleMomentLike(moment)
+            } catch (e: Exception) {
+                notifyMessage("Gagal menyukai momen")
+            }
+        }
+    }
+
+    fun submitMomentComment(momentId: String, commentText: String) {
+        val clean = commentText.trim()
+        if (clean.isBlank() || isCurrentUserFrozen()) return
+        viewModelScope.launch {
+            try {
+                repository.addMomentComment(
+                    momentId = momentId,
+                    text = clean,
+                )
+                notifyMessage("Komentar terkirim!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim komentar")
+            }
+        }
+    }
+
+    fun submitMoment(
+        caption: String,
+        district: String,
+        locationName: String,
+        photoUris: List<Uri> = emptyList(),
+        context: Context? = null,
+    ) {
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val preparedPhotos = buildList {
+                    if (appCtx != null) {
+                        for ((idx, uri) in photoUris.take(4).withIndex()) {
+                            val compressed = ImageUploadHelper.preparePhotoFromUri(
+                                context = appCtx,
+                                uri = uri,
+                                prefix = "momen${idx + 1}",
+                            )
+                            if (compressed != null) {
+                                add(compressed)
+                            }
+                        }
+                    }
+                }
+                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                    notifyMessage("Foto gagal diproses, silakan pilih foto lain dari galeri.")
+                    return@launch
+                }
+                if (!verifyPhotosAreSafe(preparedPhotos)) {
+                    return@launch
+                }
+
+                repository.createMoment(
+                    authorName = currentDisplayName(),
+                    authorDistrict = userAccount.value?.district ?: "Genteng",
+                    caption = caption,
+                    district = district,
+                    locationName = locationName,
+                    photos = preparedPhotos,
+                )
+                dismissSheet()
+                notifyMessage("Momen berhasil dibagikan ke warga Surabaya!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal membagikan momen: ${e.message}")
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun submitDestination(
+        title: String,
+        category: String,
+        description: String,
+        address: String,
+        district: String,
+        ticketPrice: String,
+        operationalHours: String,
+        bestTimeToVisit: String,
+        mapsUrl: String = "",
+        photoUris: List<Uri> = emptyList(),
+        context: Context? = null,
+    ) {
+        if (!isAdmin.value) {
+            notifyMessage("Hanya Admin yang diizinkan menambahkan destinasi baru!")
+            return
+        }
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val preparedPhotos = buildList {
+                    if (appCtx != null) {
+                        for ((idx, uri) in photoUris.take(4).withIndex()) {
+                            val compressed = ImageUploadHelper.preparePhotoFromUri(
+                                context = appCtx,
+                                uri = uri,
+                                prefix = "destinasi${idx + 1}",
+                            )
+                            if (compressed != null) {
+                                add(compressed)
+                            }
+                        }
+                    }
+                }
+                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                    notifyMessage("Foto gagal diproses, silakan pilih foto lain dari galeri.")
+                    return@launch
+                }
+                if (!verifyPhotosAreSafe(preparedPhotos)) {
+                    return@launch
+                }
+
+                repository.createDestination(
+                    title = title,
+                    category = category,
+                    description = description,
+                    address = address,
+                    district = district,
+                    ticketPrice = ticketPrice,
+                    operationalHours = operationalHours,
+                    bestTime = bestTimeToVisit,
+                    mapsUrl = mapsUrl,
+                    photos = preparedPhotos,
+                )
+                dismissSheet()
+                notifyMessage("Destinasi Surabaya berhasil ditambahkan oleh Admin!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menambahkan destinasi: ${e.message}")
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun submitDestinationReview(destinationId: String, review: String, rating: Int) {
+        val clean = review.trim()
+        if (clean.isBlank() || isCurrentUserFrozen()) return
+        viewModelScope.launch {
+            try {
+                repository.addDestinationReview(
+                    destinationId = destinationId,
+                    rating = rating.coerceIn(1, 5),
+                    comment = clean,
+                )
+                notifyMessage("Ulasan destinasi terkirim!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim ulasan destinasi")
+            }
+        }
+    }
+
+    fun reportMomentContent(moment: UserMoment) {
+        if (currentUserId in moment.contentReportedByUids) {
+            notifyMessage("Anda sudah melaporkan konten/foto pada momen ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val nextCount = repository.reportInappropriateContent(
+                    collection = "moments",
+                    recordId = moment.id,
+                    currentCount = moment.contentReportCount,
+                    currentReportedUids = moment.contentReportedByUids,
+                )
+                if (nextCount >= 3) {
+                    if (!isAdmin.value) dismissSheet()
+                    notifyMessage("Momen mencapai 3 laporan warga dan dikarantina!")
+                } else {
+                    notifyMessage("Laporan diterima ($nextCount/3). Foto otomatis diburamkan.")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan momen")
+            }
+        }
+    }
+
+    fun reportDestinationContent(destination: SurabayaDestination) {
+        if (currentUserId in destination.contentReportedByUids) {
+            notifyMessage("Anda sudah melaporkan konten/foto pada destinasi ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val nextCount = repository.reportInappropriateContent(
+                    collection = "destinations",
+                    recordId = destination.id,
+                    currentCount = destination.contentReportCount,
+                    currentReportedUids = destination.contentReportedByUids,
+                )
+                if (nextCount >= 3) {
+                    if (!isAdmin.value) dismissSheet()
+                    notifyMessage("Destinasi mencapai 3 laporan warga dan dikarantina!")
+                } else {
+                    notifyMessage("Laporan diterima ($nextCount/3).")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan destinasi")
             }
         }
     }

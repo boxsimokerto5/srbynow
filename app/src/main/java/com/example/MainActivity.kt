@@ -22,13 +22,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Newspaper
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.NearMe
 import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,25 +72,32 @@ import com.example.data.location.LocationHelper
 import com.example.data.model.UiState
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.repository.SurabayaRepository
-import com.example.data.util.OnDeviceLiteRtImageScanner
+import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.configureAppCheck
 import com.example.ui.auth.AuthScreen
 import com.example.ui.auth.OAuthRedirectBus
 import com.example.ui.auth.performSignOut
 import com.example.ui.components.SurabayaCompactTopBar
 import com.example.ui.screens.ChatScreen
+import com.example.ui.screens.DestinasiScreen
 import com.example.ui.screens.EventScreen
+import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.KejadianScreen
 import com.example.ui.screens.KulinerScreen
+import com.example.ui.screens.MomenScreen
 import com.example.ui.screens.StartDirectChatSheetContent
 import com.example.ui.screens.TemanSekitarScreen
 import com.example.ui.sheets.BookmarksSheetContent
 import com.example.ui.sheets.ChatConversationSheetContent
 import com.example.ui.sheets.CreateCulinarySheetContent
+import com.example.ui.sheets.CreateDestinationSheetContent
 import com.example.ui.sheets.CreateIncidentSheetContent
+import com.example.ui.sheets.CreateMomentSheetContent
 import com.example.ui.sheets.CulinaryDetailSheetContent
+import com.example.ui.sheets.DestinationDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
+import com.example.ui.sheets.MomentDetailSheetContent
 import com.example.ui.sheets.ProfileAndPrivacySheetContent
 import com.example.ui.sheets.ProposeEventSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
@@ -168,7 +181,7 @@ fun SurabayaMainHub(
                     currentUserId = currentUserId,
                     initialDisplayName = displayName,
                     currentUserEmail = email,
-                    imageSafetyScanner = OnDeviceLiteRtImageScanner(app),
+                    imageSafetyScanner = GeminiExplicitImageScanner(app),
                 )
             }
         },
@@ -198,6 +211,12 @@ fun SurabayaMainHub(
     val culinaryState by viewModel.culinaryState.collectAsStateWithLifecycle()
     val culinaryReviews by viewModel.activeCulinaryReviews.collectAsStateWithLifecycle()
 
+    val momentsState by viewModel.momentsState.collectAsStateWithLifecycle()
+    val momentComments by viewModel.activeMomentComments.collectAsStateWithLifecycle()
+
+    val destinationsState by viewModel.destinationsState.collectAsStateWithLifecycle()
+    val destinationReviews by viewModel.activeDestinationReviews.collectAsStateWithLifecycle()
+
     val nearbyPeersState by viewModel.nearbyPeersState.collectAsStateWithLifecycle()
     val publicChatRooms by viewModel.publicChatRooms.collectAsStateWithLifecycle()
     val directChatRooms by viewModel.directChatRooms.collectAsStateWithLifecycle()
@@ -213,17 +232,17 @@ fun SurabayaMainHub(
         }
     }
 
-    // Back button returns to Kejadian home tab if on another tab
-    BackHandler(enabled = activeSheet == null && selectedTab != MainTab.KEJADIAN) {
-        viewModel.selectTab(MainTab.KEJADIAN)
+    // Back button returns to Home tab if on another tab
+    BackHandler(enabled = activeSheet == null && selectedTab != MainTab.HOME) {
+        viewModel.selectTab(MainTab.HOME)
     }
 
     val destinations = remember {
         listOf(
+            NavDestinationItem(MainTab.HOME, R.string.nav_home, Icons.Filled.Home, Icons.Outlined.Home, "nav_tab_home"),
+            NavDestinationItem(MainTab.MOMEN, R.string.nav_momen, Icons.Filled.PhotoCamera, Icons.Outlined.PhotoCamera, "nav_tab_momen"),
             NavDestinationItem(MainTab.KEJADIAN, R.string.nav_kejadian, Icons.Filled.Newspaper, Icons.Outlined.Newspaper, "nav_tab_kejadian"),
-            NavDestinationItem(MainTab.EVENT, R.string.nav_event, Icons.Filled.Event, Icons.Outlined.Event, "nav_tab_event"),
-            NavDestinationItem(MainTab.KULINER, R.string.nav_kuliner, Icons.Filled.Restaurant, Icons.Outlined.Restaurant, "nav_tab_kuliner"),
-            NavDestinationItem(MainTab.SEKITAR, R.string.nav_sekitar, Icons.Filled.NearMe, Icons.Outlined.NearMe, "nav_tab_sekitar"),
+            NavDestinationItem(MainTab.DESTINASI, R.string.nav_destinasi, Icons.Filled.Place, Icons.Outlined.Place, "nav_tab_destinasi"),
             NavDestinationItem(MainTab.CHAT, R.string.nav_chat, Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline, "nav_tab_chat"),
         )
     }
@@ -327,6 +346,40 @@ fun SurabayaMainHub(
                 Box(modifier = Modifier.weight(1f)) {
                     Crossfade(targetState = selectedTab, label = "surabaya_tab_crossfade") { tab ->
                         when (tab) {
+                            MainTab.HOME -> HomeScreen(
+                                userAccount = userAccount,
+                                isAdmin = isAdmin,
+                                currentDistrict = currentDistrict,
+                                incidentsState = incidentsState,
+                                destinationsState = destinationsState,
+                                momentsState = momentsState,
+                                onNavigateTab = { viewModel.selectTab(it) },
+                                onOpenIncidentDetail = { viewModel.openSheet(ActiveBottomSheet.IncidentDetail(it)) },
+                                onOpenDestinationDetail = { viewModel.openSheet(ActiveBottomSheet.DestinationDetail(it)) },
+                                onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
+                                onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
+                                onOpenProfileAndAdmin = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
+                            )
+                            MainTab.MOMEN -> MomenScreen(
+                                momentsState = momentsState,
+                                currentUserId = currentUserId,
+                                isAdmin = isAdmin,
+                                onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
+                                onOpenCreateMoment = { viewModel.openSheet(ActiveBottomSheet.CreateMoment) },
+                                onToggleLike = { momentId, count, liked -> viewModel.toggleMomentLike(momentId, count, liked) },
+                                onReportMoment = { viewModel.reportMomentContent(it) },
+                                onBlockAuthor = { uid, name -> viewModel.blockCitizen(uid, name) },
+                            )
+                            MainTab.DESTINASI -> DestinasiScreen(
+                                destinationsState = destinationsState,
+                                bookmarks = bookmarks,
+                                isAdmin = isAdmin,
+                                onOpenDestinationDetail = { viewModel.openSheet(ActiveBottomSheet.DestinationDetail(it)) },
+                                onOpenCreateDestination = { viewModel.openSheet(ActiveBottomSheet.CreateDestination) },
+                                onToggleBookmark = {
+                                    viewModel.toggleBookmark(it.id, "DESTINASI", it.title, "${it.district} • ${it.ticketPrice}", it.district)
+                                },
+                            )
                             MainTab.KEJADIAN -> KejadianScreen(
                                 incidentsState = incidentsState,
                                 bookmarks = bookmarks,
@@ -663,10 +716,95 @@ fun SurabayaMainHub(
                                     viewModel.selectTab(MainTab.EVENT)
                                     viewModel.openSheet(ActiveBottomSheet.EventDetail(bm.targetId))
                                 }
+                                "DESTINASI" -> {
+                                    viewModel.selectTab(MainTab.DESTINASI)
+                                    viewModel.openSheet(ActiveBottomSheet.DestinationDetail(bm.targetId))
+                                }
                             }
                         },
                         onRemoveBookmark = { bm ->
                             viewModel.toggleBookmark(bm.targetId, bm.targetType, bm.title, bm.subtitle, bm.district)
+                        },
+                    )
+                }
+                is ActiveBottomSheet.MomentDetail -> {
+                    val found = (momentsState as? UiState.Success)?.data?.firstOrNull { it.id == sheetTarget.momentId }
+                    if (found != null) {
+                        MomentDetailSheetContent(
+                            moment = found,
+                            comments = momentComments,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
+                            onToggleLike = {
+                                val isLiked = currentUserId in found.likedByUids
+                                viewModel.toggleMomentLike(found.id, found.likesCount, isLiked)
+                            },
+                            onAddComment = { viewModel.submitMomentComment(found.id, it) },
+                            onReport = { viewModel.reportMomentContent(found) },
+                            onBlockAuthor = { viewModel.blockCitizen(found.authorId, found.authorName) },
+                            onAdminDelete = if (isAdmin) {
+                                { viewModel.adminDeletePost("moments", found.id) }
+                            } else null,
+                            onClose = { viewModel.dismissSheet() },
+                        )
+                    }
+                }
+                ActiveBottomSheet.CreateMoment -> {
+                    CreateMomentSheetContent(
+                        defaultDistrict = currentDistrict,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { caption, dist, loc, photos ->
+                            viewModel.submitMoment(
+                                caption = caption,
+                                district = dist,
+                                locationName = loc,
+                                photoUris = photos,
+                                context = context,
+                            )
+                        },
+                    )
+                }
+                is ActiveBottomSheet.DestinationDetail -> {
+                    val found = (destinationsState as? UiState.Success)?.data?.firstOrNull { it.id == sheetTarget.destinationId }
+                    if (found != null) {
+                        val isSaved = bookmarks.any { it.targetId == found.id && it.targetType == "DESTINASI" }
+                        DestinationDetailSheetContent(
+                            destination = found,
+                            reviews = destinationReviews,
+                            isBookmarked = isSaved,
+                            isAdmin = isAdmin,
+                            onToggleBookmark = {
+                                viewModel.toggleBookmark(found.id, "DESTINASI", found.title, "${found.district} • ${found.ticketPrice}", found.district)
+                            },
+                            onAddReview = { rev, rating -> viewModel.submitDestinationReview(found.id, rev, rating) },
+                            onReport = { viewModel.reportDestinationContent(found) },
+                            onAdminDelete = if (isAdmin) {
+                                { viewModel.adminDeletePost("destinations", found.id) }
+                            } else null,
+                            onClose = { viewModel.dismissSheet() },
+                        )
+                    }
+                }
+                ActiveBottomSheet.CreateDestination -> {
+                    CreateDestinationSheetContent(
+                        defaultDistrict = currentDistrict,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { title, cat, desc, addr, dist, price, hours, bestTime, mapsUrl, photos ->
+                            viewModel.submitDestination(
+                                title = title,
+                                category = cat,
+                                description = desc,
+                                address = addr,
+                                district = dist,
+                                ticketPrice = price,
+                                operationalHours = hours,
+                                bestTimeToVisit = bestTime,
+                                mapsUrl = mapsUrl,
+                                photoUris = photos,
+                                context = context,
+                            )
                         },
                     )
                 }

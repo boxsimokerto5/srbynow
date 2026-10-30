@@ -95,9 +95,13 @@ import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
+import com.example.data.model.DestinationReview
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
+import com.example.data.model.MomentComment
+import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
+import com.example.data.model.UserMoment
 import com.example.data.util.PendingExternalLink
 import com.example.data.util.SafeLinkCategory
 import com.example.data.util.formatOperatingHours
@@ -113,6 +117,7 @@ import com.example.ui.components.SafeExternalLinkConfirmationDialog
 import com.example.ui.components.SurabayaRemoteOrFallbackImage
 import com.example.ui.components.openCulinaryMapsDirection
 import com.example.ui.components.openEventMapsDirection
+import com.example.ui.components.openGoogleMapsLocation
 import com.example.ui.components.openExternalUrlSafely
 import com.example.ui.components.openIncidentMapsDirection
 import com.example.ui.screens.formatCulinaryCategoryLabel
@@ -1813,3 +1818,625 @@ fun ChatConversationSheetContent(
         Spacer(modifier = Modifier.height(8.dp))
     }
 }
+
+@Composable
+fun MomentDetailSheetContent(
+    moment: UserMoment,
+    comments: List<MomentComment>,
+    currentUserId: String,
+    isAdmin: Boolean,
+    onToggleLike: () -> Unit,
+    onAddComment: (String) -> Unit,
+    onReport: () -> Unit,
+    onBlockAuthor: () -> Unit,
+    onAdminDelete: (() -> Unit)? = null,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var commentInput by remember { mutableStateOf("") }
+    var viewingPhotoUrl by remember { mutableStateOf<String?>(null) }
+    val isLiked = currentUserId in moment.likedByUids
+    val photos = moment.allPhotos()
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        // Sheet Drag Handle & Close
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .size(width = 36.dp, height = 4.dp)
+                .clip(CircleShape)
+                .background(OutlineVariantLight),
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // Author row
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(ToskaPrimaryDeep),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = moment.authorName.take(1).uppercase(),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = moment.authorName,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = "${moment.district}${if (moment.locationName.isNotBlank()) " • ${moment.locationName}" else ""} • ${formatRelativeTimestamp(moment.timestamp)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    Row {
+                        IconButton(onClick = onReport) {
+                            Icon(
+                                imageVector = Icons.Filled.Block,
+                                contentDescription = "Lapor",
+                                tint = AlertCrimson,
+                            )
+                        }
+                        if (isAdmin && onAdminDelete != null) {
+                            IconButton(onClick = onAdminDelete) {
+                                Icon(
+                                    imageVector = Icons.Filled.DeleteOutline,
+                                    contentDescription = "Hapus Admin",
+                                    tint = AlertCrimson,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Photos
+            item {
+                if (photos.isNotEmpty()) {
+                    CulinaryPhotoCarousel(
+                        photos = photos,
+                        fallbackResName = moment.imageResName,
+                        isBlurred = moment.isContentBlurred,
+                        onPhotoClick = { viewingPhotoUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else if (moment.imageResName.isNotBlank()) {
+                    SurabayaRemoteOrFallbackImage(
+                        photoUrl = "",
+                        resName = moment.imageResName,
+                        contentDescription = moment.caption,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { viewingPhotoUrl = moment.imageResName },
+                    )
+                }
+            }
+
+            // Caption
+            if (moment.caption.isNotBlank()) {
+                item {
+                    Text(
+                        text = moment.caption,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+
+            // Likes row
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onToggleLike) {
+                        Icon(
+                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.Favorite,
+                            contentDescription = "Suka",
+                            tint = if (isLiked) AlertCrimson else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = "${moment.likesCount} warga menyukai ini",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+
+            item {
+                HorizontalDivider(color = OutlineVariantLight)
+            }
+
+            // Comments header
+            item {
+                Text(
+                    text = "Komentar Warga (${comments.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = ToskaPrimaryDeep,
+                )
+            }
+
+            if (comments.isEmpty()) {
+                item {
+                    Text(
+                        text = "Belum ada komentar. Jadilah yang pertama menyapa!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                }
+            } else {
+                items(comments, key = { it.id }) { comment ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    text = comment.authorName,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = formatRelativeTimestamp(comment.timestamp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = comment.comment,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Comment Input Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = commentInput,
+                onValueChange = { commentInput = it },
+                placeholder = {
+                    Text(
+                        text = "Tulis tanggapan atau sapa...",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                shape = CircleShape,
+                singleLine = true,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("moment_comment_input"),
+            )
+            IconButton(
+                onClick = {
+                    if (commentInput.isNotBlank()) {
+                        onAddComment(commentInput)
+                        commentInput = ""
+                    }
+                },
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(FreshGreenGradient, CircleShape)
+                    .testTag("moment_comment_send_btn"),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Kirim",
+                    tint = Color.White,
+                )
+            }
+        }
+    }
+
+    viewingPhotoUrl?.let { url ->
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrl = url,
+            onDismiss = { viewingPhotoUrl = null },
+        )
+    }
+}
+
+@Composable
+fun DestinationDetailSheetContent(
+    destination: SurabayaDestination,
+    reviews: List<DestinationReview>,
+    isBookmarked: Boolean,
+    isAdmin: Boolean,
+    onToggleBookmark: () -> Unit,
+    onAddReview: (review: String, rating: Int) -> Unit,
+    onReport: () -> Unit,
+    onAdminDelete: (() -> Unit)? = null,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var reviewInput by remember { mutableStateOf("") }
+    var ratingInput by remember { mutableIntStateOf(5) }
+    var viewingPhotoUrl by remember { mutableStateOf<String?>(null) }
+    val photos = destination.allPhotos()
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        // Drag Handle
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .size(width = 36.dp, height = 4.dp)
+                .clip(CircleShape)
+                .background(OutlineVariantLight),
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // Header Image / Carousel
+            item {
+                if (photos.isNotEmpty()) {
+                    CulinaryPhotoCarousel(
+                        photos = photos,
+                        fallbackResName = destination.imageResName,
+                        isBlurred = destination.isContentBlurred,
+                        onPhotoClick = { viewingPhotoUrl = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else if (destination.imageResName.isNotBlank()) {
+                    SurabayaRemoteOrFallbackImage(
+                        photoUrl = "",
+                        resName = destination.imageResName,
+                        contentDescription = destination.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { viewingPhotoUrl = destination.imageResName },
+                    )
+                }
+            }
+
+            // Title & Bookmark
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = ToskaPrimaryDeep,
+                        ) {
+                            Text(
+                                text = destination.category,
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = destination.title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.LocationOn,
+                                contentDescription = null,
+                                tint = ToskaPrimaryDeep,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${destination.district} • ${destination.address}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    Row {
+                        IconButton(onClick = onToggleBookmark) {
+                            Icon(
+                                imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = "Simpan",
+                                tint = ToskaPrimaryDeep,
+                            )
+                        }
+                        if (isAdmin && onAdminDelete != null) {
+                            IconButton(onClick = onAdminDelete) {
+                                Icon(
+                                    imageVector = Icons.Filled.DeleteOutline,
+                                    contentDescription = "Hapus Destinasi",
+                                    tint = AlertCrimson,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Key info pills
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = OpenGreenBg,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(text = "Tiket Masuk", style = MaterialTheme.typography.labelSmall, color = OpenGreenText)
+                            Text(text = destination.ticketPrice, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = OpenGreenText)
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = ToskaPrimaryDeep.copy(alpha = 0.1f),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(text = "Jam Buka", style = MaterialTheme.typography.labelSmall, color = ToskaPrimaryDeep)
+                            Text(text = destination.operationalHours, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = ToskaPrimaryDeep)
+                        }
+                    }
+                }
+            }
+
+            // Description
+            item {
+                Column {
+                    Text(
+                        text = "Tentang Destinasi",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimaryDeep,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = destination.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (destination.bestTimeToVisit.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "💡 Waktu Kunjungan Terbaik: ${destination.bestTimeToVisit}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            // Google Maps Navigation Button
+            item {
+                FilledTonalButton(
+                    onClick = {
+                        openGoogleMapsLocation(
+                            context = context,
+                            lat = destination.lat,
+                            lng = destination.lng,
+                            label = destination.title,
+                        )
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = ToskaPrimaryDeep,
+                        contentColor = Color.White,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("dest_btn_maps_nav"),
+                ) {
+                    Icon(imageVector = Icons.Filled.Directions, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Buka Rute di Google Maps", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            item {
+                HorizontalDivider(color = OutlineVariantLight)
+            }
+
+            // Reviews & Rating Section
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Ulasan & Penilaian Warga",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimaryDeep,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = String.format("%.1f (%d ulasan)", destination.rating, destination.reviewsCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+
+            // Add Review Input Box
+            item {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Beri Bintang & Ulasan:",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                            for (star in 1..5) {
+                                IconButton(
+                                    onClick = { ratingInput = star },
+                                    modifier = Modifier.size(36.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = if (star <= ratingInput) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                                        contentDescription = "$star Bintang",
+                                        tint = if (star <= ratingInput) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                        OutlinedTextField(
+                            value = reviewInput,
+                            onValueChange = { reviewInput = it },
+                            placeholder = { Text("Ceritakan pengalaman berkunjung Anda...") },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("dest_review_input"),
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FilledTonalButton(
+                            onClick = {
+                                if (reviewInput.isNotBlank()) {
+                                    onAddReview(reviewInput, ratingInput)
+                                    reviewInput = ""
+                                }
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
+                            Text("Kirim Ulasan")
+                        }
+                    }
+                }
+            }
+
+            if (reviews.isEmpty()) {
+                item {
+                    Text(
+                        text = "Belum ada ulasan dari warga. Berikan penilaian pertama Anda!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                items(reviews, key = { it.id }) { rev ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    text = rev.authorName,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    for (i in 1..rev.rating) {
+                                        Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(12.dp))
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = rev.review, style = MaterialTheme.typography.bodySmall)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = formatRelativeTimestamp(rev.timestamp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    viewingPhotoUrl?.let { url ->
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrl = url,
+            onDismiss = { viewingPhotoUrl = null },
+        )
+    }
+}
+

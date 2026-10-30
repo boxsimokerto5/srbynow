@@ -795,12 +795,10 @@ class PocketBaseClient(
         fun getInstance(context: Context): PocketBaseClient {
             return singletonInstance ?: synchronized(this) {
                 singletonInstance ?: PocketBaseClient(
-                    baseUrlInput = com.example.BuildConfig.POCKETBASE_URL.takeIf { it.isNotBlank() }
-                        ?: context.applicationContext.getString(R.string.pocketbase_base_url),
+                    baseUrlInput = context.applicationContext.getString(R.string.pocketbase_base_url),
                     dataStore = context.applicationContext.pbSessionDataStore,
                     enableRealtimeSse = true,
                 ).also { singletonInstance = it }
-
             }
         }
 

@@ -167,7 +167,9 @@ fun CreateIncidentSheetContent(
 
         Text("Kategori & Tingkat Urgensi", style = MaterialTheme.typography.labelLarge)
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             listOf(
@@ -413,7 +415,9 @@ fun ProposeEventSheetContent(
         )
 
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             listOf(
@@ -717,7 +721,9 @@ fun CreateCulinarySheetContent(
         )
 
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             listOf(
@@ -1660,3 +1666,383 @@ private fun DistrictPickerChips(
         enabled = enabled,
     )
 }
+
+@Composable
+fun CreateMomentSheetContent(
+    defaultDistrict: String,
+    isSubmitting: Boolean = false,
+    isScanningPhoto: Boolean = false,
+    onSubmit: (
+        caption: String,
+        district: String,
+        locationName: String,
+        photoUris: List<Uri>,
+    ) -> Unit,
+) {
+    var caption by remember { mutableStateOf("") }
+    var district by remember { mutableStateOf(defaultDistrict) }
+    var locationName by remember { mutableStateOf("") }
+    var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    val isFormValid = caption.trim().isNotEmpty() || selectedPhotoUris.isNotEmpty()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 18.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        GoogleMapsSheetHandleHeader(
+            title = "Posting Momen Arek Surabaya",
+            subtitle = "Abadikan foto sudut kota, jalanan, suasana malam, atau kebersamaan warga (hingga 4 foto).",
+        )
+
+        FormMultiPhotoPickerSection(
+            selectedPhotoUris = selectedPhotoUris,
+            onPhotosChanged = { selectedPhotoUris = it },
+            maxPhotos = 4,
+            enabled = !isSubmitting,
+            helperText = "Pilih 1 - 4 foto galeri. Dilindungi pemindai AI konten eksplisit.",
+        )
+
+        OutlinedTextField(
+            value = caption,
+            onValueChange = { caption = it },
+            label = { Text("Cerita / Keterangan Momen") },
+            placeholder = { Text("Contoh: Sore syahdu di Tunjungan, lampu kota mulai menyala...") },
+            minLines = 3,
+            maxLines = 6,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("moment_caption_input"),
+            enabled = !isSubmitting,
+        )
+
+        OutlinedTextField(
+            value = locationName,
+            onValueChange = { locationName = it },
+            label = { Text("Nama Lokasi / Tempat (Opsional)") },
+            placeholder = { Text("Contoh: Jl. Tunjungan / Jembatan Suroboyo") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("moment_location_input"),
+            enabled = !isSubmitting,
+        )
+
+        Column {
+            Text(
+                text = "Kecamatan Surabaya",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            SurabayaDistrictDropdown(
+                selectedDistrict = district,
+                onSelect = { district = it },
+                enabled = !isSubmitting,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Button(
+            onClick = {
+                onSubmit(
+                    caption.trim(),
+                    district,
+                    locationName.trim(),
+                    selectedPhotoUris,
+                )
+            },
+            enabled = isFormValid && !isSubmitting,
+            shape = CircleShape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .testTag("btn_submit_moment"),
+        ) {
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    stringResource(
+                        if (isScanningPhoto) R.string.scanning_photo_ai_label else R.string.submitting_upload_label,
+                    ),
+                )
+            } else {
+                Icon(Icons.Filled.AddAPhoto, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "Publikasikan Momen", fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+
+@Composable
+fun CreateDestinationSheetContent(
+    defaultDistrict: String,
+    isSubmitting: Boolean = false,
+    isScanningPhoto: Boolean = false,
+    onSubmit: (
+        title: String,
+        category: String,
+        description: String,
+        address: String,
+        district: String,
+        ticketPrice: String,
+        operationalHours: String,
+        bestTimeToVisit: String,
+        mapsUrl: String,
+        photoUris: List<Uri>,
+    ) -> Unit,
+) {
+    var title by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Wisata Sejarah") }
+    var description by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var district by remember { mutableStateOf(defaultDistrict) }
+    var ticketPrice by remember { mutableStateOf("Gratis") }
+    var operationalHours by remember { mutableStateOf("08.00 - 17.00 WIB") }
+    var bestTimeToVisit by remember { mutableStateOf("Pagi / Sore Hari") }
+    var mapsUrl by remember { mutableStateOf("") }
+    var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    val categories = listOf(
+        "Wisata Sejarah",
+        "Taman Kota",
+        "Wisata Bahari",
+        "Religi & Budaya",
+        "Museum & Edukasi",
+    )
+
+    val isFormValid = title.trim().length >= 3 &&
+        description.trim().length >= 10 &&
+        address.trim().length >= 3
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 18.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        GoogleMapsSheetHandleHeader(
+            title = "Tambah Destinasi Surabaya (Khusus Admin)",
+            subtitle = "Publikasikan objek wisata, museum, atau cagar budaya resmi Kota Pahlawan.",
+        )
+
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = ToskaPrimaryDeep,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AdminPanelSettings,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Akses Kurator Admin: Data akan langsung tayang ke direktori resmi",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+
+        FormMultiPhotoPickerSection(
+            selectedPhotoUris = selectedPhotoUris,
+            onPhotosChanged = { selectedPhotoUris = it },
+            maxPhotos = 4,
+            enabled = !isSubmitting,
+            helperText = "Foto resmi destinasi (hingga 4 foto).",
+        )
+
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Nama Destinasi") },
+            placeholder = { Text("Contoh: Kawasan Kota Lama Surabaya") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("admin_dest_title_input"),
+            enabled = !isSubmitting,
+        )
+
+        Column {
+            Text(
+                text = "Kategori Destinasi",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                for (cat in categories) {
+                    FilterChip(
+                        selected = category == cat,
+                        onClick = { category = cat },
+                        label = { Text(cat) },
+                        enabled = !isSubmitting,
+                    )
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = description,
+            onValueChange = { description = it },
+            label = { Text("Deskripsi & Daya Tarik Wisata") },
+            placeholder = { Text("Jelaskan sejarah, fasilitas, keunikan, dan spot foto menarik...") },
+            minLines = 3,
+            maxLines = 6,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("admin_dest_desc_input"),
+            enabled = !isSubmitting,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = ticketPrice,
+                onValueChange = { ticketPrice = it },
+                label = { Text("Tiket Masuk") },
+                placeholder = { Text("Gratis / Rp 10.000") },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f),
+                enabled = !isSubmitting,
+            )
+
+            OutlinedTextField(
+                value = operationalHours,
+                onValueChange = { operationalHours = it },
+                label = { Text("Jam Operasional") },
+                placeholder = { Text("24 Jam / 08.00-17.00") },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f),
+                enabled = !isSubmitting,
+            )
+        }
+
+        OutlinedTextField(
+            value = bestTimeToVisit,
+            onValueChange = { bestTimeToVisit = it },
+            label = { Text("Waktu Terbaik Berkunjung") },
+            placeholder = { Text("Pagi Hari / Menjelang Sunset") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isSubmitting,
+        )
+
+        OutlinedTextField(
+            value = address,
+            onValueChange = { address = it },
+            label = { Text("Alamat Lengkap") },
+            placeholder = { Text("Jl. Rajawali No. 12") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isSubmitting,
+        )
+
+        Column {
+            Text(
+                text = "Kecamatan",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            SurabayaDistrictDropdown(
+                selectedDistrict = district,
+                onSelect = { district = it },
+                enabled = !isSubmitting,
+            )
+        }
+
+        OutlinedTextField(
+            value = mapsUrl,
+            onValueChange = { mapsUrl = it },
+            label = { Text("Tautan Google Maps (Opsional)") },
+            placeholder = { Text("https://maps.app.goo.gl/...") },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isSubmitting,
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Button(
+            onClick = {
+                onSubmit(
+                    title.trim(),
+                    category,
+                    description.trim(),
+                    address.trim(),
+                    district,
+                    ticketPrice.trim().ifBlank { "Gratis" },
+                    operationalHours.trim().ifBlank { "24 Jam" },
+                    bestTimeToVisit.trim().ifBlank { "Sepanjang Hari" },
+                    mapsUrl.trim(),
+                    selectedPhotoUris,
+                )
+            },
+            enabled = isFormValid && !isSubmitting,
+            shape = CircleShape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .testTag("btn_submit_destination"),
+        ) {
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Menerbitkan Destinasi...")
+            } else {
+                Icon(Icons.Filled.Storefront, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "Terbitkan Destinasi", fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+}
+

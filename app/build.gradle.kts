@@ -152,9 +152,8 @@ tasks.withType<Test> {
   testLogging { events("passed", "failed", "skipped") }
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
   compilerOptions {
     freeCompilerArgs.add("-Xskip-metadata-version-check")
   }
 }
-

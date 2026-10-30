@@ -291,3 +291,100 @@ data class ChatMessage(
     val text: String = "",
     val createdAt: Long? = null,
 )
+
+data class UserMoment(
+    val id: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val authorDistrict: String = "Genteng",
+    val caption: String = "",
+    val locationName: String = "",
+    val district: String = "Genteng",
+    val imageKey: String = "hero_surabaya",
+    val photoUrl: String = "",
+    val photoUrls: List<String> = emptyList(),
+    val likesCount: Int = 0,
+    val likedByUids: List<String> = emptyList(),
+    val commentCount: Int = 0,
+    val contentReportCount: Int = 0,
+    val contentReportedByUids: List<String> = emptyList(),
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+) {
+    val allPhotos: List<String>
+        get() = when {
+            photoUrls.isNotEmpty() -> photoUrls.filter { it.isNotBlank() }
+            photoUrl.isNotBlank() -> listOf(photoUrl)
+            else -> emptyList()
+        }
+
+    val isContentBlurred: Boolean
+        get() = contentReportCount >= 1
+
+    val isContentQuarantined: Boolean
+        get() = contentReportCount >= 3
+}
+
+data class MomentComment(
+    val id: String = "",
+    val momentId: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val text: String = "",
+    val createdAt: Long? = null,
+)
+
+data class SurabayaDestination(
+    val id: String = "",
+    val createdBy: String = "",
+    val authorName: String = "Admin Surabaya",
+    val title: String = "",
+    val category: String = "WISATA_SEJARAH",
+    val description: String = "",
+    val district: String = "Genteng",
+    val address: String = "",
+    val ticketPrice: String = "Gratis",
+    val operationalHours: String = "08.00 - 22.00 WIB",
+    val bestTime: String = "Sore hari",
+    val imageKey: String = "hero_surabaya",
+    val photoUrl: String = "",
+    val photoUrls: List<String> = emptyList(),
+    val mapsUrl: String = "",
+    val ratingAvg: Double = 4.8,
+    val reviewCount: Int = 0,
+    val linkReportCount: Int = 0,
+    val linkReportedByUids: List<String> = emptyList(),
+    val contentReportCount: Int = 0,
+    val contentReportedByUids: List<String> = emptyList(),
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+) {
+    val allPhotos: List<String>
+        get() = when {
+            photoUrls.isNotEmpty() -> photoUrls.filter { it.isNotBlank() }
+            photoUrl.isNotBlank() -> listOf(photoUrl)
+            else -> emptyList()
+        }
+
+    val isLinkQuarantined: Boolean
+        get() = linkReportCount >= 3
+
+    val safeMapsUrl: String
+        get() = if (isLinkQuarantined) "" else mapsUrl
+
+    val isContentBlurred: Boolean
+        get() = contentReportCount >= 1
+
+    val isContentQuarantined: Boolean
+        get() = contentReportCount >= 3
+}
+
+data class DestinationReview(
+    val id: String = "",
+    val destinationId: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val rating: Int = 5,
+    val comment: String = "",
+    val createdAt: Long? = null,
+)

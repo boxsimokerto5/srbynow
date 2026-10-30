@@ -88,8 +88,8 @@
     <string name="btn_reported_suspicious_link">Link Dilaporkan</string>
     <string name="quarantined_link_notice">Tautan luar pada kiriman ini disembunyikan otomatis demi keamanan karena dilaporkan mencurigakan oleh warga. Gunakan pencarian alamat resmi.</string>
     <string name="admin_clear_suspicious_link">Hapus Link Mencurigakan</string>
-    <string name="ai_photo_safety_form_notice">Proteksi AI Lokal LiteRT Aktif di HP (0 Kuota Cloud • Privasi Terjamin): Setiap foto disaring instan di perangkat. Konten pornografi/ketelanjangan otomatis ditolak &amp; akun pelanggar dibekukan.</string>
-    <string name="scanning_photo_ai_label">Memindai Keamanan Foto (AI Lokal LiteRT)…</string>
+    <string name="ai_photo_safety_form_notice">Proteksi AI Hibrida Aktif (Lokal di HP + Cloud): Setiap foto disaring cepat di perangkat sebelum diunggah. Konten pornografi/ketelanjangan ditolak &amp; akun pelanggar dibekukan.</string>
+    <string name="scanning_photo_ai_label">Memindai Keamanan Foto (AI Hibrida)…</string>
     <string name="sensitive_blur_title">Foto Disamarkan Demi Kenyamanan Warga</string>
     <string name="sensitive_blur_subtitle">Dilaporkan warga sebagai konten sensitif/asusila. Ketuk tombol di bawah hanya jika ingin meninjau.</string>
     <string name="sensitive_blur_compact_label">Sensitif</string>
@@ -110,4 +110,26 @@
     <string name="blocked_users_section_title">Pengguna Diblokir (%1$d)</string>
     <string name="blocked_users_section_subtitle">Kiriman, profil sekitar, dan pesan dari akun di bawah ini disembunyikan.</string>
     <string name="btn_unblock_user">Buka Blokir</string>
+    <string name="nav_home">Beranda</string>
+    <string name="nav_momen">Momen</string>
+    <string name="nav_destinasi">Destinasi</string>
+    <string name="home_greeting_cak">Halo, Cak &amp; Ning</string>
+    <string name="home_shortcuts_title">Menu &amp; Layanan Cepat</string>
+    <string name="home_highlights_title">Kabar Terhangat Hari Ini</string>
+    <string name="home_destinations_title">Destinasi Ikonik Surabaya</string>
+    <string name="home_moments_title">Momen Warga Terkini</string>
+    <string name="btn_add_moment">Posting Momen</string>
+    <string name="btn_add_destination">Tambah Destinasi</string>
+    <string name="admin_only_badge">Kurasi Resmi Admin</string>
+    <string name="admin_post_destination_notice">Hanya akun Admin yang berwenang menambahkan destinasi wisata resmi Surabaya.</string>
+    <string name="moment_like">Suka</string>
+    <string name="moment_comments_title">Komentar Momen (%1$d)</string>
+    <string name="moment_comments_empty">Belum ada komentar. Berikan sapaan atau apresiasi pertama!</string>
+    <string name="moment_comment_input_hint">Tulis komentar untuk momen ini…</string>
+    <string name="destination_reviews_title">Ulasan Pengunjung (%1$d)</string>
+    <string name="destination_reviews_empty">Belum ada ulasan untuk destinasi ini. Bagikan pengalaman Anda berkunjung ke sini!</string>
+    <string name="destination_review_input_hint">Bagaimana kebersihan, akses jalan &amp; suasananya?</string>
+    <string name="search_destination_hint">Cari museum, taman kota, heritage, cagar budaya…</string>
+    <string name="moment_caption_hint">Ceritakan momen seru atau tempat nongkrong Anda di Surabaya…</string>
+    <string name="moment_spot_hint">Nama Tempat / Spot (Contoh: Taman Bungkul, Jl. Tunjungan)</string>
 </resources>
