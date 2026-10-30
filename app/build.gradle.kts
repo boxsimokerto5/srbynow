@@ -128,6 +128,7 @@ dependencies {
   implementation(libs.okhttp)
   implementation(libs.play.services.location)
   // implementation(libs.retrofit)
+  testImplementation(platform(libs.androidx.compose.bom))
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
@@ -150,3 +151,10 @@ tasks.withType<Test> {
   timeout.set(Duration.ofMinutes(2))
   testLogging { events("passed", "failed", "skipped") }
 }
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+  compilerOptions {
+    freeCompilerArgs.add("-Xskip-metadata-version-check")
+  }
+}
+

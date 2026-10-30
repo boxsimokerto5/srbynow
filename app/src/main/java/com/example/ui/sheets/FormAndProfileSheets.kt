@@ -8,11 +8,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -96,7 +95,6 @@ import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimaryDeep
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CreateIncidentSheetContent(
     defaultDistrict: String,
@@ -168,7 +166,10 @@ fun CreateIncidentSheetContent(
         )
 
         Text("Kategori & Tingkat Urgensi", style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             listOf(
                 "LALU_LINTAS" to "Lalu Lintas",
                 "CUACA_BANJIR" to "Cuaca/Banjir",
@@ -335,7 +336,6 @@ fun CreateIncidentSheetContent(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProposeEventSheetContent(
     defaultDistrict: String,
@@ -412,7 +412,10 @@ fun ProposeEventSheetContent(
                 .testTag("form_event_title"),
         )
 
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             listOf(
                 "FESTIVAL" to "Festival",
                 "MUSIK_SENI" to "Musik & Seni",
@@ -623,7 +626,6 @@ fun ProposeEventSheetContent(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CreateCulinarySheetContent(
     defaultDistrict: String,
@@ -714,7 +716,10 @@ fun CreateCulinarySheetContent(
                 .testTag("form_kuliner_name"),
         )
 
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             listOf(
                 "RAWON_SOTO" to "Rawon & Soto",
                 "PENYETAN_SAMBAL" to "Penyetan",

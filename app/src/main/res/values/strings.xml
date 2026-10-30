@@ -88,8 +88,8 @@
     <string name="btn_reported_suspicious_link">Link Dilaporkan</string>
     <string name="quarantined_link_notice">Tautan luar pada kiriman ini disembunyikan otomatis demi keamanan karena dilaporkan mencurigakan oleh warga. Gunakan pencarian alamat resmi.</string>
     <string name="admin_clear_suspicious_link">Hapus Link Mencurigakan</string>
-    <string name="ai_photo_safety_form_notice">Proteksi AI Hibrida Aktif (Lokal di HP + Cloud): Setiap foto disaring cepat di perangkat sebelum diunggah. Konten pornografi/ketelanjangan ditolak &amp; akun pelanggar dibekukan.</string>
-    <string name="scanning_photo_ai_label">Memindai Keamanan Foto (AI Hibrida)…</string>
+    <string name="ai_photo_safety_form_notice">Proteksi AI Lokal LiteRT Aktif di HP (0 Kuota Cloud • Privasi Terjamin): Setiap foto disaring instan di perangkat. Konten pornografi/ketelanjangan otomatis ditolak &amp; akun pelanggar dibekukan.</string>
+    <string name="scanning_photo_ai_label">Memindai Keamanan Foto (AI Lokal LiteRT)…</string>
     <string name="sensitive_blur_title">Foto Disamarkan Demi Kenyamanan Warga</string>
     <string name="sensitive_blur_subtitle">Dilaporkan warga sebagai konten sensitif/asusila. Ketuk tombol di bawah hanya jika ingin meninjau.</string>
     <string name="sensitive_blur_compact_label">Sensitif</string>

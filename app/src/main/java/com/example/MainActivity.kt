@@ -66,7 +66,7 @@ import com.example.data.location.LocationHelper
 import com.example.data.model.UiState
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.repository.SurabayaRepository
-import com.example.data.util.GeminiExplicitImageScanner
+import com.example.data.util.OnDeviceLiteRtImageScanner
 import com.example.data.util.configureAppCheck
 import com.example.ui.auth.AuthScreen
 import com.example.ui.auth.OAuthRedirectBus
@@ -168,7 +168,7 @@ fun SurabayaMainHub(
                     currentUserId = currentUserId,
                     initialDisplayName = displayName,
                     currentUserEmail = email,
-                    imageSafetyScanner = GeminiExplicitImageScanner(app),
+                    imageSafetyScanner = OnDeviceLiteRtImageScanner(app),
                 )
             }
         },

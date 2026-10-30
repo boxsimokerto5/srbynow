@@ -3,13 +3,13 @@ package com.example.ui.screens
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -71,7 +71,6 @@ import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimaryDeep
 import com.example.ui.viewmodel.NearbyPeerItem
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TemanSekitarScreen(
     nearbyPeersState: UiState<List<NearbyPeerItem>>,
@@ -268,7 +267,6 @@ fun TemanSekitarScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NearbyPeerCard(
     peerItem: NearbyPeerItem,
@@ -414,9 +412,9 @@ private fun NearbyPeerCard(
             }
 
             if (tags.isNotEmpty()) {
-                FlowRow(
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     tags.forEach { hobby ->
                         Surface(

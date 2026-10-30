@@ -15,13 +15,13 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -1439,7 +1439,6 @@ private fun ZoomablePhotoPage(
  * Branded online food delivery action chips (GoFood, GrabFood, ShopeeFood) rendered only when safe links exist.
  * Always shows a SafeExternalLinkConfirmationDialog before leaving the app.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CulinaryDeliveryLinksRow(
     spot: CulinarySpot,
@@ -1478,10 +1477,10 @@ fun CulinaryDeliveryLinksRow(
 
     if (gofoodPending == null && grabfoodPending == null && shopeefoodPending == null) return
 
-    FlowRow(
-        modifier = modifier,
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (gofoodPending != null) {
             DeliveryPlatformChip(
@@ -1573,7 +1572,6 @@ private fun DeliveryPlatformChip(
  * - Citizen "Blokir Penulis" (Google Play UGC compliance)
  * - Admin 1-click "Hapus Permanen", "Pulihkan Blur", and "Bekukan Akun"
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PostContentSafetyRow(
     authorId: String,
@@ -1790,10 +1788,12 @@ fun PostContentSafetyRow(
             }
         }
 
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // Citizen Report Asusila Pill
             Surface(

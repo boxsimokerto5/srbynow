@@ -22,6 +22,7 @@ import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.ImageSafetyScanResult
 import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
+import com.example.data.util.OnDeviceLiteRtImageScanner
 import com.example.data.util.PreparedPhoto
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.calculateDistanceKm
@@ -73,7 +74,7 @@ class SurabayaViewModel(
     val currentUserId: String,
     private val initialDisplayName: String,
     val currentUserEmail: String,
-    private val imageSafetyScanner: ImageSafetyScanner = GeminiExplicitImageScanner(),
+    private val imageSafetyScanner: ImageSafetyScanner = OnDeviceLiteRtImageScanner(),
 ) : ViewModel() {
 
     private val _selectedTab = MutableStateFlow(MainTab.KEJADIAN)

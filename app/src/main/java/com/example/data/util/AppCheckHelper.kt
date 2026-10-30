@@ -22,6 +22,11 @@ fun configureAppCheck(context: Context, intent: Intent?) {
             FirebaseApp.initializeApp(context)
         }
 
+        if (FirebaseApp.getApps(context).isEmpty()) {
+            Log.w(TAG, "No FirebaseApp instances found. App Check cannot be configured.")
+            return
+        }
+
         if (BuildConfig.DEBUG) {
             val debugToken = intent?.getStringExtra(DEBUG_TOKEN_EXTRA)
 
