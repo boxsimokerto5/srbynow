@@ -46,13 +46,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,9 +64,11 @@ import com.example.data.model.SurabayaEvent
 import com.example.data.model.UiState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import com.example.ui.components.AdminRawLinkPreviewBadge
 import com.example.ui.components.CategoryFilterRow
+import com.example.ui.components.CulinaryPhotoCarousel
 import com.example.ui.components.EmptyFeedPlaceholder
-import com.example.ui.components.SurabayaRemoteOrFallbackImage
+import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
@@ -110,10 +112,23 @@ fun EventScreen(
     onQuickRejectEvent: (SurabayaEvent) -> Unit,
     onOpenProposeSheet: () -> Unit,
     onOpenAdminSwitchSheet: () -> Unit,
+    onAdminClearEventLinks: (SurabayaEvent) -> Unit = {},
 ) {
     // 0 = Agenda Kota (Approved), 1 = Usulan Saya, 2 = Moderasi Admin
     var selectedSubTab by rememberSaveable { mutableIntStateOf(0) }
     var selectedCategory by rememberSaveable { mutableStateOf("ALL") }
+    var viewerTarget by remember { mutableStateOf<Pair<SurabayaEvent, Int>?>(null) }
+
+    val activeViewer = viewerTarget
+    if (activeViewer != null) {
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrls = activeViewer.first.allPhotos,
+            fallbackImageKey = activeViewer.first.imageKey,
+            title = activeViewer.first.title,
+            initialPage = activeViewer.second,
+            onDismiss = { viewerTarget = null },
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -222,6 +237,7 @@ fun EventScreen(
                                     isSaved = isSaved,
                                     isInterested = isInterested,
                                     onClick = { onSelectEvent(ev) },
+                                    onOpenFullscreenPhoto = { pageIdx -> viewerTarget = ev to pageIdx },
                                     onToggleInterest = { onToggleInterest(ev) },
                                     onToggleBookmark = { onToggleBookmark(ev) },
                                 )
@@ -243,6 +259,7 @@ fun EventScreen(
                         MyProposalEventCard(
                             event = ev,
                             onClick = { onSelectEvent(ev) },
+                            onOpenFullscreenPhoto = { pageIdx -> viewerTarget = ev to pageIdx },
                         )
                     }
                 }
@@ -317,8 +334,10 @@ fun EventScreen(
                             event = ev,
                             isAdmin = isAdmin,
                             onClick = { onSelectEvent(ev) },
+                            onOpenFullscreenPhoto = { pageIdx -> viewerTarget = ev to pageIdx },
                             onApprove = { onQuickApproveEvent(ev) },
                             onReject = { onQuickRejectEvent(ev) },
+                            onClearLinks = { onAdminClearEventLinks(ev) },
                         )
                     }
                 }
@@ -389,6 +408,7 @@ private fun ApprovedEventCard(
     isSaved: Boolean,
     isInterested: Boolean,
     onClick: () -> Unit,
+    onOpenFullscreenPhoto: (Int) -> Unit,
     onToggleInterest: () -> Unit,
     onToggleBookmark: () -> Unit,
 ) {
@@ -408,13 +428,16 @@ private fun ApprovedEventCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(132.dp),
+                    .height(148.dp),
             ) {
-                SurabayaRemoteOrFallbackImage(
-                    imageUrl = event.photoUrl,
+                CulinaryPhotoCarousel(
+                    photoUrls = event.allPhotos,
                     fallbackImageKey = event.imageKey,
-                    contentDescription = event.title,
-                    contentScale = ContentScale.Crop,
+                    spotName = event.title,
+                    compactMode = false,
+                    isBlurredSensitive = event.isContentBlurred,
+                    sensitiveReportCount = event.contentReportCount,
+                    onPhotoClick = onOpenFullscreenPhoto,
                     modifier = Modifier.fillMaxSize(),
                 )
                 Row(
@@ -436,9 +459,28 @@ private fun ApprovedEventCard(
                             color = Color.White,
                         )
                     }
+                    if (event.allPhotos.size <= 1) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.94f),
+                        ) {
+                            Text(
+                                text = event.priceLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = OpenGreenText,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
+                if (event.allPhotos.size > 1) {
                     Surface(
                         shape = CircleShape,
                         color = Color.White.copy(alpha = 0.94f),
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(10.dp),
                     ) {
                         Text(
                             text = event.priceLabel,
@@ -563,6 +605,7 @@ private fun ApprovedEventCard(
 private fun MyProposalEventCard(
     event: SurabayaEvent,
     onClick: () -> Unit,
+    onOpenFullscreenPhoto: (Int) -> Unit,
 ) {
     val (statusLabel, badgeBg, badgeText) = when (event.status) {
         "APPROVED" -> Triple("Disetujui Admin", OpenGreenBg, OpenGreenText)
@@ -585,15 +628,18 @@ private fun MyProposalEventCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            if (event.photoUrl.isNotBlank()) {
-                SurabayaRemoteOrFallbackImage(
-                    imageUrl = event.photoUrl,
+            if (event.allPhotos.isNotEmpty()) {
+                CulinaryPhotoCarousel(
+                    photoUrls = event.allPhotos,
                     fallbackImageKey = event.imageKey,
-                    contentDescription = event.title,
-                    contentScale = ContentScale.Crop,
+                    spotName = event.title,
+                    compactMode = false,
+                    isBlurredSensitive = event.isContentBlurred,
+                    sensitiveReportCount = event.contentReportCount,
+                    onPhotoClick = onOpenFullscreenPhoto,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(110.dp)
+                        .height(126.dp)
                         .clip(RoundedCornerShape(14.dp)),
                 )
             }
@@ -654,8 +700,10 @@ private fun PendingModerationCard(
     event: SurabayaEvent,
     isAdmin: Boolean,
     onClick: () -> Unit,
+    onOpenFullscreenPhoto: (Int) -> Unit,
     onApprove: () -> Unit,
     onReject: () -> Unit,
+    onClearLinks: () -> Unit = {},
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -673,15 +721,18 @@ private fun PendingModerationCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            if (event.photoUrl.isNotBlank()) {
-                SurabayaRemoteOrFallbackImage(
-                    imageUrl = event.photoUrl,
+            if (event.allPhotos.isNotEmpty()) {
+                CulinaryPhotoCarousel(
+                    photoUrls = event.allPhotos,
                     fallbackImageKey = event.imageKey,
-                    contentDescription = event.title,
-                    contentScale = ContentScale.Crop,
+                    spotName = event.title,
+                    compactMode = false,
+                    isBlurredSensitive = event.isContentBlurred,
+                    sensitiveReportCount = event.contentReportCount,
+                    onPhotoClick = onOpenFullscreenPhoto,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(116.dp)
+                        .height(128.dp)
                         .clip(RoundedCornerShape(14.dp)),
                 )
             }
@@ -723,6 +774,14 @@ private fun PendingModerationCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+
+            if (event.safeMapsUrl.isNotBlank()) {
+                AdminRawLinkPreviewBadge(
+                    rawUrl = event.safeMapsUrl,
+                    reportCount = event.linkReportCount,
+                    onClearLink = if (isAdmin) onClearLinks else null,
+                )
+            }
 
             if (isAdmin) {
                 Row(

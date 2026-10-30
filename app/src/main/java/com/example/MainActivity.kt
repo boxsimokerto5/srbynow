@@ -66,6 +66,8 @@ import com.example.data.location.LocationHelper
 import com.example.data.model.UiState
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.repository.SurabayaRepository
+import com.example.data.util.GeminiExplicitImageScanner
+import com.example.data.util.configureAppCheck
 import com.example.ui.auth.AuthScreen
 import com.example.ui.auth.OAuthRedirectBus
 import com.example.ui.auth.performSignOut
@@ -93,6 +95,7 @@ import com.example.ui.viewmodel.SurabayaViewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        configureAppCheck(this, intent)
         OAuthRedirectBus.handleIncomingIntent(intent)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
@@ -165,6 +168,7 @@ fun SurabayaMainHub(
                     currentUserId = currentUserId,
                     initialDisplayName = displayName,
                     currentUserEmail = email,
+                    imageSafetyScanner = GeminiExplicitImageScanner(app),
                 )
             }
         },
@@ -180,6 +184,7 @@ fun SurabayaMainHub(
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val isLiveGps by viewModel.isLiveGpsActive.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
+    val isScanningPhoto by viewModel.isScanningPhoto.collectAsStateWithLifecycle()
     val myNearbyProfile by viewModel.myNearbyProfile.collectAsStateWithLifecycle()
     val allDiscoverableCitizens by viewModel.allDiscoverableCitizens.collectAsStateWithLifecycle()
 
@@ -349,15 +354,18 @@ fun SurabayaMainHub(
                                 onQuickRejectEvent = { viewModel.moderateEvent(it.id, false, "Usulan belum disetujui.") },
                                 onOpenProposeSheet = { viewModel.openSheet(ActiveBottomSheet.ProposeEvent) },
                                 onOpenAdminSwitchSheet = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
+                                onAdminClearEventLinks = { viewModel.adminClearExternalLinks("events", it.id) },
                             )
                             MainTab.KULINER -> KulinerScreen(
                                 culinaryState = culinaryState,
                                 bookmarks = bookmarks,
+                                currentUserId = currentUserId,
                                 onSelectSpot = { viewModel.openSheet(ActiveBottomSheet.CulinaryDetail(it.id)) },
                                 onToggleBookmark = {
                                     viewModel.toggleBookmark(it.id, "KULINER", it.name, it.priceRange, it.district)
                                 },
                                 onOpenCreateSheet = { viewModel.openSheet(ActiveBottomSheet.CreateCulinary) },
+                                onReportSpotLink = { viewModel.reportCulinaryLink(it) },
                             )
                             MainTab.SEKITAR -> TemanSekitarScreen(
                                 nearbyPeersState = nearbyPeersState,
@@ -366,6 +374,9 @@ fun SurabayaMainHub(
                                 onRefreshGps = { viewModel.refreshGpsLocation() },
                                 onOpenPrivacySheet = { viewModel.openSheet(ActiveBottomSheet.GpsPrivacySettings) },
                                 onGreetPeer = { viewModel.greetNearbyPeer(it) },
+                                onBlockPeer = { peer ->
+                                    viewModel.blockCitizen(peer.userId.ifBlank { peer.id }, peer.displayName)
+                                },
                             )
                             MainTab.CHAT -> ChatScreen(
                                 publicRooms = publicChatRooms,
@@ -412,9 +423,34 @@ fun SurabayaMainHub(
                             comments = incidentComments,
                             isSaved = isSaved,
                             isVerifiedByMe = currentUserId in found.verifiedByUids,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
                             onVerify = { viewModel.verifyIncident(found) },
                             onBookmark = { viewModel.toggleBookmark(found.id, "KEJADIAN", found.title, found.address, found.district) },
                             onSendComment = { txt -> viewModel.sendIncidentComment(found, txt) },
+                            onReportLink = { viewModel.reportIncidentLink(found) },
+                            onAdminClearLinks = { viewModel.adminClearExternalLinks("incidents", found.id) },
+                            onReportContent = { viewModel.reportIncidentContent(found) },
+                            onBlockAuthor = if (found.authorId.isNotBlank() && found.authorId != currentUserId) {
+                                { viewModel.blockCitizen(found.authorId, found.authorName) }
+                            } else {
+                                null
+                            },
+                            onAdminDeletePost = if (isAdmin) {
+                                { viewModel.adminDeletePost("incidents", found.id) }
+                            } else {
+                                null
+                            },
+                            onAdminRestoreBlur = if (isAdmin) {
+                                { viewModel.adminRestoreContent("incidents", found.id) }
+                            } else {
+                                null
+                            },
+                            onAdminBanAuthor = if (isAdmin && found.authorId.isNotBlank() && found.authorId != currentUserId) {
+                                { viewModel.adminBanCitizen(found.authorId, found.authorName) }
+                            } else {
+                                null
+                            },
                         )
                     }
                 }
@@ -422,8 +458,19 @@ fun SurabayaMainHub(
                     CreateIncidentSheetContent(
                         defaultDistrict = currentDistrict,
                         isSubmitting = isSubmitting,
-                        onSubmit = { title, desc, cat, sev, dist, addr, photoUri ->
-                            viewModel.submitIncident(title, desc, cat, sev, dist, addr, photoUri, context)
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { title, desc, cat, sev, dist, addr, mapsUrl, photoUris ->
+                            viewModel.submitIncident(
+                                title = title,
+                                description = desc,
+                                category = cat,
+                                severity = sev,
+                                district = dist,
+                                address = addr,
+                                mapsUrl = mapsUrl,
+                                photoUris = photoUris,
+                                context = context,
+                            )
                         },
                     )
                 }
@@ -438,11 +485,35 @@ fun SurabayaMainHub(
                             isAdmin = isAdmin,
                             isSaved = isSaved,
                             isInterested = currentUserId in found.interestedUids,
+                            currentUserId = currentUserId,
                             onToggleInterest = { viewModel.toggleEventInterest(found) },
                             onToggleBookmark = {
                                 viewModel.toggleBookmark(found.id, "EVENT", found.title, "${found.eventDateText} • ${found.venueName}", found.district)
                             },
                             onModerate = { approve, note -> viewModel.moderateEvent(found.id, approve, note) },
+                            onReportLink = { viewModel.reportEventLink(found) },
+                            onAdminClearLinks = { viewModel.adminClearExternalLinks("events", found.id) },
+                            onReportContent = { viewModel.reportEventContent(found) },
+                            onBlockAuthor = if (found.proposerId.isNotBlank() && found.proposerId != currentUserId) {
+                                { viewModel.blockCitizen(found.proposerId, found.proposerName) }
+                            } else {
+                                null
+                            },
+                            onAdminDeletePost = if (isAdmin) {
+                                { viewModel.adminDeletePost("events", found.id) }
+                            } else {
+                                null
+                            },
+                            onAdminRestoreBlur = if (isAdmin) {
+                                { viewModel.adminRestoreContent("events", found.id) }
+                            } else {
+                                null
+                            },
+                            onAdminBanAuthor = if (isAdmin && found.proposerId.isNotBlank() && found.proposerId != currentUserId) {
+                                { viewModel.adminBanCitizen(found.proposerId, found.proposerName) }
+                            } else {
+                                null
+                            },
                         )
                     }
                 }
@@ -450,7 +521,8 @@ fun SurabayaMainHub(
                     ProposeEventSheetContent(
                         defaultDistrict = currentDistrict,
                         isSubmitting = isSubmitting,
-                        onSubmit = { title, cat, dateTxt, timeTxt, venue, dist, addr, price, desc, photoUri ->
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { title, cat, dateTxt, timeTxt, venue, dist, addr, price, desc, mapsUrl, photoUris ->
                             viewModel.submitEventProposal(
                                 title = title,
                                 category = cat,
@@ -461,7 +533,8 @@ fun SurabayaMainHub(
                                 address = addr,
                                 priceLabel = price,
                                 description = desc,
-                                photoUri = photoUri,
+                                mapsUrl = mapsUrl,
+                                photoUris = photoUris,
                                 context = context,
                             )
                         },
@@ -475,8 +548,33 @@ fun SurabayaMainHub(
                             spot = found,
                             reviews = culinaryReviews,
                             isSaved = isSaved,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
                             onBookmark = { viewModel.toggleBookmark(found.id, "KULINER", found.name, found.priceRange, found.district) },
                             onSubmitReview = { stars, comment -> viewModel.submitCulinaryReview(found, stars, comment) },
+                            onReportLink = { viewModel.reportCulinaryLink(found) },
+                            onAdminClearLinks = { viewModel.adminClearExternalLinks("culinary", found.id) },
+                            onReportContent = { viewModel.reportCulinaryContent(found) },
+                            onBlockAuthor = if (found.createdBy.isNotBlank() && found.createdBy != currentUserId) {
+                                { viewModel.blockCitizen(found.createdBy, found.authorName) }
+                            } else {
+                                null
+                            },
+                            onAdminDeletePost = if (isAdmin) {
+                                { viewModel.adminDeletePost("culinary", found.id) }
+                            } else {
+                                null
+                            },
+                            onAdminRestoreBlur = if (isAdmin) {
+                                { viewModel.adminRestoreContent("culinary", found.id) }
+                            } else {
+                                null
+                            },
+                            onAdminBanAuthor = if (isAdmin && found.createdBy.isNotBlank() && found.createdBy != currentUserId) {
+                                { viewModel.adminBanCitizen(found.createdBy, found.authorName) }
+                            } else {
+                                null
+                            },
                         )
                     }
                 }
@@ -484,6 +582,7 @@ fun SurabayaMainHub(
                     CreateCulinarySheetContent(
                         defaultDistrict = currentDistrict,
                         isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
                         onSubmit = { name, cat, desc, dist, addr, price, openH, closeH, mapsUrl, gofoodUrl, grabfoodUrl, shopeefoodUrl, photoUris ->
                             viewModel.submitCulinarySpot(
                                 name = name,
@@ -512,6 +611,9 @@ fun SurabayaMainHub(
                         isAdmin = isAdmin,
                         focusPrivacyOnly = true,
                         isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        knownCitizens = allDiscoverableCitizens,
+                        onUnblockUser = { uid -> viewModel.unblockCitizen(uid) },
                         onToggleAdmin = { viewModel.toggleAdminMode(it) },
                         onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
                             viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context)
@@ -527,6 +629,9 @@ fun SurabayaMainHub(
                         isAdmin = isAdmin,
                         focusPrivacyOnly = false,
                         isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        knownCitizens = allDiscoverableCitizens,
+                        onUnblockUser = { uid -> viewModel.unblockCitizen(uid) },
                         onToggleAdmin = { viewModel.toggleAdminMode(it) },
                         onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
                             viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context)
@@ -575,11 +680,17 @@ fun SurabayaMainHub(
                 is ActiveBottomSheet.ChatConversation -> {
                     val liveRoom = (publicChatRooms + directChatRooms)
                         .firstOrNull { it.id == sheetTarget.room.id } ?: sheetTarget.room
+                    val peerUid = liveRoom.otherParticipantIdFor(currentUserId)
                     ChatConversationSheetContent(
                         room = liveRoom,
                         messages = activeChatMessages,
                         currentUserId = currentUserId,
                         onSendMessage = { txt -> viewModel.sendChatMessage(liveRoom, txt) },
+                        onBlockPeer = if (peerUid != null) {
+                            { viewModel.blockCitizen(peerUid, liveRoom.displayTitleFor(currentUserId)) }
+                        } else {
+                            null
+                        },
                     )
                 }
             }

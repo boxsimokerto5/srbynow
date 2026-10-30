@@ -16,8 +16,11 @@ import com.example.data.pocketbase.MultipartFilePart
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.pocketbase.PocketBaseException
 import com.example.data.seed.SurabayaCuratedSeed
+import com.example.data.util.LinkSecurityValidator
+import com.example.data.util.LinkValidationResult
 import com.example.data.util.OperationType
 import com.example.data.util.PreparedPhoto
+import com.example.data.util.SafeLinkCategory
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.defaultCulinaryImageKey
 import com.example.data.util.defaultEventImageKey
@@ -25,15 +28,35 @@ import com.example.data.util.defaultIncidentImageKey
 import com.example.data.util.logBackendError
 import com.example.data.util.parsePocketBaseTimestamp
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArraySet
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import org.json.JSONObject
 
 class SurabayaRepository(
     private val pb: PocketBaseClient,
 ) {
     constructor(context: Context) : this(PocketBaseClient.getInstance(context))
+
+    private data class LocalContentReportOverlay(
+        val count: Int,
+        val uids: List<String>,
+        val forceOverride: Boolean = false,
+    )
+
+    private val localContentReports = ConcurrentHashMap<String, LocalContentReportOverlay>()
+    private val localDeletedRecords = CopyOnWriteArraySet<String>()
+    private val localBlockedUids = ConcurrentHashMap<String, List<String>>()
+    private val localBannedUids = CopyOnWriteArraySet<String>()
+    private val localMutationTick = MutableStateFlow(0L)
+
+    private fun bumpMutationTick() {
+        localMutationTick.value = localMutationTick.value + 1L
+    }
 
     private fun requireUserId(): String {
         return pb.currentSession?.userId?.takeIf { it.isNotBlank() }
@@ -43,9 +66,13 @@ class SurabayaRepository(
     // --- 1. USER PROFILE, ADMIN ROLE & INITIAL SEEDING ---
 
     fun observeUserAccount(userId: String): Flow<UserAccount?> {
-        return pb.observeCollection("users", pollIntervalMs = 8_000L) {
-            val json = pb.getOneOrNull("users", userId) ?: return@observeCollection null
-            mapUserAccount(json)
+        return combine(
+            pb.observeCollection("users", pollIntervalMs = 8_000L) {
+                pb.getOneOrNull("users", userId)
+            },
+            localMutationTick,
+        ) { json, _ ->
+            json?.let(::mapUserAccount)
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.GET, "users/$userId")
             throw e
@@ -436,11 +463,17 @@ class SurabayaRepository(
     // --- 3. KEJADIAN SURABAYA (INCIDENTS) ---
 
     fun observeIncidents(): Flow<List<IncidentReport>> {
-        return pb.observeCollection("incidents", pollIntervalMs = 6_000L) {
-            pb.getList(
-                collection = "incidents",
-                sort = "-created",
-            ).map(::mapIncident)
+        return combine(
+            pb.observeCollection("incidents", pollIntervalMs = 6_000L) {
+                pb.getList(
+                    collection = "incidents",
+                    sort = "-created",
+                )
+            },
+            localMutationTick,
+        ) { list, _ ->
+            list.map(::mapIncident)
+                .filter { "incidents:${it.id}" !in localDeletedRecords && it.authorId !in localBannedUids }
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "incidents")
             throw e
@@ -455,9 +488,12 @@ class SurabayaRepository(
         severity: String,
         district: String,
         address: String,
+        mapsUrl: String = "",
         imageKey: String = defaultIncidentImageKey(category),
         photo: PreparedPhoto? = null,
+        photos: List<PreparedPhoto> = emptyList(),
         onPhotoSchemaMissing: (() -> Unit)? = null,
+        onMultiPhotoFallbackUsed: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
         val recordId = PocketBaseClient.deterministicPbId("inc_${UUID.randomUUID()}")
@@ -467,6 +503,13 @@ class SurabayaRepository(
         val cleanDesc = description.trim().take(1200)
         val cleanDistrict = district.trim().take(60)
         val cleanAddress = address.trim().take(180)
+        val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+        val boundedPhotos = when {
+            photos.isNotEmpty() -> photos.take(4)
+            photo != null -> listOf(photo)
+            else -> emptyList()
+        }
+
         val payload = JSONObject().apply {
             put("id", recordId)
             put("author_id", uid)
@@ -480,12 +523,13 @@ class SurabayaRepository(
             put("lat", lat)
             put("lng", lng)
             put("image_key", imageKey)
+            put("maps_url", cleanMapsUrl)
             put("verified_count", 1)
             put("verified_by_uids", uid)
             put("comment_count", 0)
         }
         return try {
-            val created = if (photo != null) {
+            val created = if (boundedPhotos.isNotEmpty()) {
                 val fields = mapOf(
                     "id" to recordId,
                     "author_id" to uid,
@@ -499,25 +543,51 @@ class SurabayaRepository(
                     "lat" to lat.toString(),
                     "lng" to lng.toString(),
                     "image_key" to imageKey,
+                    "maps_url" to cleanMapsUrl,
                     "verified_count" to "1",
                     "verified_by_uids" to uid,
                     "comment_count" to "0",
                 )
+                val allFileParts = boundedPhotos.mapIndexed { idx, p ->
+                    MultipartFilePart(
+                        fieldName = "photo",
+                        fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                        mimeType = p.mimeType,
+                        bytes = p.bytes,
+                    )
+                }
                 val resp = try {
-                    pb.createRecordMultipart(
+                    pb.createRecordMultipartFiles(
                         collection = "incidents",
                         fields = fields,
-                        filePart = MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes),
+                        fileParts = allFileParts,
                     )
                 } catch (e: PocketBaseException) {
-                    if (e.statusCode == 400) {
+                    if (e.statusCode == 400 && allFileParts.size > 1) {
+                        try {
+                            val singleResp = pb.createRecordMultipartFiles(
+                                collection = "incidents",
+                                fields = fields,
+                                fileParts = listOf(allFileParts.first()),
+                            )
+                            onMultiPhotoFallbackUsed?.invoke()
+                            singleResp
+                        } catch (fallbackErr: PocketBaseException) {
+                            if (fallbackErr.statusCode == 400) {
+                                onPhotoSchemaMissing?.invoke()
+                                return pb.createRecord("incidents", payload).optString("id").ifBlank { recordId }
+                            } else {
+                                throw fallbackErr
+                            }
+                        }
+                    } else if (e.statusCode == 400) {
                         onPhotoSchemaMissing?.invoke()
                         return pb.createRecord("incidents", payload).optString("id").ifBlank { recordId }
                     } else {
                         throw e
                     }
                 }
-                if (resp.optString("photo").isBlank()) {
+                if (extractFileNames(resp, "photo").isEmpty()) {
                     onPhotoSchemaMissing?.invoke()
                 }
                 resp
@@ -606,12 +676,18 @@ class SurabayaRepository(
     // --- 4. EVENT SURABAYA & ADMIN MODERATION ---
 
     fun observeApprovedEvents(): Flow<List<SurabayaEvent>> {
-        return pb.observeCollection("events", pollIntervalMs = 6_000L) {
-            pb.getList(
-                collection = "events",
-                filter = "status = 'APPROVED'",
-                sort = "-created",
-            ).map(::mapEvent)
+        return combine(
+            pb.observeCollection("events", pollIntervalMs = 6_000L) {
+                pb.getList(
+                    collection = "events",
+                    filter = "status = 'APPROVED'",
+                    sort = "-created",
+                )
+            },
+            localMutationTick,
+        ) { list, _ ->
+            list.map(::mapEvent)
+                .filter { "events:${it.id}" !in localDeletedRecords && it.proposerId !in localBannedUids }
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "events")
             throw e
@@ -619,12 +695,18 @@ class SurabayaRepository(
     }
 
     fun observePendingEvents(): Flow<List<SurabayaEvent>> {
-        return pb.observeCollection("events", pollIntervalMs = 6_000L) {
-            pb.getList(
-                collection = "events",
-                filter = "status = 'PENDING'",
-                sort = "-created",
-            ).map(::mapEvent)
+        return combine(
+            pb.observeCollection("events", pollIntervalMs = 6_000L) {
+                pb.getList(
+                    collection = "events",
+                    filter = "status = 'PENDING'",
+                    sort = "-created",
+                )
+            },
+            localMutationTick,
+        ) { list, _ ->
+            list.map(::mapEvent)
+                .filter { "events:${it.id}" !in localDeletedRecords && it.proposerId !in localBannedUids }
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "events")
             throw e
@@ -633,12 +715,18 @@ class SurabayaRepository(
 
     fun observeMyProposedEvents(userId: String): Flow<List<SurabayaEvent>> {
         val safeUid = escapePbValue(userId)
-        return pb.observeCollection("events", pollIntervalMs = 6_000L) {
-            pb.getList(
-                collection = "events",
-                filter = "proposer_id = '$safeUid'",
-                sort = "-created",
-            ).map(::mapEvent)
+        return combine(
+            pb.observeCollection("events", pollIntervalMs = 6_000L) {
+                pb.getList(
+                    collection = "events",
+                    filter = "proposer_id = '$safeUid'",
+                    sort = "-created",
+                )
+            },
+            localMutationTick,
+        ) { list, _ ->
+            list.map(::mapEvent)
+                .filter { "events:${it.id}" !in localDeletedRecords }
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "events")
             throw e
@@ -656,9 +744,12 @@ class SurabayaRepository(
         address: String,
         priceLabel: String,
         description: String,
+        mapsUrl: String = "",
         imageKey: String = defaultEventImageKey(category),
         photo: PreparedPhoto? = null,
+        photos: List<PreparedPhoto> = emptyList(),
         onPhotoSchemaMissing: (() -> Unit)? = null,
+        onMultiPhotoFallbackUsed: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
         val recordId = PocketBaseClient.deterministicPbId("ev_${UUID.randomUUID()}")
@@ -672,6 +763,13 @@ class SurabayaRepository(
         val cleanAddress = address.trim().take(180)
         val cleanPrice = priceLabel.trim().take(50).ifEmpty { "Gratis" }
         val cleanDesc = description.trim().take(1200)
+        val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+        val boundedPhotos = when {
+            photos.isNotEmpty() -> photos.take(4)
+            photo != null -> listOf(photo)
+            else -> emptyList()
+        }
+
         val payload = JSONObject().apply {
             put("id", recordId)
             put("proposer_id", uid)
@@ -688,13 +786,14 @@ class SurabayaRepository(
             put("price_label", cleanPrice)
             put("description", cleanDesc)
             put("image_key", imageKey)
+            put("maps_url", cleanMapsUrl)
             put("status", "PENDING")
             put("admin_note", "")
             put("interested_count", 1)
             put("interested_uids", uid)
         }
         return try {
-            val created = if (photo != null) {
+            val created = if (boundedPhotos.isNotEmpty()) {
                 val fields = mapOf(
                     "id" to recordId,
                     "proposer_id" to uid,
@@ -711,26 +810,52 @@ class SurabayaRepository(
                     "price_label" to cleanPrice,
                     "description" to cleanDesc,
                     "image_key" to imageKey,
+                    "maps_url" to cleanMapsUrl,
                     "status" to "PENDING",
                     "admin_note" to "",
                     "interested_count" to "1",
                     "interested_uids" to uid,
                 )
+                val allFileParts = boundedPhotos.mapIndexed { idx, p ->
+                    MultipartFilePart(
+                        fieldName = "photo",
+                        fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                        mimeType = p.mimeType,
+                        bytes = p.bytes,
+                    )
+                }
                 val resp = try {
-                    pb.createRecordMultipart(
+                    pb.createRecordMultipartFiles(
                         collection = "events",
                         fields = fields,
-                        filePart = MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes),
+                        fileParts = allFileParts,
                     )
                 } catch (e: PocketBaseException) {
-                    if (e.statusCode == 400) {
+                    if (e.statusCode == 400 && allFileParts.size > 1) {
+                        try {
+                            val singleResp = pb.createRecordMultipartFiles(
+                                collection = "events",
+                                fields = fields,
+                                fileParts = listOf(allFileParts.first()),
+                            )
+                            onMultiPhotoFallbackUsed?.invoke()
+                            singleResp
+                        } catch (fallbackErr: PocketBaseException) {
+                            if (fallbackErr.statusCode == 400) {
+                                onPhotoSchemaMissing?.invoke()
+                                return pb.createRecord("events", payload).optString("id").ifBlank { recordId }
+                            } else {
+                                throw fallbackErr
+                            }
+                        }
+                    } else if (e.statusCode == 400) {
                         onPhotoSchemaMissing?.invoke()
                         return pb.createRecord("events", payload).optString("id").ifBlank { recordId }
                     } else {
                         throw e
                     }
                 }
-                if (resp.optString("photo").isBlank()) {
+                if (extractFileNames(resp, "photo").isEmpty()) {
                     onPhotoSchemaMissing?.invoke()
                 }
                 resp
@@ -797,11 +922,17 @@ class SurabayaRepository(
     // --- 5. KULINER SURABAYA & REVIEWS ---
 
     fun observeCulinarySpots(): Flow<List<CulinarySpot>> {
-        return pb.observeCollection("culinary", pollIntervalMs = 7_000L) {
-            pb.getList(
-                collection = "culinary",
-                sort = "-rating_avg,-created",
-            ).map(::mapCulinarySpot)
+        return combine(
+            pb.observeCollection("culinary", pollIntervalMs = 7_000L) {
+                pb.getList(
+                    collection = "culinary",
+                    sort = "-rating_avg,-created",
+                )
+            },
+            localMutationTick,
+        ) { list, _ ->
+            list.map(::mapCulinarySpot)
+                .filter { "culinary:${it.id}" !in localDeletedRecords && it.createdBy !in localBannedUids }
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "culinary")
             throw e
@@ -836,10 +967,10 @@ class SurabayaRepository(
         val cleanDistrict = district.trim().take(60)
         val cleanAddress = address.trim().take(180)
         val cleanPrice = priceRange.trim().take(60).ifEmpty { "Rp 15.000 - Rp 30.000" }
-        val cleanMapsUrl = normalizeExternalUrl(mapsUrl)
-        val cleanGofoodUrl = normalizeExternalUrl(gofoodUrl)
-        val cleanGrabfoodUrl = normalizeExternalUrl(grabfoodUrl)
-        val cleanShopeefoodUrl = normalizeExternalUrl(shopeefoodUrl)
+        val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+        val cleanGofoodUrl = requireSafeOptionalUrl(gofoodUrl, SafeLinkCategory.GOFOOD)
+        val cleanGrabfoodUrl = requireSafeOptionalUrl(grabfoodUrl, SafeLinkCategory.GRABFOOD)
+        val cleanShopeefoodUrl = requireSafeOptionalUrl(shopeefoodUrl, SafeLinkCategory.SHOPEEFOOD)
         val safeOpen = openHour.coerceIn(0, 23)
         val safeClose = closeHour.coerceIn(0, 24)
         val boundedPhotos = photos.take(4)
@@ -995,15 +1126,306 @@ class SurabayaRepository(
         }
     }
 
+    // --- 5B. KEAMANAN TAUTAN WARGA (ANTI-PHISHING REPORT & ADMIN LINK WIPE) ---
+
+    suspend fun reportSuspiciousLink(
+        collection: String,
+        recordId: String,
+        currentCount: Int,
+        currentReportedUids: List<String>,
+    ): Int {
+        val uid = requireUserId()
+        val updatedList = currentReportedUids.toMutableList()
+        if (uid in updatedList) {
+            return currentCount.coerceAtLeast(updatedList.size)
+        }
+        if (updatedList.size < 80) {
+            updatedList.add(uid)
+        }
+        val nextCount = (currentCount + 1).coerceAtLeast(updatedList.size)
+        val shouldAutoWipe = nextCount >= LinkSecurityValidator.AUTO_HIDE_LINK_REPORT_THRESHOLD
+
+        try {
+            val patch = JSONObject().apply {
+                put("link_report_count", nextCount)
+                put("link_reported_uids", encodeUidList(updatedList))
+                if (shouldAutoWipe) {
+                    put("maps_url", "")
+                    if (collection == "culinary") {
+                        put("gofood_url", "")
+                        put("grabfood_url", "")
+                        put("shopeefood_url", "")
+                    }
+                }
+            }
+            try {
+                pb.updateRecord(collection, recordId, patch)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode == 400 && shouldAutoWipe) {
+                    // Fallback if live server hasn't imported link_report_count yet: wipe the suspicious URLs directly
+                    val fallbackPatch = JSONObject().apply {
+                        put("maps_url", "")
+                        if (collection == "culinary") {
+                            put("gofood_url", "")
+                            put("grabfood_url", "")
+                            put("shopeefood_url", "")
+                        }
+                    }
+                    pb.updateRecord(collection, recordId, fallbackPatch)
+                } else if (e.statusCode != 400) {
+                    throw e
+                }
+            }
+            return nextCount
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "$collection/$recordId")
+            throw e
+        }
+    }
+
+    suspend fun clearAllExternalLinksByAdmin(
+        collection: String,
+        recordId: String,
+    ) {
+        requireUserId()
+        try {
+            val patch = JSONObject().apply {
+                put("maps_url", "")
+                if (collection == "culinary") {
+                    put("gofood_url", "")
+                    put("grabfood_url", "")
+                    put("shopeefood_url", "")
+                }
+            }
+            pb.updateRecord(collection, recordId, patch)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "$collection/$recordId")
+            throw e
+        }
+    }
+
+    // --- 5C. KEAMANAN KONTEN VISUAL, AUTO-BLUR, KARANTINA & BLOKIR PENGGUNA ---
+
+    suspend fun reportInappropriateContent(
+        collection: String,
+        recordId: String,
+        currentCount: Int,
+        currentReportedUids: List<String>,
+    ): Int {
+        val uid = requireUserId()
+        val key = "$collection:$recordId"
+        val existingOverlay = localContentReports[key]
+        val baseUids = existingOverlay?.uids ?: currentReportedUids
+        val baseCount = existingOverlay?.count ?: currentCount
+        val updatedList = baseUids.toMutableList()
+        if (uid in updatedList) {
+            return baseCount.coerceAtLeast(updatedList.size)
+        }
+        if (updatedList.size < 80) {
+            updatedList.add(uid)
+        }
+        val nextCount = (baseCount + 1).coerceAtLeast(updatedList.size)
+        localContentReports[key] = LocalContentReportOverlay(
+            count = nextCount,
+            uids = updatedList,
+            forceOverride = false,
+        )
+        bumpMutationTick()
+
+        try {
+            val patch = JSONObject().apply {
+                put("content_report_count", nextCount)
+                put("content_reported_uids", encodeUidList(updatedList))
+            }
+            try {
+                pb.updateRecord(collection, recordId, patch)
+                localContentReports.remove(key)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode != 400) throw e
+                Log.w(TAG, "PocketBase schema missing content_report_count on $collection; using reactive overlay.")
+            }
+            return nextCount
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "$collection/$recordId")
+            throw e
+        }
+    }
+
+    suspend fun adminRestoreContentReports(
+        collection: String,
+        recordId: String,
+    ) {
+        requireUserId()
+        val key = "$collection:$recordId"
+        localContentReports[key] = LocalContentReportOverlay(
+            count = 0,
+            uids = emptyList(),
+            forceOverride = true,
+        )
+        bumpMutationTick()
+
+        try {
+            val patch = JSONObject().apply {
+                put("content_report_count", 0)
+                put("content_reported_uids", "")
+            }
+            try {
+                pb.updateRecord(collection, recordId, patch)
+                localContentReports.remove(key)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode != 400) throw e
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "$collection/$recordId")
+            throw e
+        }
+    }
+
+    suspend fun adminDeletePost(
+        collection: String,
+        recordId: String,
+    ) {
+        requireUserId()
+        try {
+            pb.deleteRecord(collection, recordId)
+            localDeletedRecords.add("$collection:$recordId")
+            bumpMutationTick()
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.DELETE, "$collection/$recordId")
+            throw e
+        }
+    }
+
+    suspend fun blockUser(
+        targetUid: String,
+        currentBlockedUids: List<String>,
+    ): List<String> {
+        val uid = requireUserId()
+        val cleanTarget = targetUid.trim()
+        if (cleanTarget.isBlank() || cleanTarget == uid) return currentBlockedUids
+        val base = localBlockedUids[uid] ?: currentBlockedUids
+        val updated = (base + cleanTarget).map { it.trim() }.filter { it.isNotBlank() }.distinct().take(120)
+        localBlockedUids[uid] = updated
+        bumpMutationTick()
+
+        try {
+            val patch = JSONObject().apply {
+                put("blocked_uids", encodeUidList(updated))
+            }
+            try {
+                pb.updateRecord("users", uid, patch)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode != 400) throw e
+                Log.w(TAG, "PocketBase users.blocked_uids not yet imported; using reactive overlay.")
+            }
+            return updated
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "users/$uid")
+            throw e
+        }
+    }
+
+    suspend fun unblockUser(
+        targetUid: String,
+        currentBlockedUids: List<String>,
+    ): List<String> {
+        val uid = requireUserId()
+        val cleanTarget = targetUid.trim()
+        val base = localBlockedUids[uid] ?: currentBlockedUids
+        val updated = base.filter { it.isNotBlank() && it != cleanTarget }
+        localBlockedUids[uid] = updated
+        bumpMutationTick()
+
+        try {
+            val patch = JSONObject().apply {
+                put("blocked_uids", encodeUidList(updated))
+            }
+            try {
+                pb.updateRecord("users", uid, patch)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode != 400) throw e
+            }
+            return updated
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "users/$uid")
+            throw e
+        }
+    }
+
+    suspend fun adminBanUser(targetUid: String) {
+        val uid = requireUserId()
+        val cleanTarget = targetUid.trim()
+        if (cleanTarget.isBlank() || cleanTarget == uid) return
+        localBannedUids.add(cleanTarget)
+        bumpMutationTick()
+
+        try {
+            try {
+                val userPatch = JSONObject().apply {
+                    put("is_banned", true)
+                    put("is_discoverable", false)
+                }
+                pb.updateRecord("users", cleanTarget, userPatch)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode == 400) {
+                    val fallbackPatch = JSONObject().apply { put("is_discoverable", false) }
+                    runCatching { pb.updateRecord("users", cleanTarget, fallbackPatch) }
+                } else if (e.statusCode != 403 && e.statusCode != 404) {
+                    throw e
+                }
+            }
+
+            try {
+                val nearbyPatch = JSONObject().apply {
+                    put("is_banned", true)
+                    put("is_discoverable", false)
+                }
+                pb.updateRecord("nearby_profiles", cleanTarget, nearbyPatch)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode == 400) {
+                    val fallbackPatch = JSONObject().apply { put("is_discoverable", false) }
+                    runCatching { pb.updateRecord("nearby_profiles", cleanTarget, fallbackPatch) }
+                } else if (e.statusCode != 403 && e.statusCode != 404) {
+                    throw e
+                }
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "users/$cleanTarget")
+            throw e
+        }
+    }
+
     // --- 6. TEMAN SEKITAR (NEARBY FRIENDS) ---
 
     fun observeDiscoverableProfiles(): Flow<List<NearbyProfile>> {
-        return pb.observeCollection("nearby_profiles", pollIntervalMs = 7_000L) {
-            pb.getList(
-                collection = "nearby_profiles",
-                filter = "is_discoverable = true",
-                sort = "-updated",
-            ).map(::mapNearbyProfile)
+        return combine(
+            pb.observeCollection("nearby_profiles", pollIntervalMs = 7_000L) {
+                pb.getList(
+                    collection = "nearby_profiles",
+                    filter = "is_discoverable = true",
+                    sort = "-updated",
+                )
+            },
+            localMutationTick,
+        ) { list, _ ->
+            list.map(::mapNearbyProfile)
+                .filter { !it.isBanned && it.id !in localBannedUids && it.userId !in localBannedUids }
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "nearby_profiles")
             throw e
@@ -1162,6 +1584,9 @@ class SurabayaRepository(
         val id = j.optString("id")
         val email = j.optString("email")
         val name = j.optString("name").ifBlank { email.substringBefore("@").ifBlank { "Warga Surabaya" } }
+        val serverBlocked = decodeUidList(j.optString("blocked_uids"))
+        val effectiveBlocked = localBlockedUids[id] ?: serverBlocked
+        val effectiveBanned = j.optBoolean("is_banned", false) || id in localBannedUids
         return UserAccount(
             id = id,
             userId = id,
@@ -1172,6 +1597,8 @@ class SurabayaRepository(
             isDiscoverable = if (j.has("is_discoverable")) j.optBoolean("is_discoverable", true) else true,
             isAdmin = j.optBoolean("is_admin", false) || email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true),
             avatarUrl = pb.buildFileUrl("users", id, j.optString("avatar")),
+            blockedUids = effectiveBlocked,
+            isBanned = effectiveBanned,
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
             updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
         )
@@ -1190,9 +1617,10 @@ class SurabayaRepository(
 
     private fun mapNearbyProfile(j: JSONObject): NearbyProfile {
         val id = j.optString("id")
+        val uid = j.optString("user_id")
         return NearbyProfile(
             id = id,
-            userId = j.optString("user_id"),
+            userId = uid,
             displayName = j.optString("display_name", "Warga Surabaya"),
             avatarColorHex = j.optString("avatar_color_hex").ifBlank { "#006B5E" },
             avatarUrl = pb.buildFileUrl("nearby_profiles", id, j.optString("avatar")),
@@ -1202,6 +1630,7 @@ class SurabayaRepository(
             lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
             lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
             isDiscoverable = j.optBoolean("is_discoverable", true),
+            isBanned = j.optBoolean("is_banned", false) || id in localBannedUids || uid in localBannedUids,
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
             updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
         )
@@ -1210,6 +1639,25 @@ class SurabayaRepository(
     private fun mapIncident(j: JSONObject): IncidentReport {
         val id = j.optString("id")
         val cat = j.optString("category", "INFO_WARGA").ifBlank { "INFO_WARGA" }
+        val photoFileNames = extractFileNames(j, "photo")
+        val resolvedPhotoUrls = photoFileNames
+            .map { pb.buildFileUrl("incidents", id, it) }
+            .filter { it.isNotBlank() }
+
+        val serverContentCount = j.optInt("content_report_count", 0)
+        val serverContentUids = decodeUidList(j.optString("content_reported_uids"))
+        val overlay = localContentReports["incidents:$id"]
+        val effectiveContentCount = when {
+            overlay == null -> serverContentCount
+            overlay.forceOverride -> overlay.count
+            else -> maxOf(serverContentCount, overlay.count)
+        }
+        val effectiveContentUids = when {
+            overlay == null -> serverContentUids
+            overlay.forceOverride -> overlay.uids
+            else -> (serverContentUids + overlay.uids).distinct()
+        }
+
         return IncidentReport(
             id = id,
             authorId = j.optString("author_id"),
@@ -1223,7 +1671,13 @@ class SurabayaRepository(
             lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
             lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
             imageKey = j.optString("image_key").ifBlank { defaultIncidentImageKey(cat) },
-            photoUrl = pb.buildFileUrl("incidents", id, j.optString("photo")),
+            photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotoUrls,
+            mapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS),
+            linkReportCount = j.optInt("link_report_count", 0),
+            linkReportedByUids = decodeUidList(j.optString("link_reported_uids")),
+            contentReportCount = effectiveContentCount,
+            contentReportedByUids = effectiveContentUids,
             verifiedCount = j.optInt("verified_count", 0),
             verifiedByUids = decodeUidList(j.optString("verified_by_uids")),
             commentCount = j.optInt("comment_count", 0),
@@ -1244,6 +1698,25 @@ class SurabayaRepository(
     private fun mapEvent(j: JSONObject): SurabayaEvent {
         val id = j.optString("id")
         val cat = j.optString("category", "FESTIVAL").ifBlank { "FESTIVAL" }
+        val photoFileNames = extractFileNames(j, "photo")
+        val resolvedPhotoUrls = photoFileNames
+            .map { pb.buildFileUrl("events", id, it) }
+            .filter { it.isNotBlank() }
+
+        val serverContentCount = j.optInt("content_report_count", 0)
+        val serverContentUids = decodeUidList(j.optString("content_reported_uids"))
+        val overlay = localContentReports["events:$id"]
+        val effectiveContentCount = when {
+            overlay == null -> serverContentCount
+            overlay.forceOverride -> overlay.count
+            else -> maxOf(serverContentCount, overlay.count)
+        }
+        val effectiveContentUids = when {
+            overlay == null -> serverContentUids
+            overlay.forceOverride -> overlay.uids
+            else -> (serverContentUids + overlay.uids).distinct()
+        }
+
         return SurabayaEvent(
             id = id,
             proposerId = j.optString("proposer_id"),
@@ -1260,7 +1733,13 @@ class SurabayaRepository(
             priceLabel = j.optString("price_label").ifBlank { "Gratis" },
             description = j.optString("description"),
             imageKey = j.optString("image_key").ifBlank { defaultEventImageKey(cat) },
-            photoUrl = pb.buildFileUrl("events", id, j.optString("photo")),
+            photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotoUrls,
+            mapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS),
+            linkReportCount = j.optInt("link_report_count", 0),
+            linkReportedByUids = decodeUidList(j.optString("link_reported_uids")),
+            contentReportCount = effectiveContentCount,
+            contentReportedByUids = effectiveContentUids,
             status = j.optString("status", "PENDING").ifBlank { "PENDING" },
             adminNote = j.optString("admin_note"),
             interestedCount = j.optInt("interested_count", 0),
@@ -1277,6 +1756,20 @@ class SurabayaRepository(
         val resolvedPhotoUrls = photoFileNames
             .map { pb.buildFileUrl("culinary", id, it) }
             .filter { it.isNotBlank() }
+
+        val serverContentCount = j.optInt("content_report_count", 0)
+        val serverContentUids = decodeUidList(j.optString("content_reported_uids"))
+        val overlay = localContentReports["culinary:$id"]
+        val effectiveContentCount = when {
+            overlay == null -> serverContentCount
+            overlay.forceOverride -> overlay.count
+            else -> maxOf(serverContentCount, overlay.count)
+        }
+        val effectiveContentUids = when {
+            overlay == null -> serverContentUids
+            overlay.forceOverride -> overlay.uids
+            else -> (serverContentUids + overlay.uids).distinct()
+        }
 
         return CulinarySpot(
             id = id,
@@ -1295,10 +1788,14 @@ class SurabayaRepository(
             imageKey = j.optString("image_key").ifBlank { defaultCulinaryImageKey(cat) },
             photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
             photoUrls = resolvedPhotoUrls,
-            mapsUrl = normalizeExternalUrl(j.optString("maps_url")),
-            gofoodUrl = normalizeExternalUrl(j.optString("gofood_url")),
-            grabfoodUrl = normalizeExternalUrl(j.optString("grabfood_url")),
-            shopeefoodUrl = normalizeExternalUrl(j.optString("shopeefood_url")),
+            mapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS),
+            gofoodUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("gofood_url"), SafeLinkCategory.GOFOOD),
+            grabfoodUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("grabfood_url"), SafeLinkCategory.GRABFOOD),
+            shopeefoodUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("shopeefood_url"), SafeLinkCategory.SHOPEEFOOD),
+            linkReportCount = j.optInt("link_report_count", 0),
+            linkReportedByUids = decodeUidList(j.optString("link_reported_uids")),
+            contentReportCount = effectiveContentCount,
+            contentReportedByUids = effectiveContentUids,
             ratingAvg = j.optDouble("rating_avg", 4.8),
             reviewCount = j.optInt("review_count", 1),
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
@@ -1324,17 +1821,10 @@ class SurabayaRepository(
         }
     }
 
-    private fun normalizeExternalUrl(raw: String): String {
-        val trimmed = raw.trim().take(500)
-        if (trimmed.isBlank() || trimmed == "null") return ""
-        return if (
-            trimmed.startsWith("http://", ignoreCase = true) ||
-            trimmed.startsWith("https://", ignoreCase = true) ||
-            trimmed.startsWith("geo:", ignoreCase = true)
-        ) {
-            trimmed
-        } else {
-            "https://$trimmed"
+    private fun requireSafeOptionalUrl(raw: String, category: SafeLinkCategory): String {
+        return when (val res = LinkSecurityValidator.validateOptionalLink(raw, category)) {
+            is LinkValidationResult.Valid -> res.normalizedUrl
+            is LinkValidationResult.Invalid -> throw IllegalArgumentException(res.errorMessage)
         }
     }
 

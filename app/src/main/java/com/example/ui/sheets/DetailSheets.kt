@@ -37,6 +37,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Directions
@@ -46,6 +47,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -57,6 +59,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -94,18 +98,27 @@ import com.example.data.model.CulinarySpot
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaEvent
+import com.example.data.util.PendingExternalLink
+import com.example.data.util.SafeLinkCategory
 import com.example.data.util.formatOperatingHours
 import com.example.data.util.formatRelativeTimestamp
 import com.example.data.util.isCulinaryOpenNow
+import com.example.ui.components.AdminRawLinkPreviewBadge
 import com.example.ui.components.CulinaryDeliveryLinksRow
 import com.example.ui.components.CulinaryPhotoCarousel
 import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
+import com.example.ui.components.PostContentSafetyRow
+import com.example.ui.components.PostExternalLinkSecurityStrip
+import com.example.ui.components.SafeExternalLinkConfirmationDialog
 import com.example.ui.components.SurabayaRemoteOrFallbackImage
 import com.example.ui.components.openCulinaryMapsDirection
-import com.example.ui.components.openGoogleMapsLocation
+import com.example.ui.components.openEventMapsDirection
+import com.example.ui.components.openExternalUrlSafely
+import com.example.ui.components.openIncidentMapsDirection
 import com.example.ui.screens.formatCulinaryCategoryLabel
 import com.example.ui.screens.formatEventCategoryLabel
 import com.example.ui.screens.formatIncidentCategoryLabel
+import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
@@ -124,9 +137,18 @@ fun IncidentDetailSheetContent(
     comments: List<IncidentComment>,
     isSaved: Boolean,
     isVerifiedByMe: Boolean,
+    currentUserId: String = "",
+    isAdmin: Boolean = false,
     onVerify: () -> Unit,
     onBookmark: () -> Unit,
     onSendComment: (String) -> Unit,
+    onReportLink: () -> Unit = {},
+    onAdminClearLinks: () -> Unit = {},
+    onReportContent: () -> Unit = {},
+    onBlockAuthor: (() -> Unit)? = null,
+    onAdminDeletePost: (() -> Unit)? = null,
+    onAdminRestoreBlur: (() -> Unit)? = null,
+    onAdminBanAuthor: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -138,6 +160,34 @@ fun IncidentDetailSheetContent(
     var hasDescriptionOverflow by remember(report.id, report.description) { mutableStateOf(false) }
     var pendingScrollToBottom by remember(report.id) { mutableStateOf(false) }
     var previousCommentCount by remember(report.id) { mutableIntStateOf(comments.size) }
+    var fullscreenInitialPage by remember(report.id) { mutableStateOf<Int?>(null) }
+    var pendingExternalLink by remember(report.id) { mutableStateOf<PendingExternalLink?>(null) }
+
+    val activePendingLink = pendingExternalLink
+    if (activePendingLink != null) {
+        SafeExternalLinkConfirmationDialog(
+            pendingLink = activePendingLink,
+            isReportedByMe = currentUserId in report.linkReportedByUids,
+            onReportSuspicious = onReportLink,
+            onDismiss = { pendingExternalLink = null },
+            onConfirmOpen = {
+                val target = activePendingLink
+                pendingExternalLink = null
+                openExternalUrlSafely(context, target.url, SafeLinkCategory.GOOGLE_MAPS)
+            },
+        )
+    }
+
+    val activeFullscreenPage = fullscreenInitialPage
+    if (activeFullscreenPage != null) {
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrls = report.allPhotos,
+            fallbackImageKey = report.imageKey,
+            title = report.title,
+            initialPage = activeFullscreenPage,
+            onDismiss = { fullscreenInitialPage = null },
+        )
+    }
 
     val commentListState = rememberLazyListState()
 
@@ -239,11 +289,14 @@ fun IncidentDetailSheetContent(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    SurabayaRemoteOrFallbackImage(
-                        imageUrl = report.photoUrl,
+                    CulinaryPhotoCarousel(
+                        photoUrls = report.allPhotos,
                         fallbackImageKey = report.imageKey,
-                        contentDescription = report.title,
-                        contentScale = ContentScale.Crop,
+                        spotName = report.title,
+                        compactMode = false,
+                        isBlurredSensitive = report.isContentBlurred,
+                        sensitiveReportCount = report.contentReportCount,
+                        onPhotoClick = { pageIdx -> fullscreenInitialPage = pageIdx },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(currentImageHeight)
@@ -290,51 +343,65 @@ fun IncidentDetailSheetContent(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.LocationOn,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Text(
-                                    text = "${report.address}, Kec. ${report.district}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            FilledTonalButton(
-                                onClick = { openGoogleMapsLocation(context, report.lat, report.lng, report.title) },
-                                shape = CircleShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.testTag("sheet_incident_maps_btn"),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Directions,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp),
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Maps", style = MaterialTheme.typography.labelMedium)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.LocationOn,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Text(
+                                        text = "${report.address}, Kec. ${report.district}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                FilledTonalButton(
+                                    onClick = {
+                                        openIncidentMapsDirection(context, report) { pendingExternalLink = it }
+                                    },
+                                    shape = CircleShape,
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.testTag("sheet_incident_maps_btn"),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Directions,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(15.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Maps", style = MaterialTheme.typography.labelMedium)
+                                }
                             }
                         }
+
+                        PostExternalLinkSecurityStrip(
+                            hasActiveExternalLinks = report.safeMapsUrl.isNotBlank(),
+                            isQuarantined = report.isLinkQuarantined,
+                            linkReportCount = report.linkReportCount,
+                            isReportedByMe = currentUserId in report.linkReportedByUids,
+                            isAdmin = isAdmin,
+                            onReportLink = onReportLink,
+                            onAdminClearLinks = onAdminClearLinks,
+                        )
                     }
                 }
 
@@ -460,6 +527,21 @@ fun IncidentDetailSheetContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 2.dp),
                 ) {
+                    item(key = "incident_safety_controls") {
+                        PostContentSafetyRow(
+                            authorId = report.authorId,
+                            authorName = report.authorName,
+                            currentUserId = currentUserId,
+                            contentReportCount = report.contentReportCount,
+                            isContentReportedByMe = currentUserId in report.contentReportedByUids,
+                            isAdmin = isAdmin,
+                            onReportContent = onReportContent,
+                            onBlockAuthor = onBlockAuthor,
+                            onAdminDeletePost = onAdminDeletePost,
+                            onAdminRestoreBlur = onAdminRestoreBlur,
+                            onAdminBanAuthor = onAdminBanAuthor,
+                        )
+                    }
                     if (comments.isEmpty()) {
                         item(key = "empty_comments_placeholder") {
                             Text(
@@ -570,9 +652,17 @@ fun EventDetailSheetContent(
     isAdmin: Boolean,
     isSaved: Boolean,
     isInterested: Boolean,
+    currentUserId: String = "",
     onToggleInterest: () -> Unit,
     onToggleBookmark: () -> Unit,
     onModerate: (approve: Boolean, note: String) -> Unit,
+    onReportLink: () -> Unit = {},
+    onAdminClearLinks: () -> Unit = {},
+    onReportContent: () -> Unit = {},
+    onBlockAuthor: (() -> Unit)? = null,
+    onAdminDeletePost: (() -> Unit)? = null,
+    onAdminRestoreBlur: (() -> Unit)? = null,
+    onAdminBanAuthor: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -582,6 +672,34 @@ fun EventDetailSheetContent(
     var adminNoteInput by remember(event.id) { mutableStateOf(event.adminNote) }
     var isDescriptionExpanded by remember(event.id) { mutableStateOf(false) }
     var hasDescriptionOverflow by remember(event.id, event.description) { mutableStateOf(false) }
+    var fullscreenInitialPage by remember(event.id) { mutableStateOf<Int?>(null) }
+    var pendingExternalLink by remember(event.id) { mutableStateOf<PendingExternalLink?>(null) }
+
+    val activePendingLink = pendingExternalLink
+    if (activePendingLink != null) {
+        SafeExternalLinkConfirmationDialog(
+            pendingLink = activePendingLink,
+            isReportedByMe = currentUserId in event.linkReportedByUids,
+            onReportSuspicious = onReportLink,
+            onDismiss = { pendingExternalLink = null },
+            onConfirmOpen = {
+                val target = activePendingLink
+                pendingExternalLink = null
+                openExternalUrlSafely(context, target.url, SafeLinkCategory.GOOGLE_MAPS)
+            },
+        )
+    }
+
+    val activeFullscreenPage = fullscreenInitialPage
+    if (activeFullscreenPage != null) {
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrls = event.allPhotos,
+            fallbackImageKey = event.imageKey,
+            title = event.title,
+            initialPage = activeFullscreenPage,
+            onDismiss = { fullscreenInitialPage = null },
+        )
+    }
 
     val scrollState = rememberScrollState()
 
@@ -663,11 +781,14 @@ fun EventDetailSheetContent(
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    SurabayaRemoteOrFallbackImage(
-                        imageUrl = event.photoUrl,
+                    CulinaryPhotoCarousel(
+                        photoUrls = event.allPhotos,
                         fallbackImageKey = event.imageKey,
-                        contentDescription = event.title,
-                        contentScale = ContentScale.Crop,
+                        spotName = event.title,
+                        compactMode = false,
+                        isBlurredSensitive = event.isContentBlurred,
+                        sensitiveReportCount = event.contentReportCount,
+                        onPhotoClick = { pageIdx -> fullscreenInitialPage = pageIdx },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(currentImageHeight)
@@ -755,9 +876,12 @@ fun EventDetailSheetContent(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             FilledTonalButton(
-                                onClick = { openGoogleMapsLocation(context, event.lat, event.lng, event.venueName) },
+                                onClick = {
+                                    openEventMapsDirection(context, event) { pendingExternalLink = it }
+                                },
                                 shape = CircleShape,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("sheet_event_maps_btn"),
                             ) {
                                 Icon(Icons.Filled.Directions, null, modifier = Modifier.size(15.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -771,6 +895,16 @@ fun EventDetailSheetContent(
                         )
                     }
                 }
+
+                PostExternalLinkSecurityStrip(
+                    hasActiveExternalLinks = event.safeMapsUrl.isNotBlank(),
+                    isQuarantined = event.isLinkQuarantined,
+                    linkReportCount = event.linkReportCount,
+                    isReportedByMe = currentUserId in event.linkReportedByUids,
+                    isAdmin = isAdmin,
+                    onReportLink = onReportLink,
+                    onAdminClearLinks = onAdminClearLinks,
+                )
 
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
@@ -827,12 +961,31 @@ fun EventDetailSheetContent(
                     }
                 }
 
+                PostContentSafetyRow(
+                    authorId = event.proposerId,
+                    authorName = event.proposerName,
+                    currentUserId = currentUserId,
+                    contentReportCount = event.contentReportCount,
+                    isContentReportedByMe = currentUserId in event.contentReportedByUids,
+                    isAdmin = isAdmin,
+                    onReportContent = onReportContent,
+                    onBlockAuthor = onBlockAuthor,
+                    onAdminDeletePost = onAdminDeletePost,
+                    onAdminRestoreBlur = onAdminRestoreBlur,
+                    onAdminBanAuthor = onAdminBanAuthor,
+                )
+
                 if (isAdmin && event.status != "APPROVED") {
                     HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.8f))
                     Text(
                         text = "Panel Persetujuan Admin Surabaya",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
+                    )
+                    AdminRawLinkPreviewBadge(
+                        rawUrl = event.safeMapsUrl,
+                        reportCount = event.linkReportCount,
+                        onClearLink = onAdminClearLinks,
                     )
                     OutlinedTextField(
                         value = adminNoteInput,
@@ -888,8 +1041,17 @@ fun CulinaryDetailSheetContent(
     spot: CulinarySpot,
     reviews: List<CulinaryReview>,
     isSaved: Boolean,
+    currentUserId: String = "",
+    isAdmin: Boolean = false,
     onBookmark: () -> Unit,
     onSubmitReview: (rating: Int, comment: String) -> Unit,
+    onReportLink: () -> Unit = {},
+    onAdminClearLinks: () -> Unit = {},
+    onReportContent: () -> Unit = {},
+    onBlockAuthor: (() -> Unit)? = null,
+    onAdminDeletePost: (() -> Unit)? = null,
+    onAdminRestoreBlur: (() -> Unit)? = null,
+    onAdminBanAuthor: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -904,6 +1066,22 @@ fun CulinaryDetailSheetContent(
     var pendingScrollToBottom by remember(spot.id) { mutableStateOf(false) }
     var previousReviewCount by remember(spot.id) { mutableIntStateOf(reviews.size) }
     var fullscreenInitialPage by remember(spot.id) { mutableStateOf<Int?>(null) }
+    var pendingExternalLink by remember(spot.id) { mutableStateOf<PendingExternalLink?>(null) }
+
+    val activePendingLink = pendingExternalLink
+    if (activePendingLink != null) {
+        SafeExternalLinkConfirmationDialog(
+            pendingLink = activePendingLink,
+            isReportedByMe = currentUserId in spot.linkReportedByUids,
+            onReportSuspicious = onReportLink,
+            onDismiss = { pendingExternalLink = null },
+            onConfirmOpen = {
+                val target = activePendingLink
+                pendingExternalLink = null
+                openExternalUrlSafely(context, target.url, SafeLinkCategory.GOOGLE_MAPS)
+            },
+        )
+    }
 
     val reviewListState = rememberLazyListState()
 
@@ -1010,6 +1188,8 @@ fun CulinaryDetailSheetContent(
                         fallbackImageKey = spot.imageKey,
                         spotName = spot.name,
                         compactMode = false,
+                        isBlurredSensitive = spot.isContentBlurred,
+                        sensitiveReportCount = spot.contentReportCount,
                         onPhotoClick = { clickedIdx -> fullscreenInitialPage = clickedIdx },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1100,7 +1280,9 @@ fun CulinaryDetailSheetContent(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Button(
-                                onClick = { openCulinaryMapsDirection(context, spot) },
+                                onClick = {
+                                    openCulinaryMapsDirection(context, spot) { pendingExternalLink = it }
+                                },
                                 shape = CircleShape,
                                 modifier = Modifier
                                     .weight(1f)
@@ -1124,7 +1306,22 @@ fun CulinaryDetailSheetContent(
                         CulinaryDeliveryLinksRow(
                             spot = spot,
                             compact = false,
+                            isReportedByMe = currentUserId in spot.linkReportedByUids,
+                            onReportSuspiciousLink = onReportLink,
                             modifier = Modifier.fillMaxWidth(),
+                        )
+
+                        PostExternalLinkSecurityStrip(
+                            hasActiveExternalLinks = spot.safeMapsUrl.isNotBlank() ||
+                                spot.safeGofoodUrl.isNotBlank() ||
+                                spot.safeGrabfoodUrl.isNotBlank() ||
+                                spot.safeShopeefoodUrl.isNotBlank(),
+                            isQuarantined = spot.isLinkQuarantined,
+                            linkReportCount = spot.linkReportCount,
+                            isReportedByMe = currentUserId in spot.linkReportedByUids,
+                            isAdmin = isAdmin,
+                            onReportLink = onReportLink,
+                            onAdminClearLinks = onAdminClearLinks,
                         )
                     }
                 }
@@ -1208,6 +1405,21 @@ fun CulinaryDetailSheetContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 2.dp),
                 ) {
+                    item(key = "culinary_safety_controls") {
+                        PostContentSafetyRow(
+                            authorId = spot.createdBy,
+                            authorName = spot.authorName,
+                            currentUserId = currentUserId,
+                            contentReportCount = spot.contentReportCount,
+                            isContentReportedByMe = currentUserId in spot.contentReportedByUids,
+                            isAdmin = isAdmin,
+                            onReportContent = onReportContent,
+                            onBlockAuthor = onBlockAuthor,
+                            onAdminDeletePost = onAdminDeletePost,
+                            onAdminRestoreBlur = onAdminRestoreBlur,
+                            onAdminBanAuthor = onAdminBanAuthor,
+                        )
+                    }
                     if (reviews.isEmpty()) {
                         item(key = "empty_reviews_placeholder") {
                             Text(
@@ -1350,10 +1562,37 @@ fun ChatConversationSheetContent(
     messages: List<ChatMessage>,
     currentUserId: String,
     onSendMessage: (String) -> Unit,
+    onBlockPeer: (() -> Unit)? = null,
 ) {
     var inputText by remember { mutableStateOf("") }
+    var showBlockPeerDialog by remember(room.id) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val displayTitle = room.displayTitleFor(currentUserId)
+
+    if (showBlockPeerDialog && onBlockPeer != null) {
+        AlertDialog(
+            onDismissRequest = { showBlockPeerDialog = false },
+            title = { Text(stringResource(R.string.dialog_block_user_title, displayTitle)) },
+            text = { Text(stringResource(R.string.dialog_block_user_body, displayTitle)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showBlockPeerDialog = false
+                        onBlockPeer()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertCrimson),
+                    modifier = Modifier.testTag("confirm_chat_block_peer_btn"),
+                ) {
+                    Text(stringResource(R.string.btn_confirm_block_user))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBlockPeerDialog = false }) {
+                    Text(stringResource(R.string.btn_cancel_action))
+                }
+            },
+        )
+    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -1369,33 +1608,68 @@ fun ChatConversationSheetContent(
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = displayTitle,
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = OpenGreenBg,
+                Text(
+                    text = displayTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = OpenGreenBg,
+                    ) {
+                        Text(
+                            text = "Sinkron 2 Arah",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = OpenGreenText,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        )
+                    }
                     Text(
-                        text = "Sinkron 2 Arah",
+                        text = "Room ID: ${room.roomKey.ifBlank { room.id }}",
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = OpenGreenText,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("chat_sheet_room_id"),
                     )
                 }
-                Text(
-                    text = "Room ID: ${room.roomKey.ifBlank { room.id }}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.testTag("chat_sheet_room_id"),
-                )
+            }
+
+            if (room.roomType == "DIRECT" && onBlockPeer != null) {
+                OutlinedButton(
+                    onClick = { showBlockPeerDialog = true },
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("chat_block_peer_btn"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Block,
+                        contentDescription = null,
+                        tint = AlertCrimson,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.btn_block_chat_peer),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AlertCrimson,
+                    )
+                }
             }
         }
 

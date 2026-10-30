@@ -1,10 +1,25 @@
 package com.example.data.repository
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.Uri
+import android.os.Looper
+import androidx.test.core.app.ApplicationProvider
+import com.example.data.location.LocationHelper
 import com.example.data.model.NearbyProfile
 import com.example.data.pocketbase.PocketBaseClient
+import com.example.data.util.ImageSafetyScanResult
+import com.example.data.util.ImageSafetyScanner
+import com.example.data.util.LinkSecurityValidator
+import com.example.data.util.LinkValidationResult
 import com.example.data.util.PreparedPhoto
+import com.example.data.util.SafeLinkCategory
+import com.example.ui.viewmodel.SurabayaViewModel
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import java.io.File
+import java.io.FileOutputStream
 import java.net.InetSocketAddress
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
@@ -22,6 +37,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -230,7 +246,7 @@ class SurabayaPocketBaseRepositoryTest {
             priceRange = "Rp 25.000",
             openHour = 10,
             closeHour = 23,
-            photo = dummyJpeg,
+            photos = listOf(dummyJpeg),
             onPhotoSchemaMissing = { fallbackNotified = true },
         )
 
@@ -238,6 +254,259 @@ class SurabayaPocketBaseRepositoryTest {
         val savedSpot = repo.observeCulinarySpots().first().first { it.id == spotId }
         assertEquals("Rawon Kalkulator Taman Bungkul", savedSpot.name)
         assertEquals("", savedSpot.photoUrl)
+    }
+
+    @Test
+    fun `anti phishing validator blocks fake domains shorteners apk and auto quarantines at 3 citizen reports`() = runBlocking {
+        // 1. Official domains pass
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://maps.app.goo.gl/AbCdEf123", SafeLinkCategory.GOOGLE_MAPS) is LinkValidationResult.Valid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://www.google.com/maps/place/Taman+Bungkul", SafeLinkCategory.GOOGLE_MAPS) is LinkValidationResult.Valid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://gofood.link/a/xyz123", SafeLinkCategory.GOFOOD) is LinkValidationResult.Valid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://r.grab.com/g/6-2026", SafeLinkCategory.GRABFOOD) is LinkValidationResult.Valid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://shopee.co.id/universal-link/now-food/shop/123", SafeLinkCategory.SHOPEEFOOD) is LinkValidationResult.Valid,
+        )
+
+        // 2. Shorteners, HTTP, raw IP, credential spoofing, APK downloads, and fake domains are blocked
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://bit.ly/undangan-nikah", SafeLinkCategory.GOOGLE_MAPS) is LinkValidationResult.Invalid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://s.id/jebakan", SafeLinkCategory.GOFOOD) is LinkValidationResult.Invalid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("http://maps.app.goo.gl/insecure", SafeLinkCategory.GOOGLE_MAPS) is LinkValidationResult.Invalid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://maps.app.goo.gl/undangan_surabaya.apk", SafeLinkCategory.GOOGLE_MAPS) is LinkValidationResult.Invalid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://maps.app.goo.gl@phishing-jahat.com/login", SafeLinkCategory.GOOGLE_MAPS) is LinkValidationResult.Invalid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://192.168.1.10/maps", SafeLinkCategory.GOOGLE_MAPS) is LinkValidationResult.Invalid,
+        )
+        assertTrue(
+            LinkSecurityValidator.validateOptionalLink("https://google-maps-palsu.xyz/lokasi", SafeLinkCategory.GOOGLE_MAPS) is LinkValidationResult.Invalid,
+        )
+
+        // 3. Repository rejects malicious links on submit and auto-quarantines after 3 citizen reports
+        val c1 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val c2 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val c3 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val r1 = SurabayaRepository(c1)
+        val r2 = SurabayaRepository(c2)
+        val r3 = SurabayaRepository(c3)
+
+        val s1 = c1.registerAndSignIn("Budi", "budi@sby.id", "password123", "Genteng")
+        c2.registerAndSignIn("Siti", "siti@sby.id", "password123", "Gubeng")
+        c3.registerAndSignIn("Dimas", "dimas@sby.id", "password123", "Tegalsari")
+
+        var rejectedPhishing = false
+        try {
+            r1.createIncident(
+                authorName = s1.displayName,
+                title = "Laporan Uji Link Palsu",
+                description = "Tes proteksi link berbahaya",
+                category = "INFO_WARGA",
+                severity = "INFO",
+                district = "Genteng",
+                address = "Jl. Tunjungan",
+                mapsUrl = "https://bit.ly/jebakan-apk",
+            )
+        } catch (_: IllegalArgumentException) {
+            rejectedPhishing = true
+        }
+        assertTrue("Repository must reject non-whitelisted shortener URLs", rejectedPhishing)
+
+        val validIncId = r1.createIncident(
+            authorName = s1.displayName,
+            title = "Penutupan Jalan Tunjungan Sementara",
+            description = "Ada kegiatan kerja bakti kampung.",
+            category = "LALU_INTAS",
+            severity = "INFO",
+            district = "Genteng",
+            address = "Jl. Tunjungan No. 10",
+            mapsUrl = "https://maps.app.goo.gl/TunjunganSby1",
+        )
+        var current = r1.observeIncidents().first().first { it.id == validIncId }
+        assertEquals("https://maps.app.goo.gl/TunjunganSby1", current.safeMapsUrl)
+        assertFalse(current.isLinkQuarantined)
+
+        // 3 distinct citizens report the link -> auto-quarantine & wipe!
+        r1.reportSuspiciousLink("incidents", validIncId, current.linkReportCount, current.linkReportedByUids)
+        current = r2.observeIncidents().first().first { it.id == validIncId }
+        assertEquals(1, current.linkReportCount)
+
+        r2.reportSuspiciousLink("incidents", validIncId, current.linkReportCount, current.linkReportedByUids)
+        current = r3.observeIncidents().first().first { it.id == validIncId }
+        assertEquals(2, current.linkReportCount)
+        assertFalse(current.isLinkQuarantined)
+
+        r3.reportSuspiciousLink("incidents", validIncId, current.linkReportCount, current.linkReportedByUids)
+        current = r1.observeIncidents().first().first { it.id == validIncId }
+        assertEquals(3, current.linkReportCount)
+        assertTrue("Link must be auto-quarantined at 3 reports", current.isLinkQuarantined)
+        assertEquals("", current.safeMapsUrl)
+    }
+
+    @Test
+    fun `four layer anti pornography system blocks explicit upload blurs at 1 report quarantines at 3 blocks user and allows admin delete`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+
+        // Prepare a real temporary JPEG image file in Robolectric cacheDir
+        val tempFile = File(context.cacheDir, "test_upload_sample.jpg")
+        val bmp = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.RED)
+        }
+        FileOutputStream(tempFile).use { out ->
+            bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        }
+        val sampleUri = Uri.fromFile(tempFile)
+
+        val cOffender = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val cCitizen1 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val cCitizen2 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val cAdmin = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+
+        val rOffender = SurabayaRepository(cOffender)
+        val rCitizen1 = SurabayaRepository(cCitizen1)
+        val rCitizen2 = SurabayaRepository(cCitizen2)
+        val rAdmin = SurabayaRepository(cAdmin)
+
+        val sOffender = cOffender.registerAndSignIn("Pelanggar", "pelanggar@sby.id", "password123", "Genteng")
+        cCitizen1.registerAndSignIn("Warga Satu", "warga1@sby.id", "password123", "Gubeng")
+        cCitizen2.registerAndSignIn("Warga Dua", "warga2@sby.id", "password123", "Wonokromo")
+        val sAdmin = cAdmin.registerAndSignIn("Admin SBY", "nabilalailatus12@gmail.com", "password123", "Genteng")
+        assertTrue(sAdmin.isAdmin)
+
+        // LAYER 1: AI Vision Scanner blocks explicit/nudity photo BEFORE PocketBase upload!
+        val explicitBlockingScanner = object : ImageSafetyScanner {
+            override suspend fun scanJpegBytes(jpegBytes: ByteArray): ImageSafetyScanResult {
+                return ImageSafetyScanResult.BlockedExplicit(
+                    category = "GENITALIA_OR_NUDITY",
+                    reasonId = "Terdeteksi alat kelamin / ketelanjangan eksplisit.",
+                )
+            }
+        }
+        val vmWithExplicitBlock = SurabayaViewModel(
+            repository = rOffender,
+            locationHelper = LocationHelper(context),
+            currentUserId = sOffender.userId,
+            initialDisplayName = sOffender.displayName,
+            currentUserEmail = sOffender.email,
+            imageSafetyScanner = explicitBlockingScanner,
+        )
+
+        vmWithExplicitBlock.submitIncident(
+            title = "Kiriman Terlarang",
+            description = "Mencoba unggah foto porno",
+            category = "INFO_WARGA",
+            severity = "INFO",
+            district = "Genteng",
+            address = "Jl. Pemuda",
+            photoUris = listOf(sampleUri),
+            context = context,
+        )
+
+        shadowOf(Looper.getMainLooper()).idle()
+        val deadline = System.currentTimeMillis() + 4_000L
+        while (
+            (vmWithExplicitBlock.isSubmitting.value || vmWithExplicitBlock.snackbarMessage.value == null) &&
+            System.currentTimeMillis() < deadline
+        ) {
+            Thread.sleep(25)
+            shadowOf(Looper.getMainLooper()).idle()
+        }
+        assertTrue(
+            "Explicit photo upload MUST NOT create 'Kiriman Terlarang' in PocketBase",
+            rAdmin.observeIncidents().first().none { it.title == "Kiriman Terlarang" },
+        )
+        assertTrue(
+            "Snackbar should explain explicit photo rejection, got: ${vmWithExplicitBlock.snackbarMessage.value}",
+            vmWithExplicitBlock.snackbarMessage.value.orEmpty().contains("DITOLAK", ignoreCase = true) ||
+                vmWithExplicitBlock.snackbarMessage.value.orEmpty().contains("asusila", ignoreCase = true) ||
+                vmWithExplicitBlock.snackbarMessage.value.orEmpty().contains("eksplisit", ignoreCase = true),
+        )
+
+        // Safe photo scanner allows upload for a normal citizen
+        val safeScanner = object : ImageSafetyScanner {
+            override suspend fun scanJpegBytes(jpegBytes: ByteArray): ImageSafetyScanResult = ImageSafetyScanResult.Safe
+        }
+        val vmSafe = SurabayaViewModel(
+            repository = rCitizen1,
+            locationHelper = LocationHelper(context),
+            currentUserId = cCitizen1.sessionFlow.value!!.userId,
+            initialDisplayName = "Warga Satu",
+            currentUserEmail = "warga1@sby.id",
+            imageSafetyScanner = safeScanner,
+        )
+        vmSafe.submitIncident(
+            title = "Laporan Jalan Basah",
+            description = "Hujan rintik sore hari di Genteng",
+            category = "CUACA_BANJIR",
+            severity = "INFO",
+            district = "Genteng",
+            address = "Jl. Basuki Rahmat",
+            photoUris = listOf(sampleUri),
+            context = context,
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        val deadline2 = System.currentTimeMillis() + 4_000L
+        while (
+            (vmSafe.isSubmitting.value || rAdmin.observeIncidents().first().none { it.title == "Laporan Jalan Basah" }) &&
+            System.currentTimeMillis() < deadline2
+        ) {
+            Thread.sleep(25)
+            shadowOf(Looper.getMainLooper()).idle()
+        }
+        val createdPost = rCitizen2.observeIncidents().first().firstOrNull { it.title == "Laporan Jalan Basah" }
+        assertTrue("Safe photo upload must create 'Laporan Jalan Basah'", createdPost != null)
+        val postId = createdPost!!.id
+
+        // LAYER 2: 1st citizen report immediately triggers Auto-Blur (isContentBlurred = true)
+        rCitizen1.reportInappropriateContent("incidents", postId, 0, emptyList())
+        var postAfter1 = rCitizen2.observeIncidents().first().first { it.id == postId }
+        assertEquals(1, postAfter1.contentReportCount)
+        assertTrue("1 content report must activate sensitive photo blur", postAfter1.isContentBlurred)
+        assertFalse("1 content report must not quarantine yet", postAfter1.isContentQuarantined)
+
+        // LAYER 3: 3 distinct reports trigger Auto-Quarantine (isContentQuarantined = true)
+        rCitizen2.reportInappropriateContent("incidents", postId, postAfter1.contentReportCount, postAfter1.contentReportedByUids)
+        val postAfter2 = rAdmin.observeIncidents().first().first { it.id == postId }
+        rAdmin.reportInappropriateContent("incidents", postId, postAfter2.contentReportCount, postAfter2.contentReportedByUids)
+        val postAfter3 = rCitizen1.observeIncidents().first().first { it.id == postId }
+        assertEquals(3, postAfter3.contentReportCount)
+        assertTrue("3 content reports must quarantine post from public feed", postAfter3.isContentQuarantined)
+
+        // Admin can restore false-positive blur if needed
+        rAdmin.adminRestoreContentReports("incidents", postId)
+        val restored = rCitizen1.observeIncidents().first().first { it.id == postId }
+        assertEquals(0, restored.contentReportCount)
+        assertFalse(restored.isContentBlurred)
+
+        // Citizen Block & Unblock User
+        val blockedAfterAdd = rCitizen1.blockUser(sOffender.userId, emptyList())
+        assertTrue(sOffender.userId in blockedAfterAdd)
+        val blockedAfterRemove = rCitizen1.unblockUser(sOffender.userId, blockedAfterAdd)
+        assertFalse(sOffender.userId in blockedAfterRemove)
+
+        // LAYER 4: Admin 1-Click Delete Post & Freeze Offender Account
+        rAdmin.adminBanUser(sOffender.userId)
+        val offenderAcc = rAdmin.observeUserAccount(sOffender.userId).first()
+        assertTrue("Offender account must be marked isBanned = true", offenderAcc?.isBanned == true)
+
+        rAdmin.adminDeletePost("incidents", postId)
+        assertTrue("Deleted post must be removed from PocketBase", rCitizen1.observeIncidents().first().none { it.id == postId })
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     // --- Minimal In-Memory PocketBase 0.22 HTTP Server Mock (JSON + multipart/form-data) ---

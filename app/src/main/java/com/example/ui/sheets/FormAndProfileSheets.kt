@@ -31,13 +31,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BookmarkRemove
 import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.GppMaybe
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.Button
@@ -75,13 +79,18 @@ import com.example.R
 import com.example.data.model.BookmarkItem
 import com.example.data.model.NearbyProfile
 import com.example.data.model.UserAccount
+import com.example.data.util.LinkSecurityValidator
+import com.example.data.util.LinkValidationResult
+import com.example.data.util.SafeLinkCategory
 import com.example.data.util.SurabayaDistricts
 import com.example.ui.components.EmptyFeedPlaceholder
 import com.example.ui.components.FormMultiPhotoPickerSection
 import com.example.ui.components.FormPhotoPickerSection
 import com.example.ui.components.GoogleMapsSheetHandleHeader
 import com.example.ui.components.InitialsAvatar
+import com.example.ui.components.SurabayaDistrictDropdown
 import com.example.ui.theme.MintSoftGradient
+import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimaryDeep
@@ -92,6 +101,7 @@ import kotlin.math.roundToInt
 fun CreateIncidentSheetContent(
     defaultDistrict: String,
     isSubmitting: Boolean = false,
+    isScanningPhoto: Boolean = false,
     onSubmit: (
         title: String,
         desc: String,
@@ -99,7 +109,8 @@ fun CreateIncidentSheetContent(
         severity: String,
         district: String,
         address: String,
-        photoUri: Uri?,
+        mapsUrl: String,
+        photoUris: List<Uri>,
     ) -> Unit,
 ) {
     var title by remember { mutableStateOf("") }
@@ -108,11 +119,17 @@ fun CreateIncidentSheetContent(
     var severity by remember { mutableStateOf("INFO") }
     var district by remember { mutableStateOf(defaultDistrict) }
     var address by remember { mutableStateOf("") }
-    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var mapsUrl by remember { mutableStateOf("") }
+    var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    val mapsValidation = remember(mapsUrl) {
+        LinkSecurityValidator.validateOptionalLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+    }
 
     val isFormValid = title.trim().length >= 3 &&
         description.trim().length >= 3 &&
-        address.trim().length >= 2
+        address.trim().length >= 2 &&
+        mapsValidation is LinkValidationResult.Valid
 
     Column(
         modifier = Modifier
@@ -125,15 +142,16 @@ fun CreateIncidentSheetContent(
     ) {
         GoogleMapsSheetHandleHeader(
             title = "Laporkan Kejadian Surabaya",
-            subtitle = "Bagikan info jalan, cuaca, atau kondisi fasilitas kota secara akurat beserta foto lokasi.",
+            subtitle = "Bagikan info jalan, cuaca, atau kondisi fasilitas kota secara akurat beserta hingga 4 foto & titik Maps.",
         )
 
-        FormPhotoPickerSection(
-            selectedPhotoUri = selectedPhotoUri,
-            onPhotoSelected = { selectedPhotoUri = it },
+        FormMultiPhotoPickerSection(
+            selectedPhotoUris = selectedPhotoUris,
+            onPhotosChanged = { selectedPhotoUris = it },
+            maxPhotos = 4,
             enabled = !isSubmitting,
-            title = "Tambah Foto Kejadian / Lokasi",
-            subtitle = stringResource(R.string.photo_picker_add_subtitle),
+            title = stringResource(R.string.incident_multi_photo_title),
+            subtitle = stringResource(R.string.incident_multi_photo_subtitle),
         )
 
         OutlinedTextField(
@@ -198,6 +216,74 @@ fun CreateIncidentSheetContent(
         )
 
         OutlinedTextField(
+            value = mapsUrl,
+            onValueChange = { mapsUrl = it },
+            enabled = !isSubmitting,
+            isError = mapsValidation is LinkValidationResult.Invalid,
+            label = { Text(stringResource(R.string.incident_maps_link_label)) },
+            placeholder = { Text(stringResource(R.string.kuliner_maps_link_placeholder)) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Map,
+                    contentDescription = null,
+                    tint = ToskaPrimaryDeep,
+                    modifier = Modifier.size(19.dp),
+                )
+            },
+            trailingIcon = {
+                when {
+                    mapsValidation is LinkValidationResult.Invalid -> {
+                        Icon(
+                            imageVector = Icons.Filled.GppMaybe,
+                            contentDescription = "Link tidak aman",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                    mapsUrl.isNotBlank() && mapsValidation is LinkValidationResult.Valid -> {
+                        Icon(
+                            imageVector = Icons.Filled.VerifiedUser,
+                            contentDescription = "Domain resmi terverifikasi",
+                            tint = OpenGreenText,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                }
+            },
+            supportingText = {
+                when {
+                    mapsValidation is LinkValidationResult.Invalid -> {
+                        Text(
+                            text = mapsValidation.errorMessage,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    mapsUrl.isNotBlank() && mapsValidation is LinkValidationResult.Valid -> {
+                        Text(
+                            text = "Domain resmi Google Maps terverifikasi (${mapsValidation.host})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = OpenGreenText,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = stringResource(R.string.safe_link_form_notice_maps),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_incident_maps_url"),
+        )
+
+        OutlinedTextField(
             value = description,
             onValueChange = { description = it },
             enabled = !isSubmitting,
@@ -219,7 +305,7 @@ fun CreateIncidentSheetContent(
 
         Button(
             onClick = {
-                onSubmit(title, description, category, severity, district, address, selectedPhotoUri)
+                onSubmit(title, description, category, severity, district, address, mapsUrl, selectedPhotoUris)
             },
             enabled = isFormValid && !isSubmitting,
             shape = CircleShape,
@@ -235,7 +321,11 @@ fun CreateIncidentSheetContent(
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.submitting_upload_label))
+                Text(
+                    stringResource(
+                        if (isScanningPhoto) R.string.scanning_photo_ai_label else R.string.submitting_upload_label,
+                    ),
+                )
             } else {
                 Text("Publikasikan Laporan Warga")
             }
@@ -250,6 +340,7 @@ fun CreateIncidentSheetContent(
 fun ProposeEventSheetContent(
     defaultDistrict: String,
     isSubmitting: Boolean = false,
+    isScanningPhoto: Boolean = false,
     onSubmit: (
         title: String,
         category: String,
@@ -260,7 +351,8 @@ fun ProposeEventSheetContent(
         address: String,
         price: String,
         desc: String,
-        photoUri: Uri?,
+        mapsUrl: String,
+        photoUris: List<Uri>,
     ) -> Unit,
 ) {
     var title by remember { mutableStateOf("") }
@@ -270,14 +362,20 @@ fun ProposeEventSheetContent(
     var venue by remember { mutableStateOf("") }
     var district by remember { mutableStateOf(defaultDistrict) }
     var address by remember { mutableStateOf("") }
+    var mapsUrl by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("Gratis") }
     var description by remember { mutableStateOf("") }
-    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    val mapsValidation = remember(mapsUrl) {
+        LinkSecurityValidator.validateOptionalLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+    }
 
     val isFormValid = title.trim().length >= 3 &&
         venue.trim().length >= 2 &&
         address.trim().length >= 2 &&
-        description.trim().length >= 3
+        description.trim().length >= 3 &&
+        mapsValidation is LinkValidationResult.Valid
 
     Column(
         modifier = Modifier
@@ -290,15 +388,16 @@ fun ProposeEventSheetContent(
     ) {
         GoogleMapsSheetHandleHeader(
             title = "Usulkan Event Surabaya",
-            subtitle = "Usulan event akan masuk ke antrean moderasi dan tayang publik setelah disetujui Admin.",
+            subtitle = "Unggah hingga 4 poster/foto acara beserta titik lokasi Google Maps. Usulan akan ditinjau Admin.",
         )
 
-        FormPhotoPickerSection(
-            selectedPhotoUri = selectedPhotoUri,
-            onPhotoSelected = { selectedPhotoUri = it },
+        FormMultiPhotoPickerSection(
+            selectedPhotoUris = selectedPhotoUris,
+            onPhotosChanged = { selectedPhotoUris = it.take(4) },
+            maxPhotos = 4,
             enabled = !isSubmitting,
-            title = "Tambah Poster / Foto Event",
-            subtitle = stringResource(R.string.photo_picker_add_subtitle),
+            title = stringResource(R.string.event_multi_photo_title),
+            subtitle = stringResource(R.string.event_multi_photo_subtitle),
         )
 
         OutlinedTextField(
@@ -393,6 +492,74 @@ fun ProposeEventSheetContent(
         )
 
         OutlinedTextField(
+            value = mapsUrl,
+            onValueChange = { mapsUrl = it },
+            enabled = !isSubmitting,
+            isError = mapsValidation is LinkValidationResult.Invalid,
+            label = { Text(stringResource(R.string.event_maps_link_label)) },
+            placeholder = { Text(stringResource(R.string.kuliner_maps_link_placeholder)) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Map,
+                    contentDescription = null,
+                    tint = ToskaPrimaryDeep,
+                    modifier = Modifier.size(19.dp),
+                )
+            },
+            trailingIcon = {
+                when {
+                    mapsValidation is LinkValidationResult.Invalid -> {
+                        Icon(
+                            imageVector = Icons.Filled.GppMaybe,
+                            contentDescription = "Link tidak aman",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                    mapsUrl.isNotBlank() && mapsValidation is LinkValidationResult.Valid -> {
+                        Icon(
+                            imageVector = Icons.Filled.VerifiedUser,
+                            contentDescription = "Domain resmi terverifikasi",
+                            tint = OpenGreenText,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                }
+            },
+            supportingText = {
+                when {
+                    mapsValidation is LinkValidationResult.Invalid -> {
+                        Text(
+                            text = mapsValidation.errorMessage,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    mapsUrl.isNotBlank() && mapsValidation is LinkValidationResult.Valid -> {
+                        Text(
+                            text = "Domain resmi Google Maps terverifikasi (${mapsValidation.host})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = OpenGreenText,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = stringResource(R.string.safe_link_form_notice_maps),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_event_maps_url"),
+        )
+
+        OutlinedTextField(
             value = description,
             onValueChange = { description = it },
             enabled = !isSubmitting,
@@ -424,7 +591,8 @@ fun ProposeEventSheetContent(
                     address,
                     price,
                     description,
-                    selectedPhotoUri,
+                    mapsUrl,
+                    selectedPhotoUris,
                 )
             },
             enabled = isFormValid && !isSubmitting,
@@ -441,7 +609,11 @@ fun ProposeEventSheetContent(
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.submitting_upload_label))
+                Text(
+                    stringResource(
+                        if (isScanningPhoto) R.string.scanning_photo_ai_label else R.string.submitting_upload_label,
+                    ),
+                )
             } else {
                 Text("Kirim Usulan ke Admin")
             }
@@ -456,6 +628,7 @@ fun ProposeEventSheetContent(
 fun CreateCulinarySheetContent(
     defaultDistrict: String,
     isSubmitting: Boolean = false,
+    isScanningPhoto: Boolean = false,
     onSubmit: (
         name: String,
         category: String,
@@ -487,9 +660,26 @@ fun CreateCulinarySheetContent(
     var showDeliveryInputs by remember { mutableStateOf(false) }
     var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
+    val mapsValidation = remember(mapsUrl) {
+        LinkSecurityValidator.validateOptionalLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+    }
+    val gofoodValidation = remember(gofoodUrl) {
+        LinkSecurityValidator.validateOptionalLink(gofoodUrl, SafeLinkCategory.GOFOOD)
+    }
+    val grabfoodValidation = remember(grabfoodUrl) {
+        LinkSecurityValidator.validateOptionalLink(grabfoodUrl, SafeLinkCategory.GRABFOOD)
+    }
+    val shopeefoodValidation = remember(shopeefoodUrl) {
+        LinkSecurityValidator.validateOptionalLink(shopeefoodUrl, SafeLinkCategory.SHOPEEFOOD)
+    }
+
     val isFormValid = name.trim().length >= 2 &&
         address.trim().length >= 2 &&
-        description.trim().length >= 3
+        description.trim().length >= 3 &&
+        mapsValidation is LinkValidationResult.Valid &&
+        gofoodValidation is LinkValidationResult.Valid &&
+        grabfoodValidation is LinkValidationResult.Valid &&
+        shopeefoodValidation is LinkValidationResult.Valid
 
     Column(
         modifier = Modifier
@@ -563,6 +753,7 @@ fun CreateCulinarySheetContent(
             value = mapsUrl,
             onValueChange = { mapsUrl = it },
             enabled = !isSubmitting,
+            isError = mapsValidation is LinkValidationResult.Invalid,
             label = { Text(stringResource(R.string.kuliner_maps_link_label)) },
             placeholder = { Text(stringResource(R.string.kuliner_maps_link_placeholder)) },
             leadingIcon = {
@@ -572,6 +763,52 @@ fun CreateCulinarySheetContent(
                     tint = ToskaPrimaryDeep,
                     modifier = Modifier.size(19.dp),
                 )
+            },
+            trailingIcon = {
+                when {
+                    mapsValidation is LinkValidationResult.Invalid -> {
+                        Icon(
+                            imageVector = Icons.Filled.GppMaybe,
+                            contentDescription = "Link tidak aman",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                    mapsUrl.isNotBlank() && mapsValidation is LinkValidationResult.Valid -> {
+                        Icon(
+                            imageVector = Icons.Filled.VerifiedUser,
+                            contentDescription = "Domain resmi terverifikasi",
+                            tint = OpenGreenText,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                }
+            },
+            supportingText = {
+                when {
+                    mapsValidation is LinkValidationResult.Invalid -> {
+                        Text(
+                            text = mapsValidation.errorMessage,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    mapsUrl.isNotBlank() && mapsValidation is LinkValidationResult.Valid -> {
+                        Text(
+                            text = "Domain resmi Google Maps terverifikasi (${mapsValidation.host})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = OpenGreenText,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = stringResource(R.string.safe_link_form_notice_maps),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             },
             shape = RoundedCornerShape(16.dp),
             singleLine = true,
@@ -666,10 +903,17 @@ fun CreateCulinarySheetContent(
                             .padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        Text(
+                            text = stringResource(R.string.safe_link_form_notice_delivery),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ToskaOnPrimaryContainer,
+                        )
+
                         OutlinedTextField(
                             value = gofoodUrl,
                             onValueChange = { gofoodUrl = it },
                             enabled = !isSubmitting,
+                            isError = gofoodValidation is LinkValidationResult.Invalid,
                             label = { Text(stringResource(R.string.kuliner_gofood_label)) },
                             placeholder = { Text("https://gofood.link/…") },
                             leadingIcon = {
@@ -679,6 +923,35 @@ fun CreateCulinarySheetContent(
                                     tint = Color(0xFFC62828),
                                     modifier = Modifier.size(18.dp),
                                 )
+                            },
+                            trailingIcon = {
+                                when {
+                                    gofoodValidation is LinkValidationResult.Invalid -> {
+                                        Icon(Icons.Filled.GppMaybe, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                    }
+                                    gofoodUrl.isNotBlank() && gofoodValidation is LinkValidationResult.Valid -> {
+                                        Icon(Icons.Filled.VerifiedUser, null, tint = OpenGreenText, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            },
+                            supportingText = if (gofoodValidation is LinkValidationResult.Invalid) {
+                                {
+                                    Text(
+                                        text = gofoodValidation.errorMessage,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            } else if (gofoodUrl.isNotBlank() && gofoodValidation is LinkValidationResult.Valid) {
+                                {
+                                    Text(
+                                        text = "Domain resmi GoFood terverifikasi (${gofoodValidation.host})",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = OpenGreenText,
+                                    )
+                                }
+                            } else {
+                                null
                             },
                             shape = RoundedCornerShape(14.dp),
                             singleLine = true,
@@ -691,6 +964,7 @@ fun CreateCulinarySheetContent(
                             value = grabfoodUrl,
                             onValueChange = { grabfoodUrl = it },
                             enabled = !isSubmitting,
+                            isError = grabfoodValidation is LinkValidationResult.Invalid,
                             label = { Text(stringResource(R.string.kuliner_grabfood_label)) },
                             placeholder = { Text("https://r.grab.com/…") },
                             leadingIcon = {
@@ -700,6 +974,35 @@ fun CreateCulinarySheetContent(
                                     tint = Color(0xFF00880C),
                                     modifier = Modifier.size(18.dp),
                                 )
+                            },
+                            trailingIcon = {
+                                when {
+                                    grabfoodValidation is LinkValidationResult.Invalid -> {
+                                        Icon(Icons.Filled.GppMaybe, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                    }
+                                    grabfoodUrl.isNotBlank() && grabfoodValidation is LinkValidationResult.Valid -> {
+                                        Icon(Icons.Filled.VerifiedUser, null, tint = OpenGreenText, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            },
+                            supportingText = if (grabfoodValidation is LinkValidationResult.Invalid) {
+                                {
+                                    Text(
+                                        text = grabfoodValidation.errorMessage,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            } else if (grabfoodUrl.isNotBlank() && grabfoodValidation is LinkValidationResult.Valid) {
+                                {
+                                    Text(
+                                        text = "Domain resmi GrabFood terverifikasi (${grabfoodValidation.host})",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = OpenGreenText,
+                                    )
+                                }
+                            } else {
+                                null
                             },
                             shape = RoundedCornerShape(14.dp),
                             singleLine = true,
@@ -712,6 +1015,7 @@ fun CreateCulinarySheetContent(
                             value = shopeefoodUrl,
                             onValueChange = { shopeefoodUrl = it },
                             enabled = !isSubmitting,
+                            isError = shopeefoodValidation is LinkValidationResult.Invalid,
                             label = { Text(stringResource(R.string.kuliner_shopeefood_label)) },
                             placeholder = { Text("https://shopee.co.id/universal-link/now-food/…") },
                             leadingIcon = {
@@ -721,6 +1025,35 @@ fun CreateCulinarySheetContent(
                                     tint = Color(0xFFD84315),
                                     modifier = Modifier.size(18.dp),
                                 )
+                            },
+                            trailingIcon = {
+                                when {
+                                    shopeefoodValidation is LinkValidationResult.Invalid -> {
+                                        Icon(Icons.Filled.GppMaybe, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                    }
+                                    shopeefoodUrl.isNotBlank() && shopeefoodValidation is LinkValidationResult.Valid -> {
+                                        Icon(Icons.Filled.VerifiedUser, null, tint = OpenGreenText, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            },
+                            supportingText = if (shopeefoodValidation is LinkValidationResult.Invalid) {
+                                {
+                                    Text(
+                                        text = shopeefoodValidation.errorMessage,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            } else if (shopeefoodUrl.isNotBlank() && shopeefoodValidation is LinkValidationResult.Valid) {
+                                {
+                                    Text(
+                                        text = "Domain resmi ShopeeFood terverifikasi (${shopeefoodValidation.host})",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = OpenGreenText,
+                                    )
+                                }
+                            } else {
+                                null
                             },
                             shape = RoundedCornerShape(14.dp),
                             singleLine = true,
@@ -785,7 +1118,11 @@ fun CreateCulinarySheetContent(
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.submitting_upload_label))
+                Text(
+                    stringResource(
+                        if (isScanningPhoto) R.string.scanning_photo_ai_label else R.string.submitting_upload_label,
+                    ),
+                )
             } else {
                 Text("Simpan Kuliner ke Direktori")
             }
@@ -875,6 +1212,9 @@ fun ProfileAndPrivacySheetContent(
     isAdmin: Boolean,
     focusPrivacyOnly: Boolean,
     isSubmitting: Boolean = false,
+    isScanningPhoto: Boolean = false,
+    knownCitizens: List<NearbyProfile> = emptyList(),
+    onUnblockUser: (String) -> Unit = {},
     onToggleAdmin: (Boolean) -> Unit,
     onSaveProfile: (
         name: String,
@@ -1009,6 +1349,33 @@ fun ProfileAndPrivacySheetContent(
                             style = MaterialTheme.typography.labelMedium,
                         )
                     }
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFFF3FBF7),
+                border = BorderStroke(1.dp, OutlineVariantLight),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("profile_ai_safety_notice"),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Shield,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.ai_photo_safety_form_notice),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ToskaOnPrimaryContainer,
+                    )
                 }
             }
 
@@ -1149,6 +1516,76 @@ fun ProfileAndPrivacySheetContent(
             }
         }
 
+        val blockedUids = userAccount?.blockedUids.orEmpty()
+        if (blockedUids.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFFFFF8F6),
+                border = BorderStroke(1.dp, Color(0xFFFFCDD2)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("blocked_users_card"),
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Block,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.blocked_users_section_title, blockedUids.size),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.blocked_users_section_subtitle),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    blockedUids.forEach { uid ->
+                        val resolvedName = knownCitizens
+                            .firstOrNull { it.userId == uid || it.id == uid }
+                            ?.displayName
+                            ?.takeIf { it.isNotBlank() }
+                            ?: "Warga (${uid.take(6)})"
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = resolvedName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedButton(
+                                onClick = { onUnblockUser(uid) },
+                                shape = CircleShape,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("unblock_user_btn_$uid"),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.btn_unblock_user),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Button(
             onClick = {
                 onSaveProfile(
@@ -1175,7 +1612,11 @@ fun ProfileAndPrivacySheetContent(
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.submitting_upload_label))
+                Text(
+                    stringResource(
+                        if (isScanningPhoto) R.string.scanning_photo_ai_label else R.string.submitting_upload_label,
+                    ),
+                )
             } else {
                 Text("Simpan Pengaturan")
             }
@@ -1202,27 +1643,15 @@ fun ProfileAndPrivacySheetContent(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DistrictPickerChips(
     selectedDistrict: String,
     enabled: Boolean = true,
     onSelect: (String) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Kecamatan di Surabaya", style = MaterialTheme.typography.labelLarge)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            SurabayaDistricts.names().forEach { name ->
-                FilterChip(
-                    selected = selectedDistrict.equals(name, ignoreCase = true),
-                    onClick = { if (enabled) onSelect(name) },
-                    label = { Text(name, style = MaterialTheme.typography.labelSmall) },
-                    shape = CircleShape,
-                )
-            }
-        }
-    }
+    SurabayaDistrictDropdown(
+        selectedDistrict = selectedDistrict,
+        onSelect = onSelect,
+        enabled = enabled,
+    )
 }

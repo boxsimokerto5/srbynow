@@ -97,9 +97,11 @@ fun formatCulinaryCategoryLabel(key: String): String = when (key) {
 fun KulinerScreen(
     culinaryState: UiState<List<CulinarySpot>>,
     bookmarks: List<BookmarkItem>,
+    currentUserId: String = "",
     onSelectSpot: (CulinarySpot) -> Unit,
     onToggleBookmark: (CulinarySpot) -> Unit,
     onOpenCreateSheet: () -> Unit,
+    onReportSpotLink: (CulinarySpot) -> Unit = {},
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("ALL") }
@@ -237,9 +239,11 @@ fun KulinerScreen(
                             CulinaryCompactCard(
                                 spot = spot,
                                 isSaved = isSaved,
+                                isReportedByMe = currentUserId in spot.linkReportedByUids,
                                 onClick = { onSelectSpot(spot) },
                                 onPhotoClick = { pageIdx -> fullscreenViewerTarget = spot to pageIdx },
                                 onBookmark = { onToggleBookmark(spot) },
+                                onReportLink = { onReportSpotLink(spot) },
                             )
                         }
                     }
@@ -289,9 +293,11 @@ fun KulinerScreen(
 private fun CulinaryCompactCard(
     spot: CulinarySpot,
     isSaved: Boolean,
+    isReportedByMe: Boolean,
     onClick: () -> Unit,
     onPhotoClick: (Int) -> Unit,
     onBookmark: () -> Unit,
+    onReportLink: () -> Unit,
 ) {
     val isOpen = isCulinaryOpenNow(spot.openHour, spot.closeHour)
 
@@ -319,6 +325,8 @@ private fun CulinaryCompactCard(
                 fallbackImageKey = spot.imageKey,
                 spotName = spot.name,
                 compactMode = true,
+                isBlurredSensitive = spot.isContentBlurred,
+                sensitiveReportCount = spot.contentReportCount,
                 onPhotoClick = onPhotoClick,
                 modifier = Modifier
                     .size(104.dp)
@@ -450,6 +458,8 @@ private fun CulinaryCompactCard(
                 CulinaryDeliveryLinksRow(
                     spot = spot,
                     compact = true,
+                    isReportedByMe = isReportedByMe,
+                    onReportSuspiciousLink = onReportLink,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }

@@ -488,10 +488,40 @@
             "400x300",
             "800x600"
           ],
-          "maxSelect": 1,
+          "maxSelect": 4,
           "maxSize": 5242880,
           "protected": false
         }
+      },
+      {
+        "system": false,
+        "id": "sbyin016",
+        "name": "maps_url",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin017",
+        "name": "link_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyin018",
+        "name": "link_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
       }
     ],
     "indexes": [],
@@ -761,10 +791,40 @@
             "400x300",
             "800x600"
           ],
-          "maxSelect": 1,
+          "maxSelect": 4,
           "maxSize": 5242880,
           "protected": false
         }
+      },
+      {
+        "system": false,
+        "id": "sbyev020",
+        "name": "maps_url",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev021",
+        "name": "link_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyev022",
+        "name": "link_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
       }
     ],
     "indexes": [],
@@ -993,6 +1053,26 @@
         "presentable": false,
         "unique": false,
         "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl021",
+        "name": "link_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbycl022",
+        "name": "link_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
       }
     ],
     "indexes": [],

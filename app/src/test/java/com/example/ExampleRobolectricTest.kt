@@ -6,10 +6,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
@@ -278,7 +283,7 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `create incident sheet renders photo picker all 12 districts and submitting state`() {
+  fun `create incident sheet blocks fake links and enables submit only for official or empty maps url`() {
     var submittedTitle = ""
     composeTestRule.setContent {
       SurabayaHariIniTheme {
@@ -286,7 +291,7 @@ class ExampleRobolectricTest {
           com.example.ui.sheets.CreateIncidentSheetContent(
             defaultDistrict = "Rungkut",
             isSubmitting = false,
-            onSubmit = { title, _, _, _, _, _, _ ->
+            onSubmit = { title, _, _, _, _, _, _, _ ->
               submittedTitle = title
             },
           )
@@ -295,9 +300,28 @@ class ExampleRobolectricTest {
     }
 
     composeTestRule.waitForIdle()
-    composeTestRule.onNodeWithTag("form_pick_photo_btn").assertIsDisplayed()
-    composeTestRule.onNodeWithText("Sukolilo").assertIsDisplayed()
-    composeTestRule.onNodeWithText("Kenjeran").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("form_pick_multi_photo_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Kec. Rungkut").assertIsDisplayed()
+
+    // Fill required fields
+    composeTestRule.onNodeWithTag("form_incident_title").performTextInput("Pohon Tumbang di Rungkut")
+    composeTestRule.onNodeWithTag("form_incident_address").performTextInput("Jl. Raya Rungkut No. 12")
+    composeTestRule.onNodeWithTag("form_incident_desc").performTextInput("Harap berhati-hati melintas arah selatan.")
+    composeTestRule.waitForIdle()
+
+    // Empty optional maps URL -> submit is enabled
+    composeTestRule.onNodeWithTag("submit_incident_btn").assertIsEnabled()
+
+    // Enter a fake/shortener phishing link -> submit becomes disabled!
+    composeTestRule.onNodeWithTag("form_incident_maps_url").performTextInput("https://bit.ly/undangan-apk")
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("submit_incident_btn").assertIsNotEnabled()
+
+    // Replace with official Google Maps shortlink -> submit becomes enabled again!
+    composeTestRule.onNodeWithTag("form_incident_maps_url").performTextClearance()
+    composeTestRule.onNodeWithTag("form_incident_maps_url").performTextInput("https://maps.app.goo.gl/RungkutAman123")
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("submit_incident_btn").assertIsEnabled()
 
     val schemaFile = java.io.File("pocketbase_collections.json").let {
       if (it.exists()) it else java.io.File("../pocketbase_collections.json")
@@ -324,4 +348,133 @@ class ExampleRobolectricTest {
     }
     assertEquals("", submittedTitle)
   }
+
+  @Test
+  fun `tapping maps button on post with custom mapsUrl shows SafeExternalLinkConfirmationDialog first`() {
+    val report = IncidentReport(
+      id = "inc_safe_1",
+      authorName = "Rina",
+      title = "Penutupan Jalan Darmo",
+      description = "Ada car free day pagi ini.",
+      category = "LALU_LINTAS",
+      district = "Wonokromo",
+      address = "Jl. Raya Darmo",
+      mapsUrl = "https://maps.app.goo.gl/DarmoSurabaya99",
+      verifiedCount = 3,
+    )
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(820.dp)) {
+          IncidentDetailSheetContent(
+            report = report,
+            comments = emptyList(),
+            isSaved = false,
+            isVerifiedByMe = false,
+            onVerify = {},
+            onBookmark = {},
+            onSendComment = {},
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("verified_link_security_strip").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("sheet_incident_maps_btn").performClick()
+    composeTestRule.waitForIdle()
+
+    // Safe exit confirmation dialog must appear showing full destination URL and domain
+    composeTestRule.onNodeWithTag("safe_external_link_dialog").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("safe_external_link_preview_url").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Domain tujuan: maps.app.goo.gl").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("dialog_report_suspicious_link_btn").assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag("safe_external_link_cancel_btn").performClick()
+    composeTestRule.waitForIdle()
+  }
+
+  @Test
+  fun `sensitive photo blur shield hides reported image until Lihat Foto clicked and exposes Lapor Blokir Admin controls`() {
+    var reportClicked = false
+    var blockClicked = false
+    var adminDeleteClicked = false
+
+    val blurredReport = IncidentReport(
+      id = "inc_blur_1",
+      authorId = "usr_offender_99",
+      authorName = "Akun Mencurigakan",
+      title = "Kiriman Dilaporkan Warga",
+      description = "Foto kiriman ini telah dilaporkan 1 warga sehingga otomatis diburamkan.",
+      category = "INFO_WARGA",
+      district = "Tegalsari",
+      address = "Jl. Basuki Rahmat",
+      photoUrl = "https://173.249.59.183:8091/api/files/incidents/inc_blur_1/test.jpg",
+      contentReportCount = 1,
+      contentReportedByUids = listOf("other_user_1"),
+    )
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(840.dp)) {
+          IncidentDetailSheetContent(
+            report = blurredReport,
+            comments = emptyList(),
+            isSaved = false,
+            isVerifiedByMe = false,
+            currentUserId = "current_citizen_1",
+            isAdmin = true,
+            onVerify = {},
+            onBookmark = {},
+            onSendComment = {},
+            onReportContent = { reportClicked = true },
+            onBlockAuthor = { blockClicked = true },
+            onAdminDeletePost = { adminDeleteClicked = true },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Sensitive Photo Blur Shield is displayed over the photo!
+    composeTestRule.onNodeWithTag("sensitive_photo_blur_shield").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("reveal_sensitive_photo_btn").assertIsDisplayed()
+
+    // 2. Tapping "Lihat Foto" reveals photo and shows "Samarkan" pill to re-blur
+    composeTestRule.onNodeWithTag("reveal_sensitive_photo_btn").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("rehide_sensitive_photo_btn").assertIsDisplayed()
+
+    // Tapping "Samarkan" restores the protective blur shield
+    composeTestRule.onNodeWithTag("rehide_sensitive_photo_btn").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("sensitive_photo_blur_shield").assertIsDisplayed()
+
+    // 3. Citizen "Lapor Asusila" opens confirmation dialog and triggers callback
+    composeTestRule.onNodeWithTag("citizen_report_content_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("citizen_report_content_btn").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("confirm_report_content_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onReportContent to be invoked", reportClicked)
+
+    // 4. Citizen "Blokir Penulis" opens confirmation dialog and triggers callback
+    composeTestRule.onNodeWithTag("block_author_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("block_author_btn").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("confirm_block_user_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onBlockAuthor to be invoked", blockClicked)
+
+    // 5. Admin "Hapus Permanen" opens confirmation dialog and triggers callback
+    composeTestRule.onNodeWithTag("admin_delete_post_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("admin_delete_post_btn").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("confirm_admin_delete_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onAdminDeletePost to be invoked", adminDeleteClicked)
+  }
 }
+
+

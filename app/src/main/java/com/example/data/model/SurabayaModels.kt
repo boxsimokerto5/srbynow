@@ -25,6 +25,8 @@ data class UserAccount(
     val isDiscoverable: Boolean = true,
     val isAdmin: Boolean = false,
     val avatarUrl: String = "",
+    val blockedUids: List<String> = emptyList(),
+    val isBanned: Boolean = false,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
 )
@@ -52,6 +54,7 @@ data class NearbyProfile(
     val lat: Double = -7.2575,
     val lng: Double = 112.7521,
     val isDiscoverable: Boolean = true,
+    val isBanned: Boolean = false,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
 )
@@ -70,12 +73,37 @@ data class IncidentReport(
     val lng: Double = 112.7521,
     val imageKey: String = "kejadian_kota",
     val photoUrl: String = "",
+    val photoUrls: List<String> = emptyList(),
+    val mapsUrl: String = "",
+    val linkReportCount: Int = 0,
+    val linkReportedByUids: List<String> = emptyList(),
+    val contentReportCount: Int = 0,
+    val contentReportedByUids: List<String> = emptyList(),
     val verifiedCount: Int = 0,
     val verifiedByUids: List<String> = emptyList(),
     val commentCount: Int = 0,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
-)
+) {
+    val allPhotos: List<String>
+        get() = when {
+            photoUrls.isNotEmpty() -> photoUrls.filter { it.isNotBlank() }
+            photoUrl.isNotBlank() -> listOf(photoUrl)
+            else -> emptyList()
+        }
+
+    val isLinkQuarantined: Boolean
+        get() = linkReportCount >= 3
+
+    val safeMapsUrl: String
+        get() = if (isLinkQuarantined) "" else mapsUrl
+
+    val isContentBlurred: Boolean
+        get() = contentReportCount >= 1
+
+    val isContentQuarantined: Boolean
+        get() = contentReportCount >= 3
+}
 
 data class IncidentComment(
     val id: String = "",
@@ -103,13 +131,38 @@ data class SurabayaEvent(
     val description: String = "",
     val imageKey: String = "event_festival",
     val photoUrl: String = "",
+    val photoUrls: List<String> = emptyList(),
+    val mapsUrl: String = "",
+    val linkReportCount: Int = 0,
+    val linkReportedByUids: List<String> = emptyList(),
+    val contentReportCount: Int = 0,
+    val contentReportedByUids: List<String> = emptyList(),
     val status: String = "PENDING",
     val adminNote: String = "",
     val interestedCount: Int = 0,
     val interestedUids: List<String> = emptyList(),
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
-)
+) {
+    val allPhotos: List<String>
+        get() = when {
+            photoUrls.isNotEmpty() -> photoUrls.filter { it.isNotBlank() }
+            photoUrl.isNotBlank() -> listOf(photoUrl)
+            else -> emptyList()
+        }
+
+    val isLinkQuarantined: Boolean
+        get() = linkReportCount >= 3
+
+    val safeMapsUrl: String
+        get() = if (isLinkQuarantined) "" else mapsUrl
+
+    val isContentBlurred: Boolean
+        get() = contentReportCount >= 1
+
+    val isContentQuarantined: Boolean
+        get() = contentReportCount >= 3
+}
 
 data class PbOAuth2Provider(
     val name: String,
@@ -141,6 +194,10 @@ data class CulinarySpot(
     val gofoodUrl: String = "",
     val grabfoodUrl: String = "",
     val shopeefoodUrl: String = "",
+    val linkReportCount: Int = 0,
+    val linkReportedByUids: List<String> = emptyList(),
+    val contentReportCount: Int = 0,
+    val contentReportedByUids: List<String> = emptyList(),
     val ratingAvg: Double = 4.8,
     val reviewCount: Int = 1,
     val createdAt: Long? = null,
@@ -152,6 +209,30 @@ data class CulinarySpot(
             photoUrl.isNotBlank() -> listOf(photoUrl)
             else -> emptyList()
         }
+
+    val isLinkQuarantined: Boolean
+        get() = linkReportCount >= 3
+
+    val hasAnyExternalLink: Boolean
+        get() = mapsUrl.isNotBlank() || gofoodUrl.isNotBlank() || grabfoodUrl.isNotBlank() || shopeefoodUrl.isNotBlank()
+
+    val safeMapsUrl: String
+        get() = if (isLinkQuarantined) "" else mapsUrl
+
+    val safeGofoodUrl: String
+        get() = if (isLinkQuarantined) "" else gofoodUrl
+
+    val safeGrabfoodUrl: String
+        get() = if (isLinkQuarantined) "" else grabfoodUrl
+
+    val safeShopeefoodUrl: String
+        get() = if (isLinkQuarantined) "" else shopeefoodUrl
+
+    val isContentBlurred: Boolean
+        get() = contentReportCount >= 1
+
+    val isContentQuarantined: Boolean
+        get() = contentReportCount >= 3
 }
 
 data class CulinaryReview(
@@ -191,6 +272,11 @@ data class ChatRoom(
             }
         }
         return title
+    }
+
+    fun otherParticipantIdFor(currentUserId: String): String? {
+        if (roomType != "DIRECT") return null
+        return participantUids.firstOrNull { it.isNotBlank() && it != currentUserId }
     }
 }
 

@@ -60,11 +60,14 @@ import com.example.data.model.BookmarkItem
 import com.example.data.model.IncidentReport
 import com.example.data.model.UiState
 import com.example.data.util.formatRelativeTimestamp
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import com.example.ui.components.CategoryFilterRow
+import com.example.ui.components.CulinaryPhotoCarousel
 import com.example.ui.components.EmptyFeedPlaceholder
-import com.example.ui.components.SurabayaRemoteOrFallbackImage
+import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
+import com.example.ui.components.SurabayaDistrictFilterBar
 import com.example.ui.components.openEmergencyDialer112
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.MintSoftGradient
@@ -102,6 +105,19 @@ fun KejadianScreen(
 ) {
     val context = LocalContext.current
     var selectedCategory by rememberSaveable { mutableStateOf("ALL") }
+    var selectedDistrict by rememberSaveable { mutableStateOf("ALL") }
+    var viewerTarget by remember { mutableStateOf<Pair<IncidentReport, Int>?>(null) }
+
+    val activeViewer = viewerTarget
+    if (activeViewer != null) {
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrls = activeViewer.first.allPhotos,
+            fallbackImageKey = activeViewer.first.imageKey,
+            title = activeViewer.first.title,
+            initialPage = activeViewer.second,
+            onDismiss = { viewerTarget = null },
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -195,6 +211,16 @@ fun KejadianScreen(
                 )
             }
 
+            // Compact 31-Kecamatan Surabaya Dropdown Filter
+            item(key = "incident_district_dropdown") {
+                SurabayaDistrictFilterBar(
+                    selectedDistrict = selectedDistrict,
+                    onSelect = { selectedDistrict = it },
+                    testTag = "incident_district_filter_dropdown",
+                    modifier = Modifier.padding(horizontal = 14.dp),
+                )
+            }
+
             when (incidentsState) {
                 is UiState.Loading -> {
                     item {
@@ -218,14 +244,20 @@ fun KejadianScreen(
                     }
                 }
                 is UiState.Success -> {
-                    val filtered = incidentsState.data.filter {
-                        selectedCategory == "ALL" || it.category == selectedCategory
+                    val filtered = incidentsState.data.filter { report ->
+                        val matchesCategory = selectedCategory == "ALL" || report.category == selectedCategory
+                        val matchesDistrict = selectedDistrict == "ALL" || report.district.equals(selectedDistrict, ignoreCase = true)
+                        matchesCategory && matchesDistrict
                     }
                     if (filtered.isEmpty()) {
                         item {
                             EmptyFeedPlaceholder(
                                 icon = Icons.Outlined.Newspaper,
-                                title = "Belum ada laporan di kategori ini",
+                                title = if (selectedDistrict != "ALL") {
+                                    "Belum ada laporan di Kec. $selectedDistrict"
+                                } else {
+                                    "Belum ada laporan di kategori ini"
+                                },
                                 subtitle = "Ketuk tombol Lapor Kejadian di kanan bawah untuk berbagi info warga.",
                             )
                         }
@@ -238,6 +270,7 @@ fun KejadianScreen(
                                 isSaved = isSaved,
                                 isVerifiedByMe = isVerifiedByMe,
                                 onClick = { onSelectIncident(report) },
+                                onOpenFullscreenPhoto = { pageIdx -> viewerTarget = report to pageIdx },
                                 onVerify = { onVerifyIncident(report) },
                                 onBookmark = { onToggleBookmark(report) },
                             )
@@ -279,6 +312,7 @@ private fun IncidentCompactCard(
     isSaved: Boolean,
     isVerifiedByMe: Boolean,
     onClick: () -> Unit,
+    onOpenFullscreenPhoto: (Int) -> Unit,
     onVerify: () -> Unit,
     onBookmark: () -> Unit,
 ) {
@@ -301,25 +335,30 @@ private fun IncidentCompactCard(
             .testTag("incident_card_${report.id}"),
     ) {
         Column {
-            // Compact Visual Banner Header (Airy & Bright)
+            // Compact Swipeable Multi-Photo Header (1..4 photos + tap for 2-finger zoom)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(136.dp),
+                    .height(148.dp),
             ) {
-                SurabayaRemoteOrFallbackImage(
-                    imageUrl = report.photoUrl,
+                CulinaryPhotoCarousel(
+                    photoUrls = report.allPhotos,
                     fallbackImageKey = report.imageKey,
-                    contentDescription = report.title,
-                    contentScale = ContentScale.Crop,
+                    spotName = report.title,
+                    compactMode = false,
+                    isBlurredSensitive = report.isContentBlurred,
+                    sensitiveReportCount = report.contentReportCount,
+                    onPhotoClick = onOpenFullscreenPhoto,
                     modifier = Modifier.fillMaxSize(),
                 )
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .height(54.dp)
+                        .align(Alignment.BottomCenter)
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color(0x14000000), Color.Transparent, Color(0x8009261E)),
+                                listOf(Color.Transparent, Color(0x9009261E)),
                             ),
                         ),
                 )
@@ -356,17 +395,19 @@ private fun IncidentCompactCard(
                         }
                     }
 
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.90f),
-                    ) {
-                        Text(
-                            text = formatRelativeTimestamp(report.createdAt),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        )
+                    if (report.allPhotos.size <= 1) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.90f),
+                        ) {
+                            Text(
+                                text = formatRelativeTimestamp(report.createdAt),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
                     }
                 }
 
@@ -374,7 +415,11 @@ private fun IncidentCompactCard(
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(
+                            start = 12.dp,
+                            end = 78.dp,
+                            bottom = if (report.allPhotos.size > 1) 18.dp else 8.dp,
+                        ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(

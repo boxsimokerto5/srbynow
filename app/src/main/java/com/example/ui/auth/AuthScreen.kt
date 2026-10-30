@@ -80,7 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
 import com.example.data.pocketbase.PocketBaseClient
-import com.example.data.util.SurabayaDistricts
+import com.example.ui.components.SurabayaDistrictDropdown
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
@@ -416,26 +416,13 @@ fun AuthScreen(
                                 .testTag("auth_name_input"),
                         )
 
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = "Kecamatan Domisili Surabaya",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                SurabayaDistricts.names().take(6).forEach { dist ->
-                                    FilterChip(
-                                        selected = selectedDistrict == dist,
-                                        onClick = { selectedDistrict = dist },
-                                        label = { Text(dist, style = MaterialTheme.typography.labelSmall) },
-                                        shape = CircleShape,
-                                    )
-                                }
-                            }
-                        }
+                        SurabayaDistrictDropdown(
+                            selectedDistrict = selectedDistrict,
+                            onSelect = { selectedDistrict = it },
+                            enabled = !isLoading,
+                            label = "Kecamatan Domisili Surabaya (31 Kecamatan)",
+                            testTag = "auth_district_dropdown",
+                        )
                     }
 
                     OutlinedTextField(

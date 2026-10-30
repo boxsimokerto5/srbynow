@@ -102,13 +102,37 @@
           "maxSize": 5242880,
           "protected": false
         }
+      },
+      {
+        "system": false,
+        "id": "sbyusr07",
+        "name": "blocked_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {
+          "min": null,
+          "max": 4000,
+          "pattern": ""
+        }
+      },
+      {
+        "system": false,
+        "id": "sbyusr08",
+        "name": "is_banned",
+        "type": "bool",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
       }
     ],
     "indexes": [],
-    "listRule": "id = @request.auth.id",
-    "viewRule": "id = @request.auth.id",
+    "listRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
+    "viewRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
     "createRule": "",
-    "updateRule": "id = @request.auth.id",
+    "updateRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
     "deleteRule": "id = @request.auth.id",
     "options": {
       "allowEmailAuth": true,
@@ -314,13 +338,23 @@
           "maxSize": 5242880,
           "protected": false
         }
+      },
+      {
+        "system": false,
+        "id": "sbynp011",
+        "name": "is_banned",
+        "type": "bool",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": {}
       }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id)",
-    "viewRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id)",
+    "listRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "viewRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "createRule": "@request.auth.id != '' && @request.data.user_id = @request.auth.id",
-    "updateRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "deleteRule": "@request.auth.id != '' && user_id = @request.auth.id",
     "options": {}
   },
@@ -488,10 +522,60 @@
             "400x300",
             "800x600"
           ],
-          "maxSelect": 1,
+          "maxSelect": 4,
           "maxSize": 5242880,
           "protected": false
         }
+      },
+      {
+        "system": false,
+        "id": "sbyin016",
+        "name": "maps_url",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin017",
+        "name": "link_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyin018",
+        "name": "link_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyin019",
+        "name": "content_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyin020",
+        "name": "content_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
       }
     ],
     "indexes": [],
@@ -761,10 +845,60 @@
             "400x300",
             "800x600"
           ],
-          "maxSelect": 1,
+          "maxSelect": 4,
           "maxSize": 5242880,
           "protected": false
         }
+      },
+      {
+        "system": false,
+        "id": "sbyev020",
+        "name": "maps_url",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev021",
+        "name": "link_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyev022",
+        "name": "link_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbyev023",
+        "name": "content_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbyev024",
+        "name": "content_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
       }
     ],
     "indexes": [],
@@ -993,6 +1127,46 @@
         "presentable": false,
         "unique": false,
         "options": { "min": null, "max": 500, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl021",
+        "name": "link_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbycl022",
+        "name": "link_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
+      },
+      {
+        "system": false,
+        "id": "sbycl023",
+        "name": "content_report_count",
+        "type": "number",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": 0, "max": 100000, "noDecimal": true }
+      },
+      {
+        "system": false,
+        "id": "sbycl024",
+        "name": "content_reported_uids",
+        "type": "text",
+        "required": false,
+        "presentable": false,
+        "unique": false,
+        "options": { "min": null, "max": 2000, "pattern": "" }
       }
     ],
     "indexes": [],

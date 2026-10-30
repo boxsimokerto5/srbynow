@@ -18,9 +18,14 @@ import com.example.data.model.SurabayaEvent
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
 import com.example.data.repository.SurabayaRepository
+import com.example.data.util.GeminiExplicitImageScanner
+import com.example.data.util.ImageSafetyScanResult
+import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
+import com.example.data.util.PreparedPhoto
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.calculateDistanceKm
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -68,6 +73,7 @@ class SurabayaViewModel(
     val currentUserId: String,
     private val initialDisplayName: String,
     val currentUserEmail: String,
+    private val imageSafetyScanner: ImageSafetyScanner = GeminiExplicitImageScanner(),
 ) : ViewModel() {
 
     private val _selectedTab = MutableStateFlow(MainTab.KEJADIAN)
@@ -94,6 +100,9 @@ class SurabayaViewModel(
     private val _isSubmitting = MutableStateFlow(false)
     val isSubmitting: StateFlow<Boolean> = _isSubmitting.asStateFlow()
 
+    private val _isScanningPhoto = MutableStateFlow(false)
+    val isScanningPhoto: StateFlow<Boolean> = _isScanningPhoto.asStateFlow()
+
     // User account & Admin streams
     val userAccount: StateFlow<UserAccount?> = repository.observeUserAccount(currentUserId)
         .catch { e ->
@@ -101,6 +110,10 @@ class SurabayaViewModel(
             emit(null)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
+
+    val blockedUserIds: StateFlow<Set<String>> = userAccount
+        .map { it?.blockedUids?.toSet().orEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptySet())
 
     val isAdmin: StateFlow<Boolean> = repository.observeAdminRole(currentUserId)
         .catch { e ->
@@ -116,9 +129,17 @@ class SurabayaViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
-    // 1. Kejadian Surabaya
-    val incidentsState: StateFlow<UiState<List<IncidentReport>>> = repository.observeIncidents()
-        .map<List<IncidentReport>, UiState<List<IncidentReport>>> { UiState.Success(it) }
+    // 1. Kejadian Surabaya (filtered for blocked authors & quarantined posts)
+    val incidentsState: StateFlow<UiState<List<IncidentReport>>> = combine(
+        repository.observeIncidents(),
+        blockedUserIds,
+        isAdmin,
+    ) { items, blockedSet, admin ->
+        val filtered = items.filter { item ->
+            item.authorId !in blockedSet && (!item.isContentQuarantined || admin)
+        }
+        UiState.Success(filtered) as UiState<List<IncidentReport>>
+    }
         .catch { e ->
             Log.w(TAG, "observeIncidents error", e)
             emit(UiState.Error(e.localizedMessage ?: "Gagal memuat kejadian Surabaya"))
@@ -127,27 +148,43 @@ class SurabayaViewModel(
 
     private val selectedIncidentIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.IncidentDetail)?.incidentId }
 
-    val activeIncidentComments: StateFlow<List<IncidentComment>> = selectedIncidentIdFlow
-        .flatMapLatest { incidentId ->
+    val activeIncidentComments: StateFlow<List<IncidentComment>> = combine(
+        selectedIncidentIdFlow.flatMapLatest { incidentId ->
             if (incidentId.isNullOrBlank()) {
                 flowOf(emptyList())
             } else {
                 repository.observeIncidentComments(incidentId)
                     .catch { emit(emptyList()) }
             }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+        },
+        blockedUserIds,
+    ) { comments, blockedSet ->
+        comments.filter { it.authorId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
     // 2. Event Surabaya & Moderation
-    val approvedEventsState: StateFlow<UiState<List<SurabayaEvent>>> = repository.observeApprovedEvents()
-        .map<List<SurabayaEvent>, UiState<List<SurabayaEvent>>> { UiState.Success(it) }
+    val approvedEventsState: StateFlow<UiState<List<SurabayaEvent>>> = combine(
+        repository.observeApprovedEvents(),
+        blockedUserIds,
+        isAdmin,
+    ) { items, blockedSet, admin ->
+        val filtered = items.filter { item ->
+            item.proposerId !in blockedSet && (!item.isContentQuarantined || admin)
+        }
+        UiState.Success(filtered) as UiState<List<SurabayaEvent>>
+    }
         .catch { e ->
             Log.w(TAG, "observeApprovedEvents error", e)
             emit(UiState.Error(e.localizedMessage ?: "Gagal memuat agenda event"))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
 
-    val pendingEvents: StateFlow<List<SurabayaEvent>> = repository.observePendingEvents()
+    val pendingEvents: StateFlow<List<SurabayaEvent>> = combine(
+        repository.observePendingEvents(),
+        blockedUserIds,
+    ) { items, blockedSet ->
+        items.filter { it.proposerId !in blockedSet }
+    }
         .catch { e ->
             Log.w(TAG, "observePendingEvents error", e)
             emit(emptyList())
@@ -162,8 +199,16 @@ class SurabayaViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
     // 3. Kuliner Surabaya
-    val culinaryState: StateFlow<UiState<List<CulinarySpot>>> = repository.observeCulinarySpots()
-        .map<List<CulinarySpot>, UiState<List<CulinarySpot>>> { UiState.Success(it) }
+    val culinaryState: StateFlow<UiState<List<CulinarySpot>>> = combine(
+        repository.observeCulinarySpots(),
+        blockedUserIds,
+        isAdmin,
+    ) { items, blockedSet, admin ->
+        val filtered = items.filter { item ->
+            item.createdBy !in blockedSet && (!item.isContentQuarantined || admin)
+        }
+        UiState.Success(filtered) as UiState<List<CulinarySpot>>
+    }
         .catch { e ->
             Log.w(TAG, "observeCulinarySpots error", e)
             emit(UiState.Error(e.localizedMessage ?: "Gagal memuat daftar kuliner"))
@@ -172,18 +217,21 @@ class SurabayaViewModel(
 
     private val selectedCulinaryIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.CulinaryDetail)?.culinaryId }
 
-    val activeCulinaryReviews: StateFlow<List<CulinaryReview>> = selectedCulinaryIdFlow
-        .flatMapLatest { culinaryId ->
+    val activeCulinaryReviews: StateFlow<List<CulinaryReview>> = combine(
+        selectedCulinaryIdFlow.flatMapLatest { culinaryId ->
             if (culinaryId.isNullOrBlank()) {
                 flowOf(emptyList())
             } else {
                 repository.observeCulinaryReviews(culinaryId)
                     .catch { emit(emptyList()) }
             }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+        },
+        blockedUserIds,
+    ) { reviews, blockedSet ->
+        reviews.filter { it.authorId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
-    // 4. Teman Sekitar (Nearby Peers sorted & filtered by radius)
+    // 4. Teman Sekitar (Nearby Peers sorted & filtered by radius & blocked list)
     val nearbyPeersState: StateFlow<UiState<List<NearbyPeerItem>>> = combine(
         repository.observeDiscoverableProfiles(),
         _userLat,
@@ -191,8 +239,14 @@ class SurabayaViewModel(
         userAccount,
     ) { profiles, lat, lng, account ->
         val radiusKm = account?.searchRadiusKm ?: 15.0
+        val blockedSet = account?.blockedUids?.toSet().orEmpty()
         val peers = profiles
-            .filter { it.id != currentUserId }
+            .filter {
+                it.id != currentUserId &&
+                    !it.isBanned &&
+                    it.id !in blockedSet &&
+                    it.userId !in blockedSet
+            }
             .map { profile ->
                 val dist = calculateDistanceKm(lat, lng, profile.lat, profile.lng)
                 NearbyPeerItem(profile = profile, distanceKm = dist)
@@ -212,8 +266,17 @@ class SurabayaViewModel(
         .catch { emit(null) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
 
-    val allDiscoverableCitizens: StateFlow<List<NearbyProfile>> = repository.observeDiscoverableProfiles()
-        .map { list -> list.filter { it.id != currentUserId }.sortedBy { it.displayName.lowercase() } }
+    val allDiscoverableCitizens: StateFlow<List<NearbyProfile>> = combine(
+        repository.observeDiscoverableProfiles(),
+        blockedUserIds,
+    ) { list, blockedSet ->
+        list.filter {
+            it.id != currentUserId &&
+                !it.isBanned &&
+                it.id !in blockedSet &&
+                it.userId !in blockedSet
+        }.sortedBy { it.displayName.lowercase() }
+    }
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
@@ -225,7 +288,15 @@ class SurabayaViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
-    val directChatRooms: StateFlow<List<ChatRoom>> = repository.observeDirectChatRooms(currentUserId)
+    val directChatRooms: StateFlow<List<ChatRoom>> = combine(
+        repository.observeDirectChatRooms(currentUserId),
+        blockedUserIds,
+    ) { rooms, blockedSet ->
+        rooms.filter { room ->
+            val otherId = room.otherParticipantIdFor(currentUserId)
+            otherId == null || otherId !in blockedSet
+        }
+    }
         .catch { e ->
             Log.w(TAG, "observeDirectChatRooms error", e)
             emit(emptyList())
@@ -234,16 +305,19 @@ class SurabayaViewModel(
 
     private val activeChatRoomFlow = _activeSheet.map { (it as? ActiveBottomSheet.ChatConversation)?.room }
 
-    val activeChatMessages: StateFlow<List<ChatMessage>> = activeChatRoomFlow
-        .flatMapLatest { room ->
+    val activeChatMessages: StateFlow<List<ChatMessage>> = combine(
+        activeChatRoomFlow.flatMapLatest { room ->
             if (room == null) {
                 flowOf(emptyList())
             } else {
                 repository.observeMessages(room, currentUserId)
                     .catch { emit(emptyList()) }
             }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+        },
+        blockedUserIds,
+    ) { messages, blockedSet ->
+        messages.filter { it.senderId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
     init {
         viewModelScope.launch {
@@ -320,6 +394,40 @@ class SurabayaViewModel(
         }
     }
 
+    private fun isCurrentUserFrozen(): Boolean {
+        if (userAccount.value?.isBanned == true) {
+            notifyMessage("Akun Anda dibekukan oleh Admin karena pelanggaran pedoman konten komunitas.")
+            return true
+        }
+        return false
+    }
+
+    private suspend fun verifyPhotosAreSafe(photos: List<PreparedPhoto>): Boolean {
+        if (photos.isEmpty()) return true
+        _isScanningPhoto.value = true
+        return try {
+            when (val result = imageSafetyScanner.scanPhotoBatch(photos.map { it.bytes })) {
+                ImageSafetyScanResult.Safe -> true
+                is ImageSafetyScanResult.BlockedExplicit -> {
+                    val idx = result.blockedPhotoIndex.coerceIn(0, photos.lastIndex)
+                    val prefix = if (photos.size > 1) {
+                        "Foto #${idx + 1} ditolak sistem proteksi AI: "
+                    } else {
+                        "Foto ditolak sistem proteksi AI: "
+                    }
+                    notifyMessage("$prefix${result.reasonId}")
+                    false
+                }
+                is ImageSafetyScanResult.ScanError -> {
+                    notifyMessage("Verifikasi keamanan foto AI gagal: ${result.message}")
+                    false
+                }
+            }
+        } finally {
+            _isScanningPhoto.value = false
+        }
+    }
+
     fun saveProfileAndPrivacy(
         displayName: String,
         district: String,
@@ -330,7 +438,7 @@ class SurabayaViewModel(
         avatarUri: Uri? = null,
         context: Context? = null,
     ) {
-        if (_isSubmitting.value) return
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
@@ -350,6 +458,10 @@ class SurabayaViewModel(
                     compressed
                 } else {
                     null
+                }
+
+                if (preparedAvatar != null && !verifyPhotosAreSafe(listOf(preparedAvatar))) {
+                    return@launch
                 }
 
                 val (districtLat, districtLng) = if (_isLiveGpsActive.value) {
@@ -381,6 +493,8 @@ class SurabayaViewModel(
                 } else {
                     notifyMessage("Pengaturan profil & privasi disimpan")
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 notifyMessage("Gagal menyimpan pengaturan: ${e.localizedMessage ?: "Error"}")
             } finally {
@@ -427,26 +541,39 @@ class SurabayaViewModel(
         severity: String,
         district: String,
         address: String,
-        photoUri: Uri? = null,
+        mapsUrl: String = "",
+        photoUris: List<Uri> = emptyList(),
         context: Context? = null,
     ) {
-        if (_isSubmitting.value) return
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
-                val preparedPhoto = if (photoUri != null && appCtx != null) {
-                    val compressed = ImageUploadHelper.preparePhotoFromUri(appCtx, photoUri, prefix = "kejadian")
-                    if (compressed == null) {
-                        notifyMessage("Foto gagal diproses, silakan pilih foto lain dari galeri.")
-                        return@launch
+                val preparedPhotos = buildList {
+                    if (appCtx != null) {
+                        for ((idx, uri) in photoUris.take(4).withIndex()) {
+                            val compressed = ImageUploadHelper.preparePhotoFromUri(
+                                context = appCtx,
+                                uri = uri,
+                                prefix = "kejadian${idx + 1}",
+                            )
+                            if (compressed != null) {
+                                add(compressed)
+                            }
+                        }
                     }
-                    compressed
-                } else {
-                    null
+                }
+                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                    notifyMessage("Foto gagal diproses, silakan pilih foto lain dari galeri.")
+                    return@launch
+                }
+                if (!verifyPhotosAreSafe(preparedPhotos)) {
+                    return@launch
                 }
 
                 var photoSchemaMissing = false
+                var multiPhotoFallbackUsed = false
                 repository.createIncident(
                     authorName = currentDisplayName(),
                     title = title,
@@ -455,15 +582,25 @@ class SurabayaViewModel(
                     severity = severity,
                     district = district,
                     address = address,
-                    photo = preparedPhoto,
+                    mapsUrl = mapsUrl,
+                    photos = preparedPhotos,
                     onPhotoSchemaMissing = { photoSchemaMissing = true },
+                    onMultiPhotoFallbackUsed = { multiPhotoFallbackUsed = true },
                 )
                 dismissSheet()
-                if (preparedPhoto != null && photoSchemaMissing) {
-                    notifyMessage("Laporan tayang! Untuk menampilkan foto, import ulang pocketbase_collections.json di Admin.")
-                } else {
-                    notifyMessage("Laporan kejadian berhasil dipublikasikan!")
+                when {
+                    preparedPhotos.isNotEmpty() && photoSchemaMissing -> {
+                        notifyMessage("Laporan tayang! Untuk menampilkan foto, import ulang pocketbase_collections.json di Admin.")
+                    }
+                    multiPhotoFallbackUsed -> {
+                        notifyMessage("Laporan tayang dengan 1 foto! Import ulang pocketbase_collections.json di Admin untuk mengaktifkan hingga 4 foto.")
+                    }
+                    else -> {
+                        notifyMessage("Laporan kejadian berhasil dipublikasikan!")
+                    }
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 notifyMessage("Gagal mengirim laporan: ${e.localizedMessage ?: "Periksa koneksi internet"}")
             } finally {
@@ -483,7 +620,7 @@ class SurabayaViewModel(
     }
 
     fun sendIncidentComment(incident: IncidentReport, text: String) {
-        if (text.isBlank()) return
+        if (text.isBlank() || isCurrentUserFrozen()) return
         viewModelScope.launch {
             try {
                 repository.addIncidentComment(incident, currentDisplayName(), text)
@@ -503,26 +640,39 @@ class SurabayaViewModel(
         address: String,
         priceLabel: String,
         description: String,
-        photoUri: Uri? = null,
+        mapsUrl: String = "",
+        photoUris: List<Uri> = emptyList(),
         context: Context? = null,
     ) {
-        if (_isSubmitting.value) return
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
-                val preparedPhoto = if (photoUri != null && appCtx != null) {
-                    val compressed = ImageUploadHelper.preparePhotoFromUri(appCtx, photoUri, prefix = "event")
-                    if (compressed == null) {
-                        notifyMessage("Poster/foto event gagal diproses, silakan pilih gambar lain.")
-                        return@launch
+                val preparedPhotos = buildList {
+                    if (appCtx != null) {
+                        for ((idx, uri) in photoUris.take(4).withIndex()) {
+                            val compressed = ImageUploadHelper.preparePhotoFromUri(
+                                context = appCtx,
+                                uri = uri,
+                                prefix = "event${idx + 1}",
+                            )
+                            if (compressed != null) {
+                                add(compressed)
+                            }
+                        }
                     }
-                    compressed
-                } else {
-                    null
+                }
+                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                    notifyMessage("Poster/foto event gagal diproses, silakan pilih gambar lain.")
+                    return@launch
+                }
+                if (!verifyPhotosAreSafe(preparedPhotos)) {
+                    return@launch
                 }
 
                 var photoSchemaMissing = false
+                var multiPhotoFallbackUsed = false
                 repository.proposeEvent(
                     proposerName = currentDisplayName(),
                     title = title,
@@ -534,15 +684,25 @@ class SurabayaViewModel(
                     address = address,
                     priceLabel = priceLabel,
                     description = description,
-                    photo = preparedPhoto,
+                    mapsUrl = mapsUrl,
+                    photos = preparedPhotos,
                     onPhotoSchemaMissing = { photoSchemaMissing = true },
+                    onMultiPhotoFallbackUsed = { multiPhotoFallbackUsed = true },
                 )
                 dismissSheet()
-                if (preparedPhoto != null && photoSchemaMissing) {
-                    notifyMessage("Usulan event terkirim! Import ulang pocketbase_collections.json di Admin agar poster tampil.")
-                } else {
-                    notifyMessage("Usulan event dikirim! Menunggu persetujuan Admin.")
+                when {
+                    preparedPhotos.isNotEmpty() && photoSchemaMissing -> {
+                        notifyMessage("Usulan event terkirim! Import ulang pocketbase_collections.json di Admin agar foto tampil.")
+                    }
+                    multiPhotoFallbackUsed -> {
+                        notifyMessage("Usulan event terkirim dengan 1 foto! Import ulang pocketbase_collections.json di Admin untuk mengaktifkan hingga 4 foto.")
+                    }
+                    else -> {
+                        notifyMessage("Usulan event dikirim! Menunggu persetujuan Admin.")
+                    }
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 notifyMessage("Gagal mengusulkan event: ${e.localizedMessage ?: "Periksa koneksi internet"}")
             } finally {
@@ -592,7 +752,7 @@ class SurabayaViewModel(
         photoUris: List<Uri> = emptyList(),
         context: Context? = null,
     ) {
-        if (_isSubmitting.value) return
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
@@ -613,6 +773,9 @@ class SurabayaViewModel(
                 }
                 if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
                     notifyMessage("Foto kuliner gagal diproses, silakan pilih gambar lain.")
+                    return@launch
+                }
+                if (!verifyPhotosAreSafe(preparedPhotos)) {
                     return@launch
                 }
 
@@ -648,6 +811,8 @@ class SurabayaViewModel(
                         notifyMessage("Rekomendasi kuliner berhasil ditambahkan!")
                     }
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 notifyMessage("Gagal menambah kuliner: ${e.localizedMessage ?: "Periksa koneksi internet"}")
             } finally {
@@ -657,7 +822,7 @@ class SurabayaViewModel(
     }
 
     fun submitCulinaryReview(spot: CulinarySpot, rating: Int, comment: String) {
-        if (comment.trim().length < 2) return
+        if (comment.trim().length < 2 || isCurrentUserFrozen()) return
         viewModelScope.launch {
             try {
                 repository.addCulinaryReview(
@@ -674,6 +839,7 @@ class SurabayaViewModel(
     }
 
     fun greetNearbyPeer(peer: NearbyProfile) {
+        if (isCurrentUserFrozen()) return
         viewModelScope.launch {
             try {
                 val room = repository.openOrCreateDirectChat(
@@ -691,12 +857,234 @@ class SurabayaViewModel(
     }
 
     fun sendChatMessage(room: ChatRoom, text: String) {
-        if (text.isBlank()) return
+        if (text.isBlank() || isCurrentUserFrozen()) return
         viewModelScope.launch {
             try {
                 repository.sendMessage(room, currentDisplayName(), text)
             } catch (e: Exception) {
                 notifyMessage("Gagal mengirim pesan")
+            }
+        }
+    }
+
+    fun reportIncidentLink(report: IncidentReport) {
+        if (currentUserId in report.linkReportedByUids) {
+            notifyMessage("Anda sudah melaporkan tautan pada laporan ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val nextCount = repository.reportSuspiciousLink(
+                    collection = "incidents",
+                    recordId = report.id,
+                    currentCount = report.linkReportCount,
+                    currentReportedUids = report.linkReportedByUids,
+                )
+                if (nextCount >= 3) {
+                    notifyMessage("Tautan luar otomatis dinonaktifkan demi keamanan warga!")
+                } else {
+                    notifyMessage("Terima kasih! Laporan tautan mencurigakan dicatat ($nextCount/3 untuk blokir otomatis).")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan tautan")
+            }
+        }
+    }
+
+    fun reportEventLink(event: SurabayaEvent) {
+        if (currentUserId in event.linkReportedByUids) {
+            notifyMessage("Anda sudah melaporkan tautan pada event ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val nextCount = repository.reportSuspiciousLink(
+                    collection = "events",
+                    recordId = event.id,
+                    currentCount = event.linkReportCount,
+                    currentReportedUids = event.linkReportedByUids,
+                )
+                if (nextCount >= 3) {
+                    notifyMessage("Tautan luar event otomatis dinonaktifkan demi keamanan warga!")
+                } else {
+                    notifyMessage("Terima kasih! Laporan tautan dicatat ($nextCount/3 untuk blokir otomatis).")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan tautan")
+            }
+        }
+    }
+
+    fun reportCulinaryLink(spot: CulinarySpot) {
+        if (currentUserId in spot.linkReportedByUids) {
+            notifyMessage("Anda sudah melaporkan tautan pada kuliner ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val nextCount = repository.reportSuspiciousLink(
+                    collection = "culinary",
+                    recordId = spot.id,
+                    currentCount = spot.linkReportCount,
+                    currentReportedUids = spot.linkReportedByUids,
+                )
+                if (nextCount >= 3) {
+                    notifyMessage("Tautan luar kuliner otomatis dinonaktifkan demi keamanan warga!")
+                } else {
+                    notifyMessage("Terima kasih! Laporan tautan dicatat ($nextCount/3 untuk blokir otomatis).")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan tautan")
+            }
+        }
+    }
+
+    fun adminClearExternalLinks(collection: String, recordId: String) {
+        viewModelScope.launch {
+            try {
+                repository.clearAllExternalLinksByAdmin(collection, recordId)
+                notifyMessage("Tautan luar mencurigakan telah dihapus bersih oleh Admin!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menghapus tautan luar")
+            }
+        }
+    }
+
+    fun reportIncidentContent(report: IncidentReport) {
+        if (currentUserId in report.contentReportedByUids) {
+            notifyMessage("Anda sudah melaporkan konten/foto pada laporan ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val nextCount = repository.reportInappropriateContent(
+                    collection = "incidents",
+                    recordId = report.id,
+                    currentCount = report.contentReportCount,
+                    currentReportedUids = report.contentReportedByUids,
+                )
+                if (nextCount >= 3) {
+                    if (!isAdmin.value) dismissSheet()
+                    notifyMessage("Konten mencapai 3 laporan warga dan otomatis dikarantina dari feed publik!")
+                } else {
+                    notifyMessage("Laporan diterima ($nextCount/3). Foto otomatis diburamkan demi kenyamanan warga.")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan konten")
+            }
+        }
+    }
+
+    fun reportEventContent(event: SurabayaEvent) {
+        if (currentUserId in event.contentReportedByUids) {
+            notifyMessage("Anda sudah melaporkan konten/foto pada event ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val nextCount = repository.reportInappropriateContent(
+                    collection = "events",
+                    recordId = event.id,
+                    currentCount = event.contentReportCount,
+                    currentReportedUids = event.contentReportedByUids,
+                )
+                if (nextCount >= 3) {
+                    if (!isAdmin.value) dismissSheet()
+                    notifyMessage("Event mencapai 3 laporan warga dan otomatis dikarantina dari feed publik!")
+                } else {
+                    notifyMessage("Laporan diterima ($nextCount/3). Foto event otomatis diburamkan.")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan konten event")
+            }
+        }
+    }
+
+    fun reportCulinaryContent(spot: CulinarySpot) {
+        if (currentUserId in spot.contentReportedByUids) {
+            notifyMessage("Anda sudah melaporkan konten/foto pada kuliner ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val nextCount = repository.reportInappropriateContent(
+                    collection = "culinary",
+                    recordId = spot.id,
+                    currentCount = spot.contentReportCount,
+                    currentReportedUids = spot.contentReportedByUids,
+                )
+                if (nextCount >= 3) {
+                    if (!isAdmin.value) dismissSheet()
+                    notifyMessage("Kuliner mencapai 3 laporan warga dan otomatis dikarantina dari feed publik!")
+                } else {
+                    notifyMessage("Laporan diterima ($nextCount/3). Foto kuliner otomatis diburamkan.")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan konten kuliner")
+            }
+        }
+    }
+
+    fun blockCitizen(targetUid: String, targetName: String) {
+        val cleanUid = targetUid.trim()
+        if (cleanUid.isBlank() || cleanUid == currentUserId) return
+        viewModelScope.launch {
+            try {
+                repository.blockUser(cleanUid, userAccount.value?.blockedUids.orEmpty())
+                dismissSheet()
+                notifyMessage("${targetName.ifBlank { "Pengguna" }} diblokir. Semua kiriman & pesan darinya disembunyikan.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal memblokir pengguna")
+            }
+        }
+    }
+
+    fun unblockCitizen(targetUid: String) {
+        val cleanUid = targetUid.trim()
+        if (cleanUid.isBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.unblockUser(cleanUid, userAccount.value?.blockedUids.orEmpty())
+                notifyMessage("Blokir pengguna telah dibuka kembali.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal membuka blokir pengguna")
+            }
+        }
+    }
+
+    fun adminDeletePost(collection: String, recordId: String) {
+        viewModelScope.launch {
+            try {
+                repository.adminDeletePost(collection, recordId)
+                dismissSheet()
+                notifyMessage("Kiriman pelanggar berhasil dihapus permanen oleh Admin!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menghapus kiriman: pastikan Mode Admin aktif.")
+            }
+        }
+    }
+
+    fun adminRestoreContent(collection: String, recordId: String) {
+        viewModelScope.launch {
+            try {
+                repository.adminRestoreContentReports(collection, recordId)
+                notifyMessage("Status blur & laporan konten telah dipulihkan oleh Admin.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal memulihkan status konten")
+            }
+        }
+    }
+
+    fun adminBanCitizen(targetUid: String, targetName: String) {
+        val cleanUid = targetUid.trim()
+        if (cleanUid.isBlank() || cleanUid == currentUserId) return
+        viewModelScope.launch {
+            try {
+                repository.adminBanUser(cleanUid)
+                dismissSheet()
+                notifyMessage("Akun ${targetName.ifBlank { "pelanggar" }} telah dibekukan oleh Admin!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal membekukan akun pelanggar")
             }
         }
     }
