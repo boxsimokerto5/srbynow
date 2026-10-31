@@ -174,4 +174,16 @@
     <string name="btn_share_poll">Bagikan Polling</string>
     <string name="btn_share_poll_jpg">Bagikan JPG</string>
     <string name="btn_download_poll_jpg">Unduh JPG</string>
+    <string name="nav_tambal_ban">Tambal Ban</string>
+    <string name="tambal_ban_title">Tambal Ban Terdekat</string>
+    <string name="tambal_ban_subtitle">Salam Satu Aspal • Solusi Cepat Ban Bocor Surabaya</string>
+    <string name="tambal_ban_salam_aspal_title">Salam Satu Aspal! 🛵🚗</string>
+    <string name="tambal_ban_salam_aspal_desc">Bantu sesama dulur pemotor &amp; driver menemukan solusi saat ban bocor di jalanan Surabaya. Tambahkan lokasi tambal ban yang Anda ketahui atau bantu validasi yang masih buka!</string>
+    <string name="btn_add_tambal_ban">Tambah Lokasi Tambal Ban</string>
+    <string name="tambal_ban_search_hint">Cari tambal ban, daerah, jalan, tubeless…</string>
+    <string name="btn_verify_tambal_ban">Bantu Validasi</string>
+    <string name="btn_verified_tambal_ban">Sudah Divalidasi</string>
+    <string name="tambal_ban_comments_title">Pantauan &amp; Info Warga (%1$d)</string>
+    <string name="tambal_ban_comments_scroll_hint">Geser komentar ↕</string>
+    <string name="tambal_ban_comment_input_hint">Tulis situasi: masih buka, antre, ada ban dalam…</string>
 </resources>

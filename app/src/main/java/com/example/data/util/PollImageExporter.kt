@@ -1,5 +1,6 @@
 package com.example.data.util
 
+import android.content.ClipData
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -13,6 +14,8 @@ import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.text.Layout
 import android.text.StaticLayout
@@ -31,6 +34,12 @@ import java.util.Locale
 object PollImageExporter {
 
     private const val TAG = "PollImageExporter"
+
+    private fun showToastOnMain(context: Context, message: String, length: Int = Toast.LENGTH_SHORT) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context.applicationContext, message, length).show()
+        }
+    }
 
     /**
      * Renders a high-resolution, professional visual infographic Bitmap for a CitizenPoll.
@@ -265,18 +274,22 @@ object PollImageExporter {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/jpeg"
                 putExtra(Intent.EXTRA_STREAM, uri)
+                clipData = ClipData.newRawUri("poll_infographic", uri)
                 putExtra(
                     Intent.EXTRA_TEXT,
                     "📊 Hasil Polling Warga Surabaya: \"${poll.title}\"\nIkuti polling & suarakan aspirasimu di aplikasi Arek Surabaya!",
                 )
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            val chooser = Intent.createChooser(shareIntent, "Bagikan Hasil Polling (Gambar JPG)")
-            chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val chooser = Intent.createChooser(shareIntent, "Bagikan Hasil Polling (Gambar JPG)").apply {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
             context.startActivity(chooser)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to share poll image: ${e.message}", e)
-            Toast.makeText(context, "Gagal membagikan gambar: ${e.localizedMessage ?: "Error"}", Toast.LENGTH_SHORT).show()
+            showToastOnMain(context, "Gagal membagikan gambar: ${e.localizedMessage ?: "Error"}")
         }
     }
 
@@ -304,7 +317,7 @@ object PollImageExporter {
                     contentValues.clear()
                     contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
                     resolver.update(imageUri, contentValues, null, null)
-                    Toast.makeText(context, "Gambar hasil polling tersimpan di Galeri Foto (Pictures/ArekSurabaya)", Toast.LENGTH_LONG).show()
+                    showToastOnMain(context, "Gambar hasil polling tersimpan di Galeri Foto (Pictures/ArekSurabaya)", Toast.LENGTH_LONG)
                     return true
                 }
             }
@@ -316,11 +329,11 @@ object PollImageExporter {
             FileOutputStream(destFile).use { out ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
             }
-            Toast.makeText(context, "Gambar tersimpan di Galeri Foto: ${destFile.name}", Toast.LENGTH_LONG).show()
+            showToastOnMain(context, "Gambar tersimpan di Galeri Foto: ${destFile.name}", Toast.LENGTH_LONG)
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save poll image to gallery: ${e.message}", e)
-            Toast.makeText(context, "Gagal menyimpan gambar: ${e.localizedMessage ?: "Error"}", Toast.LENGTH_SHORT).show()
+            showToastOnMain(context, "Gagal menyimpan gambar: ${e.localizedMessage ?: "Error"}")
             false
         }
     }
@@ -348,9 +361,11 @@ object PollImageExporter {
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        val chooser = Intent.createChooser(intent, "Bagikan Polling Warga")
-        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val chooser = Intent.createChooser(intent, "Bagikan Polling Warga").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
         context.startActivity(chooser)
     }
 }

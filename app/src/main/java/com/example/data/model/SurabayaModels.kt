@@ -538,5 +538,57 @@ data class PollComment(
     val createdAt: Long? = null,
 )
 
+data class TambalBanSpot(
+    val id: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val name: String = "",
+    val description: String = "",
+    val district: String = "Genteng",
+    val address: String = "",
+    val latitude: Double = -7.2575,
+    val longitude: Double = 112.7521,
+    val is24Hours: Boolean = true,
+    val isTubeless: Boolean = true,
+    val forMotor: Boolean = true,
+    val forMobil: Boolean = false,
+    val canCallOut: Boolean = false, // Bisa dipanggil / keliling
+    val photoUrl: String = "",
+    val mapsUrl: String = "",
+    val phoneNumber: String = "",
+    val whatsappNumber: String = "",
+    val verifiedCount: Int = 0,
+    val verifiedUserIds: List<String> = emptyList(),
+    val commentCount: Int = 0,
+    val distanceKm: Double? = null,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+) {
+    fun isVerifiedBy(userId: String): Boolean = userId in verifiedUserIds
+
+    val formattedDistance: String
+        get() = distanceKm?.let { d ->
+            if (d < 1.0) "${(d * 1000).toInt()} m" else "%.1f km".format(java.util.Locale.US, d)
+        } ?: "Lokasi Surabaya"
+
+    val vehicleSupportText: String
+        get() = when {
+            forMotor && forMobil -> "Motor & Mobil"
+            forMobil -> "Khusus Mobil"
+            else -> "Khusus Motor"
+        }
+}
+
+data class TambalBanComment(
+    val id: String = "",
+    val spotId: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val authorDistrict: String = "Genteng",
+    val text: String = "",
+    val createdAt: Long? = null,
+)
+
+
 
 

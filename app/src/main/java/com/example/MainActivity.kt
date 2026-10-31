@@ -106,8 +106,10 @@ import com.example.ui.screens.JasaWargaScreen
 import com.example.ui.screens.KejadianScreen
 import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.MomenScreen
+import com.example.ui.screens.PollingScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.StartDirectChatSheetContent
+import com.example.ui.screens.TambalBanScreen
 import com.example.ui.screens.TemanSekitarScreen
 import android.Manifest
 import android.content.pm.PackageManager
@@ -129,6 +131,7 @@ import com.example.ui.sheets.CreateIncidentSheetContent
 import com.example.ui.sheets.CreateMomentSheetContent
 import com.example.ui.sheets.CreatePollSheetContent
 import com.example.ui.sheets.CreateServiceSheetContent
+import com.example.ui.sheets.CreateTambalBanSheetContent
 import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.DestinationDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
@@ -140,6 +143,7 @@ import com.example.ui.sheets.ProfileAndPrivacySheetContent
 import com.example.ui.sheets.ProposeEventSheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.sheets.ServiceDetailSheetContent
+import com.example.ui.sheets.TambalBanDetailSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import com.example.ui.viewmodel.ActiveBottomSheet
 import com.example.ui.viewmodel.MainTab
@@ -292,6 +296,10 @@ fun SurabayaMainHub(
     val pendingPollsState by viewModel.pendingPollsState.collectAsStateWithLifecycle()
     val activeSelectedPoll by viewModel.activeSelectedPoll.collectAsStateWithLifecycle()
     val activePollComments by viewModel.activePollComments.collectAsStateWithLifecycle()
+    val myProposedPolls by viewModel.myProposedPollsState.collectAsStateWithLifecycle()
+    val tambalBanSpotsState by viewModel.tambalBanSpotsState.collectAsStateWithLifecycle()
+    val activeSelectedTambalBan by viewModel.activeSelectedTambalBan.collectAsStateWithLifecycle()
+    val activeTambalBanComments by viewModel.activeTambalBanComments.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -488,6 +496,7 @@ fun SurabayaMainHub(
                                 momentsState = momentsState,
                                 servicesState = servicesState,
                                 pollsState = approvedPollsState,
+                                tambalBanSpotsState = tambalBanSpotsState,
                                 pendingPollsCount = (pendingPollsState as? UiState.Success)?.data?.size ?: 0,
                                 onNavigateTab = { viewModel.selectTab(it) },
                                 onOpenIncidentDetail = { viewModel.openSheet(ActiveBottomSheet.IncidentDetail(it)) },
@@ -498,6 +507,8 @@ fun SurabayaMainHub(
                                 onOpenPollDetail = { viewModel.openPollDetail(it) },
                                 onOpenCreatePoll = { viewModel.openCreatePoll() },
                                 onOpenAdminPendingPolls = { viewModel.openAdminPendingPolls() },
+                                onOpenTambalBanDetail = { viewModel.openTambalBanDetail(it) },
+                                onOpenCreateTambalBan = { viewModel.openCreateTambalBan() },
                                 onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
                                 onOpenProfileAndAdmin = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
                                 onOpenRadio = { viewModel.openRadioPlayer(autoPlay = true) },
@@ -593,6 +604,30 @@ fun SurabayaMainHub(
                                 },
                                 onReportService = { viewModel.reportServiceContent(it) },
                                 onBackToHome = { viewModel.selectTab(MainTab.HOME) },
+                            )
+                            MainTab.POLLING -> PollingScreen(
+                                pollsState = approvedPollsState,
+                                pendingPollsState = pendingPollsState,
+                                myProposedPolls = myProposedPolls,
+                                currentUserId = currentUserId,
+                                isAdmin = isAdmin,
+                                onVote = { pollId, optId -> viewModel.votePoll(pollId, optId) },
+                                onOpenPollDetail = { viewModel.openPollDetail(it) },
+                                onOpenCreatePoll = { viewModel.openCreatePoll() },
+                                onOpenAdminPending = { viewModel.openAdminPendingPolls() },
+                                onShareText = { p -> viewModel.sharePollText(context, p) },
+                                onShareJpg = { p -> viewModel.exportPollJpg(context, p, shareDirectly = true) },
+                                onDownloadJpg = { p -> viewModel.exportPollJpg(context, p, shareDirectly = false) },
+                                onDeletePoll = { pollId -> viewModel.deletePoll(pollId) },
+                                onBackToHome = { viewModel.selectTab(MainTab.HOME) },
+                            )
+                            MainTab.TAMBAL_BAN -> TambalBanScreen(
+                                spotsState = tambalBanSpotsState,
+                                currentUserId = currentUserId,
+                                onBackToHome = { viewModel.selectTab(MainTab.HOME) },
+                                onOpenDetail = { viewModel.openTambalBanDetail(it) },
+                                onCreateSpot = { viewModel.openCreateTambalBan() },
+                                onRefreshLocation = { viewModel.refreshGpsLocation() },
                             )
                         }
                     }
@@ -1092,6 +1127,11 @@ fun SurabayaMainHub(
                             onShareText = { p -> viewModel.sharePollText(context, p) },
                             onShareJpg = { p -> viewModel.exportPollJpg(context, p, shareDirectly = true) },
                             onDownloadJpg = { p -> viewModel.exportPollJpg(context, p, shareDirectly = false) },
+                            onDelete = if (activePoll.proposerId == currentUserId || isAdmin) {
+                                { viewModel.deletePoll(activePoll.id) }
+                            } else {
+                                null
+                            },
                             onDismiss = { viewModel.dismissSheet() },
                         )
                     }
@@ -1112,6 +1152,47 @@ fun SurabayaMainHub(
                         onApprove = { viewModel.moderatePoll(it, true) },
                         onReject = { viewModel.moderatePoll(it, false) },
                         onDismiss = { viewModel.dismissSheet() },
+                    )
+                }
+                is ActiveBottomSheet.TambalBanDetail -> {
+                    val activeTambal = activeSelectedTambalBan
+                    if (activeTambal != null) {
+                        TambalBanDetailSheetContent(
+                            spot = activeTambal,
+                            comments = activeTambalBanComments,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
+                            onVerify = { viewModel.verifyTambalBan(activeTambal.id) },
+                            onSendComment = { text -> viewModel.submitTambalBanComment(activeTambal.id, text) },
+                            onDeleteSpot = { viewModel.deleteTambalBan(activeTambal.id) },
+                            onClose = { viewModel.dismissSheet() },
+                        )
+                    }
+                }
+                ActiveBottomSheet.CreateTambalBan -> {
+                    CreateTambalBanSheetContent(
+                        defaultDistrict = currentDistrict,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { name, description, district, address, is24Hours, isTubeless, forMotor, forMobil, canCallOut, mapsUrl, phoneNumber, whatsappNumber, photoUri ->
+                            viewModel.submitTambalBanSpot(
+                                name = name,
+                                description = description,
+                                district = district,
+                                address = address,
+                                is24Hours = is24Hours,
+                                isTubeless = isTubeless,
+                                forMotor = forMotor,
+                                forMobil = forMobil,
+                                canCallOut = canCallOut,
+                                mapsUrl = mapsUrl,
+                                phoneNumber = phoneNumber,
+                                whatsappNumber = whatsappNumber,
+                                photoUri = photoUri,
+                                context = context,
+                            )
+                        },
+                        onClose = { viewModel.dismissSheet() },
                     )
                 }
             }

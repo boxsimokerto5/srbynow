@@ -16,6 +16,7 @@ import com.example.data.util.LinkValidationResult
 import com.example.data.util.PreparedPhoto
 import com.example.data.util.SafeLinkCategory
 import com.example.ui.viewmodel.SurabayaViewModel
+import com.example.data.util.SurabayaSpamProtector
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import java.io.File
@@ -55,6 +56,8 @@ class SurabayaPocketBaseRepositoryTest {
     @Before
     fun setUp() {
         rejectMultipartFiles.set(false)
+        collectionsDb.clear()
+        SurabayaSpamProtector.resetForTesting()
         server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/api/health") { ex ->
             respondJson(ex, 200, JSONObject().put("code", 200).put("message", "API is healthy."))
@@ -69,6 +72,8 @@ class SurabayaPocketBaseRepositoryTest {
     @After
     fun tearDown() {
         server.stop(0)
+        collectionsDb.clear()
+        SurabayaSpamProtector.resetForTesting()
     }
 
     @Test

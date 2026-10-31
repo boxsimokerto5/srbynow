@@ -3,6 +3,8 @@ package com.example.data.seed
 import com.example.data.model.CitizenPoll
 import com.example.data.model.PollComment
 import com.example.data.model.PollOption
+import com.example.data.model.TambalBanComment
+import com.example.data.model.TambalBanSpot
 import com.example.data.pocketbase.PocketBaseClient
 import org.json.JSONObject
 
@@ -685,6 +687,180 @@ object SurabayaCuratedSeed {
                     authorDistrict = "Jambangan",
                     text = "Kampung Jambangan wis suwe praktek biopori & komposter takakura, terbukti asri dan kampung jadi adem.",
                     createdAt = now - 1000L * 60 * 60 * 4,
+                )
+            )
+        )
+    }
+
+    fun starterTambalBanSpots(uid: String = "system_seed"): List<TambalBanSpot> {
+        val now = System.currentTimeMillis()
+        return listOf(
+            TambalBanSpot(
+                id = "tb_darmo_bungkul_24h",
+                authorId = uid,
+                authorName = "Cak Slamet - Sahabat Aspal",
+                name = "Tambal Ban Tubeless & Motor 24 Jam Cak Slamet",
+                description = "Buka nonstop 24 jam di seberang Taman Bungkul. Melayani tambal tubeless tiptop/cacing, ban dalam, isi angin nitrogen, dan ganti ban luar darurat. Salam Satu Aspal dulur!",
+                district = "Wonokromo",
+                address = "Jl. Raya Darmo No. 88 (Seberang Taman Bungkul), Wonokromo, Surabaya",
+                latitude = -7.2915,
+                longitude = 112.7388,
+                is24Hours = true,
+                isTubeless = true,
+                forMotor = true,
+                forMobil = true,
+                canCallOut = true,
+                mapsUrl = "https://maps.app.goo.gl/surabayadarmo24h",
+                phoneNumber = "081234567891",
+                whatsappNumber = "081234567891",
+                verifiedCount = 28,
+                verifiedUserIds = listOf("warga_a", "warga_b", "warga_c"),
+                commentCount = 3,
+                createdAt = now - 1000L * 60 * 60 * 48,
+                updatedAt = now,
+            ),
+            TambalBanSpot(
+                id = "tb_ayani_frontage_press",
+                authorId = uid,
+                authorName = "Pakde Harto",
+                name = "Tambal Ban & Press Velg Sahabat Ahmad Yani",
+                description = "Spesialis tambal ban motor dan mobil di lajur Frontage Road barat A. Yani. Siap panggilan darurat untuk pemotor & driver mogok di area Wonokromo sampai Siwalankerto.",
+                district = "Gayungan",
+                address = "Jl. Frontage Road Ahmad Yani No. 120, Gayungan, Surabaya",
+                latitude = -7.3195,
+                longitude = 112.7324,
+                is24Hours = true,
+                isTubeless = true,
+                forMotor = true,
+                forMobil = true,
+                canCallOut = true,
+                mapsUrl = "https://maps.app.goo.gl/surabayaayanipress",
+                phoneNumber = "081398765432",
+                whatsappNumber = "081398765432",
+                verifiedCount = 19,
+                verifiedUserIds = listOf("warga_x", "warga_y"),
+                commentCount = 2,
+                createdAt = now - 1000L * 60 * 60 * 36,
+                updatedAt = now,
+            ),
+            TambalBanSpot(
+                id = "tb_rungkut_madya_upn",
+                authorId = uid,
+                authorName = "Mas Wahyu",
+                name = "Tambal Ban Cepat Rungkut Madya UPN",
+                description = "Lokasi persis di barat gerbang kampus UPN Veteran Jatim. Buka pagi jam 06.00 sampai 23.00 WIB. Pelayanan ramah, sediakan ban dalam baru cadangan semua ukuran matic & bebek.",
+                district = "Rungkut",
+                address = "Jl. Raya Rungkut Madya No. 45, Rungkut, Surabaya",
+                latitude = -7.3328,
+                longitude = 112.7845,
+                is24Hours = false,
+                isTubeless = true,
+                forMotor = true,
+                forMobil = false,
+                canCallOut = false,
+                mapsUrl = "https://maps.app.goo.gl/surabayarungkutmadya",
+                phoneNumber = "085711223344",
+                whatsappNumber = "085711223344",
+                verifiedCount = 14,
+                verifiedUserIds = listOf("warga_r1"),
+                commentCount = 2,
+                createdAt = now - 1000L * 60 * 60 * 24,
+                updatedAt = now,
+            ),
+            TambalBanSpot(
+                id = "tb_stasiun_kota_waspada",
+                authorId = uid,
+                authorName = "Cak Man Pabean",
+                name = "Tambal Ban & Isi Angin Stasiun Semut Kota",
+                description = "Penyelamat ban bocor area Surabaya Utara dekat Pasar Atom dan Stasiun Kota. Buka 24 jam dengan kompresor bertenaga, bisa layani ban mobil van/pickup dan motor roda tiga.",
+                district = "Pabean Cantian",
+                address = "Jl. Waspada No. 18, Pabean Cantian, Surabaya",
+                latitude = -7.2384,
+                longitude = 112.7421,
+                is24Hours = true,
+                isTubeless = true,
+                forMotor = true,
+                forMobil = true,
+                canCallOut = false,
+                mapsUrl = "https://maps.app.goo.gl/surabayapabeanwaspada",
+                phoneNumber = "082155667788",
+                whatsappNumber = "082155667788",
+                verifiedCount = 22,
+                verifiedUserIds = emptyList(),
+                commentCount = 1,
+                createdAt = now - 1000L * 60 * 60 * 12,
+                updatedAt = now,
+            ),
+            TambalBanSpot(
+                id = "tb_kenjeran_suramadu",
+                authorId = uid,
+                authorName = "Bang Dul Kenjeran",
+                name = "Tambal Ban Pesisir Suramadu Kenjeran",
+                description = "Sangat strategis bagi pengendara sebelum naik jembatan Suramadu atau setelah melintasi Kenjeran. Buka 24 jam, sediakan cairan tubeless & pentil tubeless.",
+                district = "Kenjeran",
+                address = "Jl. Kedung Cowek No. 204 (Akses Jembatan Suramadu), Kenjeran, Surabaya",
+                latitude = -7.2285,
+                longitude = 112.7842,
+                is24Hours = true,
+                isTubeless = true,
+                forMotor = true,
+                forMobil = true,
+                canCallOut = true,
+                mapsUrl = "https://maps.app.goo.gl/surabayakedungcowek",
+                phoneNumber = "087812349988",
+                whatsappNumber = "087812349988",
+                verifiedCount = 16,
+                verifiedUserIds = emptyList(),
+                commentCount = 1,
+                createdAt = now - 1000L * 60 * 60 * 6,
+                updatedAt = now,
+            )
+        )
+    }
+
+    fun starterTambalBanComments(): Map<String, List<TambalBanComment>> {
+        val now = System.currentTimeMillis()
+        return mapOf(
+            "tb_darmo_bungkul_24h" to listOf(
+                TambalBanComment(
+                    id = "tb_c_1",
+                    spotId = "tb_darmo_bungkul_24h",
+                    authorId = "user_ojol_01",
+                    authorName = "Cak Anto Ojol",
+                    authorDistrict = "Tegalsari",
+                    text = "Bocel ban belakang pas jam 2 pagi waktu narik orderan, untung Cak Slamet buka standby. Pengerjaan rapi dan cepat!",
+                    createdAt = now - 1000L * 60 * 60 * 24,
+                ),
+                TambalBanComment(
+                    id = "tb_c_2",
+                    spotId = "tb_darmo_bungkul_24h",
+                    authorId = "user_rider_02",
+                    authorName = "Bayu Pratama",
+                    authorDistrict = "Wonokromo",
+                    text = "Tarif wajar standar Surabaya, tambal tubeless 15rb langsung gas lagi. Kompresor jos.",
+                    createdAt = now - 1000L * 60 * 60 * 12,
+                ),
+            ),
+            "tb_ayani_frontage_press" to listOf(
+                TambalBanComment(
+                    id = "tb_c_3",
+                    spotId = "tb_ayani_frontage_press",
+                    authorId = "user_driver_03",
+                    authorName = "Pak Handoko",
+                    authorDistrict = "Gayungan",
+                    text = "Mobil saya kena paku di dekat flyover, ditelepon Pakde langsung datang bawa dongkrak dan kompresor mini. Salam satu aspal pakde!",
+                    createdAt = now - 1000L * 60 * 60 * 8,
+                )
+            ),
+            "tb_rungkut_madya_upn" to listOf(
+                TambalBanComment(
+                    id = "tb_c_4",
+                    spotId = "tb_rungkut_madya_upn",
+                    authorId = "user_mhs_04",
+                    authorName = "Dina Mahasiswi",
+                    authorDistrict = "Rungkut",
+                    text = "Sangat membantu mahasiswa UPN pas buru-buru ujian ban kempis. Masnya ramah banget.",
+                    createdAt = now - 1000L * 60 * 60 * 16,
                 )
             )
         )

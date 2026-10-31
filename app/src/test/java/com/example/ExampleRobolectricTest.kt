@@ -30,11 +30,16 @@ import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
+import com.example.data.model.CitizenPoll
+import com.example.data.model.PollOption
+import com.example.data.model.PollComment
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.PollingScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
+import com.example.ui.sheets.PollDetailSheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import org.junit.Assert.assertEquals
@@ -639,6 +644,158 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("radio_mini_player_bar").performClick()
     composeTestRule.waitForIdle()
     assertTrue("Expected onOpenFull to be invoked", openFullClicked)
+  }
+
+  @Test
+  fun `polling screen displays polls, options, filters and handles voting and sharing actions`() {
+    val samplePoll = CitizenPoll(
+      id = "poll_test_1",
+      title = "Pembangunan Jalur Sepeda Terproteksi",
+      description = "Dukungan warga untuk memperluas jalur sepeda terpisah di Jalan Basuki Rahmat.",
+      category = "TRANSPORTASI",
+      district = "Genteng",
+      totalVotes = 10,
+      options = listOf(
+        PollOption(id = "opt_1", text = "Sangat Setuju", voteCount = 7),
+        PollOption(id = "opt_2", text = "Cukup Setuju", voteCount = 2),
+        PollOption(id = "opt_3", text = "Kurang Perlu", voteCount = 1),
+      ),
+    )
+
+    var votedOptionId: String? = null
+    var sharedTextPollId: String? = null
+    var sharedJpgPollId: String? = null
+    var detailOpenedPollId: String? = null
+    var createPollOpened = false
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(892.dp)) {
+          PollingScreen(
+            pollsState = UiState.Success(listOf(samplePoll)),
+            pendingPollsState = UiState.Success(emptyList()),
+            myProposedPolls = emptyList(),
+            currentUserId = "user_test_me",
+            isAdmin = false,
+            onVote = { pollId, optId -> votedOptionId = optId },
+            onOpenPollDetail = { detailOpenedPollId = it },
+            onOpenCreatePoll = { createPollOpened = true },
+            onOpenAdminPending = {},
+            onShareText = { sharedTextPollId = it.id },
+            onShareJpg = { sharedJpgPollId = it.id },
+            onDownloadJpg = {},
+            onDeletePoll = {},
+            onBackToHome = {},
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Verify screen, card, and title
+    composeTestRule.onNodeWithTag("polling_screen").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("poll_card_poll_test_1").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Pembangunan Jalur Sepeda Terproteksi").assertIsDisplayed()
+
+    // 2. Click option to vote
+    composeTestRule.onNodeWithTag("btn_card_vote_opt_opt_1").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("opt_1", votedOptionId)
+
+    // 3. Click share text
+    composeTestRule.onNodeWithTag("btn_card_share_text_poll_test_1").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("poll_test_1", sharedTextPollId)
+
+    // 4. Click share JPG
+    composeTestRule.onNodeWithTag("btn_card_share_jpg_poll_test_1").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("poll_test_1", sharedJpgPollId)
+
+    // 5. Click comments to open detail
+    composeTestRule.onNodeWithTag("btn_card_comments_poll_test_1").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("poll_test_1", detailOpenedPollId)
+
+    // 6. Click FAB to create poll
+    composeTestRule.onNodeWithTag("fab_create_poll").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(createPollOpened)
+  }
+
+  @Test
+  fun `poll detail sheet renders options, comments, and triggers text and JPG sharing`() {
+    val samplePoll = CitizenPoll(
+      id = "poll_detail_test",
+      title = "Penataan Sentra Wisata Kuliner (SWK) Surabaya",
+      description = "Pemberlakuan pembayaran QRIS dan standardisasi kebersihan di seluruh SWK.",
+      category = "KULINER_WISATA",
+      district = "Wonokromo",
+      totalVotes = 25,
+      options = listOf(
+        PollOption(id = "opt_yes", text = "Setuju Wajib QRIS", voteCount = 20),
+        PollOption(id = "opt_no", text = "Biarkan Fleksibel", voteCount = 5),
+      ),
+    )
+    val comments = listOf(
+      PollComment(
+        id = "cmt_1",
+        pollId = "poll_detail_test",
+        authorName = "Cak Hadi",
+        text = "Sangat setuju agar pembukuan UMKM Surabaya makin tertib dan aman.",
+      ),
+    )
+
+    var shareTextCalled = false
+    var shareJpgCalled = false
+    var downloadJpgCalled = false
+    var dismissCalled = false
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(800.dp)) {
+          PollDetailSheetContent(
+            poll = samplePoll,
+            comments = comments,
+            currentUserId = "user_me",
+            isAdmin = false,
+            onVote = { _, _ -> },
+            onAddComment = {},
+            onShareText = { shareTextCalled = true },
+            onShareJpg = { shareJpgCalled = true },
+            onDownloadJpg = { downloadJpgCalled = true },
+            onDismiss = { dismissCalled = true },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Verify title and comment
+    composeTestRule.onNodeWithText("Penataan Sentra Wisata Kuliner (SWK) Surabaya").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Sangat setuju agar pembukuan UMKM Surabaya makin tertib dan aman.").assertIsDisplayed()
+
+    // 2. Click Share Text button
+    composeTestRule.onNodeWithTag("btn_share_poll_text").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(shareTextCalled)
+
+    // 3. Click Share JPG button
+    composeTestRule.onNodeWithTag("btn_share_poll_jpg").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(shareJpgCalled)
+
+    // 4. Click Download JPG button
+    composeTestRule.onNodeWithTag("btn_download_poll_jpg").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(downloadJpgCalled)
+
+    // 5. Click Close button
+    composeTestRule.onNodeWithTag("btn_close_poll_detail").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(dismissCalled)
   }
 }
 

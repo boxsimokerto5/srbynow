@@ -27,6 +27,8 @@ import com.example.data.model.PollComment
 import com.example.data.model.PollOption
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
+import com.example.data.model.TambalBanComment
+import com.example.data.model.TambalBanSpot
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
@@ -70,6 +72,8 @@ enum class MainTab {
     KULINER,
     SEKITAR,
     JASA,
+    POLLING,
+    TAMBAL_BAN,
 }
 
 sealed interface ActiveBottomSheet {
@@ -95,6 +99,8 @@ sealed interface ActiveBottomSheet {
     data class PollDetail(val pollId: String) : ActiveBottomSheet
     data object CreatePoll : ActiveBottomSheet
     data object AdminPendingPolls : ActiveBottomSheet
+    data class TambalBanDetail(val spotId: String) : ActiveBottomSheet
+    data object CreateTambalBan : ActiveBottomSheet
 }
 
 data class NearbyPeerItem(
@@ -495,6 +501,54 @@ class SurabayaViewModel(
             } else {
                 repository.observePollComments(pollId)
                     .catch { emit(emptyList()) }
+            }
+        },
+        blockedUserIds,
+    ) { comments, blockedSet ->
+        comments.filter { it.authorId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    // --- TAMBAL BAN (SALAM SATU ASPAL) STATEFLOWS ---
+
+    val tambalBanSpotsState: StateFlow<UiState<List<TambalBanSpot>>> = combine(
+        repository.observeTambalBanSpots(),
+        _userLat,
+        _userLng,
+        localMutationTick,
+    ) { spots, lat, lng, _ ->
+        val mapped = spots.map { spot ->
+            val dist = LocationHelper.calculateDistanceKm(lat, lng, spot.latitude, spot.longitude)
+            spot.copy(distanceKm = dist)
+        }.sortedBy { it.distanceKm ?: 999.0 }
+        UiState.Success(mapped) as UiState<List<TambalBanSpot>>
+    }.catch { emit(UiState.Error(it.localizedMessage ?: "Gagal memuat lokasi tambal ban")) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
+    private val selectedTambalBanIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.TambalBanDetail)?.spotId }
+
+    val activeSelectedTambalBan: StateFlow<TambalBanSpot?> = combine(
+        selectedTambalBanIdFlow.flatMapLatest { spotId ->
+            if (spotId.isNullOrBlank()) {
+                flowOf(null)
+            } else {
+                repository.observeTambalBanById(spotId).catch { emit(null) }
+            }
+        },
+        _userLat,
+        _userLng,
+    ) { spot, lat, lng ->
+        spot?.let {
+            val dist = LocationHelper.calculateDistanceKm(lat, lng, it.latitude, it.longitude)
+            it.copy(distanceKm = dist)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
+
+    val activeTambalBanComments: StateFlow<List<TambalBanComment>> = combine(
+        selectedTambalBanIdFlow.flatMapLatest { spotId ->
+            if (spotId.isNullOrBlank()) {
+                flowOf(emptyList())
+            } else {
+                repository.observeTambalBanComments(spotId).catch { emit(emptyList()) }
             }
         },
         blockedUserIds,
@@ -1861,30 +1915,8 @@ class SurabayaViewModel(
 
     fun sharePollText(context: Context, poll: CitizenPoll) {
         try {
-            val optionsListText = poll.options.mapIndexed { idx, opt ->
-                "${idx + 1}. ${opt.text} (${opt.voteCount} suara - ${"%.1f".format(poll.percentageForOption(opt.id))}%)"
-            }.joinToString("\n")
-
-            val shareBody = """
-                📢 SUARA WARGA SURABAYA: POLLING KOTA
-                
-                📌 ${poll.title}
-                📍 Kategori: ${poll.category} | Wilayah: ${poll.district}
-                
-                "${poll.description}"
-                
-                Hasil Suara Sementara (${poll.totalVotes} total suara warga):
-                $optionsListText
-                
-                Ikuti polling dan sampaikan suaramu di aplikasi Arek Surabaya!
-            """.trimIndent()
-
-            val sendIntent = android.content.Intent().apply {
-                action = android.content.Intent.ACTION_SEND
-                putExtra(android.content.Intent.EXTRA_TEXT, shareBody)
-                type = "text/plain"
-            }
-            context.startActivity(android.content.Intent.createChooser(sendIntent, "Bagikan Polling Warga"))
+            PollImageExporter.sharePollAsText(context, poll)
+            notifyMessage("Membuka menu bagikan teks polling...")
         } catch (e: Exception) {
             notifyMessage("Gagal membagikan polling: ${e.message}")
         }
@@ -1895,10 +1927,14 @@ class SurabayaViewModel(
             _isSubmitting.value = true
             try {
                 if (shareDirectly) {
-                    PollImageExporter.sharePollAsImage(context, poll)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        PollImageExporter.sharePollAsImage(context, poll)
+                    }
                     notifyMessage("Membuka menu bagikan gambar JPG...")
                 } else {
-                    val saved = PollImageExporter.savePollImageToGallery(context, poll)
+                    val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        PollImageExporter.savePollImageToGallery(context, poll)
+                    }
                     if (saved) {
                         notifyMessage("✅ Gambar hasil polling (JPG) berhasil disimpan ke Galeri!")
                     } else {
@@ -1921,6 +1957,120 @@ class SurabayaViewModel(
                 notifyMessage("Polling berhasil dihapus.")
             } catch (e: Exception) {
                 notifyMessage("Gagal menghapus polling: ${e.message}")
+            }
+        }
+    }
+
+    // --- TAMBAL BAN (SALAM SATU ASPAL) OPERATIONS ---
+
+    fun openTambalBanDetail(spotId: String) {
+        _activeSheet.value = ActiveBottomSheet.TambalBanDetail(spotId)
+    }
+
+    fun openCreateTambalBan() {
+        _activeSheet.value = ActiveBottomSheet.CreateTambalBan
+    }
+
+    fun submitTambalBanSpot(
+        name: String,
+        description: String,
+        district: String,
+        address: String,
+        is24Hours: Boolean,
+        isTubeless: Boolean,
+        forMotor: Boolean,
+        forMobil: Boolean,
+        canCallOut: Boolean,
+        mapsUrl: String = "",
+        phoneNumber: String = "",
+        whatsappNumber: String = "",
+        photoUri: Uri? = null,
+        context: Context? = null,
+        onComplete: (Boolean) -> Unit = {},
+    ) {
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val preparedPhoto = if (photoUri != null && appCtx != null) {
+                    ImageUploadHelper.preparePhotoFromUri(
+                        context = appCtx,
+                        uri = photoUri,
+                        prefix = "tambalban",
+                        maxDimensionPx = 1024,
+                        initialJpegQuality = 80,
+                    )
+                } else null
+
+                if (preparedPhoto != null && !verifyPhotosAreSafe(listOf(preparedPhoto))) {
+                    onComplete(false)
+                    return@launch
+                }
+
+                repository.addTambalBanSpot(
+                    name = name,
+                    description = description,
+                    district = district,
+                    address = address,
+                    is24Hours = is24Hours,
+                    isTubeless = isTubeless,
+                    forMotor = forMotor,
+                    forMobil = forMobil,
+                    canCallOut = canCallOut,
+                    mapsUrl = mapsUrl,
+                    phoneNumber = phoneNumber,
+                    whatsappNumber = whatsappNumber,
+                    photo = preparedPhoto,
+                )
+                dismissSheet()
+                notifyMessage("✅ Lokasi tambal ban berhasil ditambahkan! Salam Satu Aspal, matur nuwun dulur!")
+                onComplete(true)
+            } catch (e: Exception) {
+                notifyMessage("Gagal menambahkan tambal ban: ${e.message}")
+                onComplete(false)
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun verifyTambalBan(spotId: String) {
+        viewModelScope.launch {
+            try {
+                val added = repository.verifyTambalBanSpot(spotId)
+                notifyMessage(
+                    if (added) "✅ Terima kasih telah memvalidasi tambal ban ini! Info sangat berguna bagi sesama pengendara."
+                    else "Validasi Anda telah dibatalkan."
+                )
+            } catch (e: Exception) {
+                notifyMessage("Gagal memvalidasi: ${e.message}")
+            }
+        }
+    }
+
+    fun submitTambalBanComment(spotId: String, text: String, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                repository.addTambalBanComment(spotId, text)
+                notifyMessage("Pantauan warga berhasil dikirim.")
+                onComplete(true)
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim pantauan: ${e.message}")
+                onComplete(false)
+            }
+        }
+    }
+
+    fun deleteTambalBan(spotId: String) {
+        viewModelScope.launch {
+            try {
+                repository.deleteTambalBanSpot(spotId, currentUserId, isAdmin.value)
+                dismissSheet()
+                notifyMessage("Lokasi tambal ban berhasil dihapus.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menghapus tambal ban: ${e.message}")
             }
         }
     }

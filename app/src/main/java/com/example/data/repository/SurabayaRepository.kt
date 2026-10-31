@@ -20,6 +20,8 @@ import com.example.data.model.PollComment
 import com.example.data.model.PollOption
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
+import com.example.data.model.TambalBanComment
+import com.example.data.model.TambalBanSpot
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.pocketbase.MultipartFilePart
@@ -78,6 +80,8 @@ class SurabayaRepository(
     private val inMemoryServices = ConcurrentHashMap<String, CitizenService>()
     private val inMemoryPolls = ConcurrentHashMap<String, CitizenPoll>()
     private val inMemoryPollComments = ConcurrentHashMap<String, CopyOnWriteArrayList<PollComment>>()
+    private val inMemoryTambalBan = ConcurrentHashMap<String, TambalBanSpot>()
+    private val inMemoryTambalBanComments = ConcurrentHashMap<String, CopyOnWriteArrayList<TambalBanComment>>()
     private val cachedIncidents = ConcurrentHashMap<String, IncidentReport>()
     private val cachedEvents = ConcurrentHashMap<String, SurabayaEvent>()
     private val cachedCulinary = ConcurrentHashMap<String, CulinarySpot>()
@@ -153,6 +157,13 @@ class SurabayaRepository(
         }
         for ((pollId, comments) in SurabayaCuratedSeed.starterPollComments()) {
             inMemoryPollComments[pollId] = CopyOnWriteArrayList(comments)
+        }
+        // Initialize rich starter tambal ban spots & comments (Salam Satu Aspal)
+        for (spot in SurabayaCuratedSeed.starterTambalBanSpots("system_seed")) {
+            inMemoryTambalBan[spot.id] = spot
+        }
+        for ((spotId, comments) in SurabayaCuratedSeed.starterTambalBanComments()) {
+            inMemoryTambalBanComments[spotId] = CopyOnWriteArrayList(comments)
         }
     }
 
@@ -3165,6 +3176,178 @@ class SurabayaRepository(
             inMemoryPolls.remove(pollId)
             inMemoryPollComments.remove(pollId)
             localDeletedRecords.add("polls:$pollId")
+            bumpMutationTick()
+        }
+    }
+
+    // --- TAMBAL BAN TERDEKAT (SALAM SATU ASPAL) OPERATIONS ---
+
+    fun observeTambalBanSpots(): Flow<List<TambalBanSpot>> {
+        return combine(pb.collectionFlow("tambal_ban"), localMutationTick) { _, _ ->
+            inMemoryTambalBan.values
+                .filter { "tambal_ban:${it.id}" !in localDeletedRecords }
+                .sortedByDescending { it.verifiedCount * 10 + (it.commentCount * 2) }
+        }
+    }
+
+    fun observeTambalBanById(spotId: String): Flow<TambalBanSpot?> {
+        return combine(pb.collectionFlow("tambal_ban"), localMutationTick) { _, _ ->
+            inMemoryTambalBan[spotId]?.takeIf { "tambal_ban:${it.id}" !in localDeletedRecords }
+        }
+    }
+
+    fun observeTambalBanComments(spotId: String): Flow<List<TambalBanComment>> {
+        return combine(pb.collectionFlow("tambal_ban_comments"), localMutationTick) { _, _ ->
+            inMemoryTambalBanComments[spotId]?.toList()?.sortedByDescending { it.createdAt ?: 0L } ?: emptyList()
+        }
+    }
+
+    suspend fun addTambalBanSpot(
+        name: String,
+        description: String,
+        district: String,
+        address: String,
+        is24Hours: Boolean,
+        isTubeless: Boolean,
+        forMotor: Boolean,
+        forMobil: Boolean,
+        canCallOut: Boolean,
+        mapsUrl: String = "",
+        phoneNumber: String = "",
+        whatsappNumber: String = "",
+        photo: PreparedPhoto? = null,
+    ): String {
+        val uid = requireUserId()
+        val authorName = pb.currentSession?.displayName?.ifBlank { "Warga Surabaya" } ?: "Warga Surabaya"
+
+        if (name.trim().length < 4) {
+            throw IllegalArgumentException("Nama lokasi tambal ban minimal 4 karakter.")
+        }
+        if (address.trim().length < 5) {
+            throw IllegalArgumentException("Alamat lokasi tambal ban minimal 5 karakter.")
+        }
+
+        val cleanMapsUrl = if (mapsUrl.isNotBlank()) {
+            val valid = LinkSecurityValidator.validateLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+            if (valid is LinkValidationResult.Invalid) {
+                throw IllegalArgumentException(valid.reason)
+            }
+            mapsUrl.trim()
+        } else {
+            ""
+        }
+
+        val spotId = PocketBaseClient.deterministicPbId("tb_${UUID.randomUUID()}")
+        val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val now = System.currentTimeMillis()
+
+        var uploadedPhotoUrl = ""
+        if (photo != null) {
+            try {
+                val fileParts = listOf(MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes))
+                val json = pb.createRecordMultipart("tambal_ban", emptyMap(), fileParts)
+                val serverId = json.optString("id").ifBlank { spotId }
+                uploadedPhotoUrl = pb.getFileUrl("tambal_ban", serverId, photo.fileName)
+            } catch (e: Exception) {
+                Log.w(TAG, "Gagal upload foto tambal ban ke server, melanjutkan dengan ID lokal: ${e.message}")
+            }
+        }
+
+        val newSpot = TambalBanSpot(
+            id = spotId,
+            authorId = uid,
+            authorName = authorName,
+            name = name.trim().take(120),
+            description = description.trim().take(1000),
+            district = district.trim(),
+            address = address.trim().take(200),
+            latitude = lat,
+            longitude = lng,
+            is24Hours = is24Hours,
+            isTubeless = isTubeless,
+            forMotor = forMotor,
+            forMobil = forMobil,
+            canCallOut = canCallOut,
+            photoUrl = uploadedPhotoUrl,
+            mapsUrl = cleanMapsUrl,
+            phoneNumber = phoneNumber.trim().take(30),
+            whatsappNumber = whatsappNumber.trim().take(30),
+            verifiedCount = 1,
+            verifiedUserIds = listOf(uid),
+            commentCount = 0,
+            createdAt = now,
+            updatedAt = now,
+        )
+
+        inMemoryTambalBan[spotId] = newSpot
+        bumpMutationTick()
+        return spotId
+    }
+
+    suspend fun verifyTambalBanSpot(spotId: String): Boolean {
+        val uid = requireUserId()
+        val current = inMemoryTambalBan[spotId] ?: return false
+
+        val alreadyVerified = uid in current.verifiedUserIds
+        val updatedIds = if (alreadyVerified) {
+            current.verifiedUserIds - uid
+        } else {
+            current.verifiedUserIds + uid
+        }
+
+        val updated = current.copy(
+            verifiedCount = updatedIds.size,
+            verifiedUserIds = updatedIds,
+            updatedAt = System.currentTimeMillis(),
+        )
+
+        inMemoryTambalBan[spotId] = updated
+        bumpMutationTick()
+        return !alreadyVerified
+    }
+
+    suspend fun addTambalBanComment(spotId: String, text: String): String {
+        val uid = requireUserId()
+        val authorName = pb.currentSession?.displayName?.ifBlank { "Warga Surabaya" } ?: "Warga Surabaya"
+        val district = pb.currentSession?.district ?: "Genteng"
+
+        if (text.trim().length < 3) {
+            throw IllegalArgumentException("Komentar minimal 3 karakter.")
+        }
+
+        val cmtId = PocketBaseClient.deterministicPbId("tbc_${UUID.randomUUID()}")
+        val now = System.currentTimeMillis()
+
+        val newComment = TambalBanComment(
+            id = cmtId,
+            spotId = spotId,
+            authorId = uid,
+            authorName = authorName,
+            authorDistrict = district,
+            text = text.trim().take(500),
+            createdAt = now,
+        )
+
+        val list = inMemoryTambalBanComments.computeIfAbsent(spotId) { CopyOnWriteArrayList() }
+        list.add(0, newComment)
+
+        inMemoryTambalBan[spotId]?.let { spot ->
+            inMemoryTambalBan[spotId] = spot.copy(
+                commentCount = list.size,
+                updatedAt = now,
+            )
+        }
+
+        bumpMutationTick()
+        return cmtId
+    }
+
+    suspend fun deleteTambalBanSpot(spotId: String, requesterUid: String, isAdmin: Boolean) {
+        val spot = inMemoryTambalBan[spotId]
+        if (spot != null && (spot.authorId == requesterUid || isAdmin)) {
+            inMemoryTambalBan.remove(spotId)
+            inMemoryTambalBanComments.remove(spotId)
+            localDeletedRecords.add("tambal_ban:$spotId")
             bumpMutationTick()
         }
     }

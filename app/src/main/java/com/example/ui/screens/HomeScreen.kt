@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,6 +88,7 @@ import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
 import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaDestination
+import com.example.data.model.TambalBanSpot
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
@@ -100,6 +102,8 @@ import com.example.ui.components.shareArekSurabayaApp
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.HeaderMintGradient
 import com.example.ui.theme.MintSoftGradient
+import com.example.ui.theme.OpenGreenBg
+import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.SoftEmergencyLightGradient
 import com.example.ui.theme.ToskaOnPrimaryContainer
@@ -126,6 +130,7 @@ fun HomeScreen(
     momentsState: UiState<List<UserMoment>>,
     servicesState: UiState<List<CitizenService>> = UiState.Loading,
     pollsState: UiState<List<CitizenPoll>> = UiState.Loading,
+    tambalBanSpotsState: UiState<List<TambalBanSpot>> = UiState.Loading,
     pendingPollsCount: Int = 0,
     onNavigateTab: (MainTab) -> Unit,
     onOpenIncidentDetail: (String) -> Unit,
@@ -136,6 +141,8 @@ fun HomeScreen(
     onOpenPollDetail: (String) -> Unit = {},
     onOpenCreatePoll: () -> Unit = {},
     onOpenAdminPendingPolls: () -> Unit = {},
+    onOpenTambalBanDetail: (String) -> Unit = {},
+    onOpenCreateTambalBan: () -> Unit = {},
     onOpenBookmarks: () -> Unit,
     onOpenProfileAndAdmin: () -> Unit,
     onOpenRadio: () -> Unit = {},
@@ -153,10 +160,7 @@ fun HomeScreen(
             icon = Icons.Filled.HowToVote,
             badge = "Baru",
             testTag = "home_shortcut_polling",
-            onClick = {
-                val firstPoll = (pollsState as? UiState.Success)?.data?.firstOrNull()
-                if (firstPoll != null) onOpenPollDetail(firstPoll.id) else onOpenCreatePoll()
-            },
+            onClick = { onNavigateTab(MainTab.POLLING) },
         ),
         HomeShortcutItem(
             title = stringResource(R.string.nav_momen),
@@ -223,6 +227,14 @@ fun HomeScreen(
             icon = Icons.Filled.Build,
             testTag = "home_shortcut_jasa",
             onClick = { onNavigateTab(MainTab.JASA) },
+        ),
+        HomeShortcutItem(
+            title = "Tambal Ban",
+            subtitle = "Salam 1 Aspal",
+            icon = Icons.Filled.TwoWheeler,
+            badge = "24 Jam",
+            testTag = "home_shortcut_tambal_ban",
+            onClick = { onNavigateTab(MainTab.TAMBAL_BAN) },
         ),
         HomeShortcutItem(
             title = stringResource(R.string.btn_bookmarks),
@@ -623,7 +635,7 @@ fun HomeScreen(
             HomeSectionHeader(
                 title = "Polling Warga & Suara Kota",
                 subtitle = "Beri suara & tentukan kebijakan kota Surabaya",
-                onSeeAllClick = onOpenCreatePoll,
+                onSeeAllClick = { onNavigateTab(MainTab.POLLING) },
             )
 
             if (isAdmin && pendingPollsCount > 0) {
@@ -741,6 +753,96 @@ fun HomeScreen(
                                     poll = poll,
                                     onClick = { onOpenPollDetail(poll.id) },
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3d. Tambal Ban Terdekat (Salam Satu Aspal)
+        item(key = "home_tambal_ban_section") {
+            Spacer(modifier = Modifier.height(8.dp))
+            HomeSectionHeader(
+                title = "Tambal Ban Terdekat",
+                subtitle = "Salam Satu Aspal • Solusi saat ban bocor di Surabaya",
+                onSeeAllClick = { onNavigateTab(MainTab.TAMBAL_BAN) },
+            )
+
+            when (tambalBanSpotsState) {
+                is UiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(24.dp))
+                    }
+                }
+                is UiState.Error -> {}
+                is UiState.Success -> {
+                    val spots = tambalBanSpotsState.data
+                    if (spots.isNotEmpty()) {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            items(spots.take(6), key = { it.id }) { spot ->
+                                HomeTambalBanCard(
+                                    spot = spot,
+                                    onClick = { onOpenTambalBanDetail(spot.id) },
+                                )
+                            }
+
+                            item(key = "create_tambal_ban_card") {
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = ToskaPrimary.copy(alpha = 0.08f),
+                                    border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.4f)),
+                                    modifier = Modifier
+                                        .width(160.dp)
+                                        .height(115.dp)
+                                        .clickable { onOpenCreateTambalBan() },
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .clip(CircleShape)
+                                                .background(ToskaPrimary),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Add,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "Tambah Tambal Ban",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = ToskaPrimaryDeep,
+                                            textAlign = TextAlign.Center,
+                                        )
+                                        Text(
+                                            text = "Bantu Sesama",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -1699,6 +1801,95 @@ fun HomePollCard(
                     color = ToskaPrimaryDeep,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun HomeTambalBanCard(
+    spot: TambalBanSpot,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, OutlineVariantLight),
+        shadowElevation = 1.dp,
+        modifier = modifier
+            .width(220.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .testTag("home_tambal_card_${spot.id}"),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                spot.formattedDistance?.let { distStr ->
+                    Surface(shape = CircleShape, color = OpenGreenBg) {
+                        Text(
+                            text = "📍 $distStr",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = OpenGreenText,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+                if (spot.is24Hours) {
+                    Surface(shape = CircleShape, color = ToskaPrimary.copy(alpha = 0.12f)) {
+                        Text(
+                            text = "24 Jam",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = ToskaPrimaryDeep,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = spot.name,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = null,
+                    tint = ToskaPrimary,
+                    modifier = Modifier.size(13.dp),
+                )
+                Text(
+                    text = "Kec. ${spot.district}",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Text(
+                text = spot.vehicleSupportText + if (spot.isTubeless) " • Tubeless" else "",
+                style = MaterialTheme.typography.labelSmall,
+                color = ToskaPrimaryDeep,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

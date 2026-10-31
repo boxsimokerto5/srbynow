@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.Image
@@ -78,6 +79,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.CitizenPoll
 import com.example.data.model.PollComment
 import com.example.data.util.SurabayaDistricts
+import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 import java.text.SimpleDateFormat
@@ -95,6 +97,7 @@ fun PollDetailSheetContent(
     onShareText: (CitizenPoll) -> Unit,
     onShareJpg: (CitizenPoll) -> Unit,
     onDownloadJpg: (CitizenPoll) -> Unit,
+    onDelete: (() -> Unit)? = null,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -102,6 +105,31 @@ fun PollDetailSheetContent(
     val keyboardController = LocalSoftwareKeyboardController.current
     var commentInput by remember(poll.id) { mutableStateOf("") }
     val commentListState = rememberLazyListState()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Hapus Polling Warga?") },
+            text = { Text("Kiriman polling \"${poll.title}\" beserta seluruh suaranya akan dihapus permanen.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete?.invoke()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertCrimson),
+                ) {
+                    Text("Hapus")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Batal")
+                }
+            },
+        )
+    }
 
     val userVotedOptionId = poll.userVotedOptionId(currentUserId)
     val hasVoted = userVotedOptionId != null
@@ -183,17 +211,34 @@ fun PollDetailSheetContent(
                         )
                     }
 
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .testTag("btn_close_poll_detail"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Tutup",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (onDelete != null) {
+                            IconButton(
+                                onClick = { showDeleteConfirm = true },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag("btn_delete_poll_detail"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Hapus Polling",
+                                    tint = AlertCrimson.copy(alpha = 0.8f),
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .testTag("btn_close_poll_detail"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Tutup",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
 
