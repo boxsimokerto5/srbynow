@@ -29,7 +29,10 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Emergency
+import com.example.data.model.TransitRoute
+import com.example.data.seed.SurabayaTransitSeed
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HowToVote
@@ -241,6 +244,14 @@ fun HomeScreen(
             badge = "24 Jam",
             testTag = "home_shortcut_tambal_ban",
             onClick = { onNavigateTab(MainTab.TAMBAL_BAN) },
+        ),
+        HomeShortcutItem(
+            title = "Rute Bis & Feeder",
+            subtitle = "WiraWiri & Bus",
+            icon = Icons.Filled.DirectionsBus,
+            badge = "22 Rute",
+            testTag = "home_shortcut_transit",
+            onClick = { onNavigateTab(MainTab.TRANSIT) },
         ),
         HomeShortcutItem(
             title = stringResource(R.string.btn_bookmarks),
@@ -850,6 +861,84 @@ fun HomeScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3e. Rute Bis & Feeder Surabaya
+        item(key = "home_transit_section") {
+            Spacer(modifier = Modifier.height(8.dp))
+            HomeSectionHeader(
+                title = "Rute Bis & Feeder Surabaya",
+                subtitle = "WiraWiri • Suroboyo Bus • Trans Semanggi",
+                onSeeAllClick = { onNavigateTab(MainTab.TRANSIT) },
+            )
+
+            val previewRoutes = remember {
+                SurabayaTransitSeed.allRoutes.filter {
+                    it.code in listOf("FD01", "FD06", "R1 / R2", "2K / K2L", "FD02", "R7 / R8")
+                }
+            }
+
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(previewRoutes, key = { it.id }) { route ->
+                    HomeTransitPreviewCard(
+                        route = route,
+                        onClick = { onNavigateTab(MainTab.TRANSIT) },
+                    )
+                }
+
+                item(key = "see_all_transit_card") {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = ToskaPrimary.copy(alpha = 0.08f),
+                        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .width(160.dp)
+                            .height(130.dp)
+                            .clickable { onNavigateTab(MainTab.TRANSIT) },
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(ToskaPrimary),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.DirectionsBus,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Semua Rute (22)",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = ToskaPrimaryDeep,
+                                textAlign = TextAlign.Center,
+                            )
+                            Text(
+                                text = "Cek Tarif & Halte",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
                         }
                     }
                 }
@@ -2208,5 +2297,94 @@ private fun HomeTambalBanCard(
         }
     }
 }
+
+@Composable
+fun HomeTransitPreviewCard(
+    route: TransitRoute,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = modifier
+            .width(220.dp)
+            .height(130.dp)
+            .clickable { onClick() }
+            .testTag("home_transit_card_${route.code}"),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Surface(
+                    color = Color(route.badgeColorHex),
+                    shape = RoundedCornerShape(6.dp),
+                ) {
+                    Text(
+                        text = route.code,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+
+                Text(
+                    text = route.fare.split("•").firstOrNull()?.trim() ?: "Rp 5.000",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = ToskaPrimaryDeep,
+                )
+            }
+
+            Column {
+                Text(
+                    text = route.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = route.fleetType,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = route.operatingHours,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Lihat Rute →",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = ToskaPrimary,
+                )
+            }
+        }
+    }
+}
+
 
 

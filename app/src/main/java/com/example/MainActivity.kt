@@ -111,6 +111,7 @@ import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.StartDirectChatSheetContent
 import com.example.ui.screens.TambalBanScreen
 import com.example.ui.screens.TemanSekitarScreen
+import com.example.ui.screens.TransitScreen
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -632,6 +633,9 @@ fun SurabayaMainHub(
                                 onOpenDetail = { viewModel.openTambalBanDetail(it) },
                                 onCreateSpot = { viewModel.openCreateTambalBan() },
                                 onRefreshLocation = { viewModel.refreshGpsLocation() },
+                            )
+                            MainTab.TRANSIT -> TransitScreen(
+                                onBackToHome = { viewModel.selectTab(MainTab.HOME) },
                             )
                         }
                     }

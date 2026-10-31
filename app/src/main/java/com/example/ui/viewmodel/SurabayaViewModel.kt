@@ -74,6 +74,7 @@ enum class MainTab {
     JASA,
     POLLING,
     TAMBAL_BAN,
+    TRANSIT,
 }
 
 sealed interface ActiveBottomSheet {

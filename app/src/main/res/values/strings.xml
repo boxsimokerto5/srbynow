@@ -188,4 +188,7 @@
     <string name="tambal_ban_comments_title">Pantauan &amp; Info Warga (%1$d)</string>
     <string name="tambal_ban_comments_scroll_hint">Geser komentar ↕</string>
     <string name="tambal_ban_comment_input_hint">Tulis situasi: masih buka, antre, ada ban dalam…</string>
+    <string name="nav_transit">Rute Bis &amp; Feeder</string>
+    <string name="transit_page_title">Rute Bis &amp; Feeder Surabaya</string>
+    <string name="transit_page_subtitle">WiraWiri • Suroboyo Bus • Trans Semanggi</string>
 </resources>
