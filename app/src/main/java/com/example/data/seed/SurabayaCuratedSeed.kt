@@ -1,5 +1,8 @@
 package com.example.data.seed
 
+import com.example.data.model.CitizenPoll
+import com.example.data.model.PollComment
+import com.example.data.model.PollOption
 import com.example.data.pocketbase.PocketBaseClient
 import org.json.JSONObject
 
@@ -542,5 +545,149 @@ object SurabayaCuratedSeed {
             put("verified_badge", true)
         },
     )
+
+    fun starterPolls(uid: String = "system_seed"): List<CitizenPoll> {
+        val now = System.currentTimeMillis()
+        val p1VotesByUser = mutableMapOf<String, String>()
+        p1VotesByUser["warga_darmo_1"] = "opt_1"
+        p1VotesByUser["warga_wonokromo_2"] = "opt_1"
+        p1VotesByUser["warga_rungkut_3"] = "opt_2"
+        p1VotesByUser["warga_genteng_4"] = "opt_1"
+        p1VotesByUser["warga_sukolilo_5"] = "opt_3"
+        p1VotesByUser["warga_teb_6"] = "opt_1"
+
+        return listOf(
+            CitizenPoll(
+                id = "poll_wirawiri_feeder_barat",
+                proposerId = uid,
+                proposerName = "Cak Wahyu - Forum Transportasi SBY",
+                title = "Penambahan Rute Baru Feeder WiraWiri Suroboyo ke Wilayah Barat",
+                description = "Apakah rute Feeder WiraWiri perlu diperluas hingga pelosok perumahan Manukan, Babat Jerawat, dan Benowo untuk mempermudah akses ke stasiun dan pusat kota?",
+                category = "TRANSPORTASI",
+                district = "Benowo",
+                status = "APPROVED",
+                options = listOf(
+                    PollOption(id = "opt_1", text = "Sangat Perlu (Koneksi ke Stasiun Kandangan)", voteCount = 142),
+                    PollOption(id = "opt_2", text = "Perlu (Fokus koridor jalan protokol barat)", voteCount = 58),
+                    PollOption(id = "opt_3", text = "Cukup Maksimalkan Rute yang Ada Sekarang", voteCount = 19),
+                    PollOption(id = "opt_4", text = "Belum Perlu, Prioritaskan Penambahan Suroboyo Bus", voteCount = 11),
+                ),
+                totalVotes = 230,
+                voterUids = p1VotesByUser.keys.toList(),
+                votesByUser = p1VotesByUser,
+                commentCount = 3,
+                createdAt = now - 1000L * 60 * 60 * 36,
+                updatedAt = now,
+            ),
+            CitizenPoll(
+                id = "poll_tunjungan_car_free_night",
+                proposerId = "warga_kreatif_genteng",
+                proposerName = "Ning Sinta - Komunitas Heritage Tunjungan",
+                title = "Uji Coba 'Car Free Night' Malam Minggu di Sepanjang Jl. Tunjungan",
+                description = "Usulan penutupan kendaraan bermotor di Jl. Tunjungan setiap Sabtu malam pukul 19.00 - 23.00 WIB untuk ruang jalan santai, UMKM kuliner legendaris, dan seni musik akustik jalanan.",
+                category = "TATA_KOTA",
+                district = "Genteng",
+                status = "APPROVED",
+                options = listOf(
+                    PollOption(id = "cfn_setuju", text = "Setuju Penuh, Kota Jadi Ramah Pejalan Kaki & Wisatawan", voteCount = 312),
+                    PollOption(id = "cfn_syarat", text = "Setuju, Asal Disediakan Kantong Parkir Resmi & Aman", voteCount = 184),
+                    PollOption(id = "cfn_tolak", text = "Tidak Setuju, Khawatir Bikin Macet Jl. Praban & Sekitarnya", voteCount = 47),
+                ),
+                totalVotes = 543,
+                voterUids = listOf("warga_a", "warga_b"),
+                votesByUser = mapOf("warga_a" to "cfn_setuju", "warga_b" to "cfn_syarat"),
+                commentCount = 2,
+                createdAt = now - 1000L * 60 * 60 * 18,
+                updatedAt = now,
+            ),
+            CitizenPoll(
+                id = "poll_pengelolaan_sampah_organik",
+                proposerId = "warga_jambangan_asri",
+                proposerName = "Pak RT Bambang - RW 04 Jambangan",
+                title = "Gerakan Wajib Pilah Sampah Organik dari Dapur Tingkat RT",
+                description = "Bagaimana kesiapan warga Surabaya jika Pemkot memberlakukan pemilahan wajib sampah organik (sisa makanan) dan anorganik dari rumah tangga dengan insentif kompos gratis?",
+                category = "LINGKUNGAN",
+                district = "Jambangan",
+                status = "APPROVED",
+                options = listOf(
+                    PollOption(id = "smph_siap", text = "Siap dan Mendukung Demi Surabaya Bebas Timbunan TPA", voteCount = 98),
+                    PollOption(id = "smph_edukasi", text = "Perlu Edukasi & Bantuan Tong Sampah Terpisah Dulu", voteCount = 85),
+                    PollOption(id = "smph_sulit", text = "Masih Sulit Diterapkan di Rumah Tangga Padat", voteCount = 14),
+                ),
+                totalVotes = 197,
+                voterUids = emptyList(),
+                votesByUser = emptyMap(),
+                commentCount = 1,
+                createdAt = now - 1000L * 60 * 60 * 8,
+                updatedAt = now,
+            )
+        )
+    }
+
+    fun starterPollComments(): Map<String, List<PollComment>> {
+        val now = System.currentTimeMillis()
+        return mapOf(
+            "poll_wirawiri_feeder_barat" to listOf(
+                PollComment(
+                    id = "pcom_1",
+                    pollId = "poll_wirawiri_feeder_barat",
+                    authorId = "user_benowo_01",
+                    authorName = "Cak Dimas",
+                    authorDistrict = "Benowo",
+                    text = "Cocok pol iki rek! Khusus e sing arep nyambung numpak KRL Komuter nang Stasiun Kandangan ben gak usah order ojol terus.",
+                    createdAt = now - 1000L * 60 * 60 * 20,
+                ),
+                PollComment(
+                    id = "pcom_2",
+                    pollId = "poll_wirawiri_feeder_barat",
+                    authorId = "user_tandes_02",
+                    authorName = "Ning Ririn",
+                    authorDistrict = "Tandes",
+                    text = "Nek iso head-time kedatangan feeder diatur maksimal 10 menit yho cak, ben gak suwe ngenteni.",
+                    createdAt = now - 1000L * 60 * 60 * 14,
+                ),
+                PollComment(
+                    id = "pcom_3",
+                    pollId = "poll_wirawiri_feeder_barat",
+                    authorId = "user_manukan_03",
+                    authorName = "Pak Gunawan",
+                    authorDistrict = "Tandes",
+                    text = "Dukungan penuh dari warga Manukan Kulon. Jalan Manukan Tama wis padat, transportasi umum feeder cilik pas banget.",
+                    createdAt = now - 1000L * 60 * 60 * 5,
+                )
+            ),
+            "poll_tunjungan_car_free_night" to listOf(
+                PollComment(
+                    id = "pcom_cfn_1",
+                    pollId = "poll_tunjungan_car_free_night",
+                    authorId = "user_genteng_01",
+                    authorName = "Aris Priambodo",
+                    authorDistrict = "Genteng",
+                    text = "Keren banget konsepnya, vibes heritage Tunjungan malam hari emang tiada tanding kalau bebas polusi knalpot.",
+                    createdAt = now - 1000L * 60 * 60 * 10,
+                ),
+                PollComment(
+                    id = "pcom_cfn_2",
+                    pollId = "poll_tunjungan_car_free_night",
+                    authorId = "user_tegalsari_02",
+                    authorName = "Mbak Laras",
+                    authorDistrict = "Tegalsari",
+                    text = "Yang penting kantong parkir Siola sama Gedung Parkir Genteng Kali dibuka maksimal dan tarif flat resmi tanpa getok.",
+                    createdAt = now - 1000L * 60 * 60 * 6,
+                )
+            ),
+            "poll_pengelolaan_sampah_organik" to listOf(
+                PollComment(
+                    id = "pcom_smph_1",
+                    pollId = "poll_pengelolaan_sampah_organik",
+                    authorId = "user_jambangan_01",
+                    authorName = "Ibu Endang",
+                    authorDistrict = "Jambangan",
+                    text = "Kampung Jambangan wis suwe praktek biopori & komposter takakura, terbukti asri dan kampung jadi adem.",
+                    createdAt = now - 1000L * 60 * 60 * 4,
+                )
+            )
+        )
+    }
 }
 

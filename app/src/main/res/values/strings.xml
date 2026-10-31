@@ -167,4 +167,11 @@
     <string name="services_contact_wa">Hubungi via WhatsApp</string>
     <string name="services_contact_phone">Telepon Langsung</string>
     <string name="services_detail_guarantee_title">Ketentuan &amp; Garansi Layanan</string>
+    <string name="nav_polling">Polling Warga</string>
+    <string name="polling_page_title">Polling Warga &amp; Suara Kota</string>
+    <string name="polling_page_subtitle">Suarakan aspirasi &amp; tentukan arah kebijakan Surabaya</string>
+    <string name="btn_create_poll">Usulkan Polling</string>
+    <string name="btn_share_poll">Bagikan Polling</string>
+    <string name="btn_share_poll_jpg">Bagikan JPG</string>
+    <string name="btn_download_poll_jpg">Unduh JPG</string>
 </resources>

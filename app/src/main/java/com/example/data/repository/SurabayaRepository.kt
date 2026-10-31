@@ -7,6 +7,7 @@ import com.example.data.model.AppNotificationType
 import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
+import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
@@ -15,6 +16,8 @@ import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.MomentComment
 import com.example.data.model.NearbyProfile
+import com.example.data.model.PollComment
+import com.example.data.model.PollOption
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UserAccount
@@ -28,7 +31,10 @@ import com.example.data.util.LinkValidationResult
 import com.example.data.util.OperationType
 import com.example.data.util.PreparedPhoto
 import com.example.data.util.SafeLinkCategory
+import com.example.data.util.DuplicateContentException
+import com.example.data.util.SpamCheckResult
 import com.example.data.util.SurabayaDistricts
+import com.example.data.util.SurabayaSpamProtector
 import com.example.data.util.defaultCulinaryImageKey
 import com.example.data.util.defaultEventImageKey
 import com.example.data.util.defaultIncidentImageKey
@@ -43,6 +49,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 
 class SurabayaRepository(
@@ -69,6 +76,11 @@ class SurabayaRepository(
     private val inMemoryDestinations = ConcurrentHashMap<String, SurabayaDestination>()
     private val inMemoryDestinationReviews = ConcurrentHashMap<String, CopyOnWriteArrayList<DestinationReview>>()
     private val inMemoryServices = ConcurrentHashMap<String, CitizenService>()
+    private val inMemoryPolls = ConcurrentHashMap<String, CitizenPoll>()
+    private val inMemoryPollComments = ConcurrentHashMap<String, CopyOnWriteArrayList<PollComment>>()
+    private val cachedIncidents = ConcurrentHashMap<String, IncidentReport>()
+    private val cachedEvents = ConcurrentHashMap<String, SurabayaEvent>()
+    private val cachedCulinary = ConcurrentHashMap<String, CulinarySpot>()
     private val inMemoryNotifications = ConcurrentHashMap<String, AppNotification>()
     private val localNotificationsTick = MutableStateFlow(0L)
 
@@ -134,6 +146,13 @@ class SurabayaRepository(
         )
         for (notif in starterNotifs) {
             inMemoryNotifications[notif.id] = notif
+        }
+        // Initialize rich starter citizen polls & comments
+        for (poll in SurabayaCuratedSeed.starterPolls("system_seed")) {
+            inMemoryPolls[poll.id] = poll
+        }
+        for ((pollId, comments) in SurabayaCuratedSeed.starterPollComments()) {
+            inMemoryPollComments[pollId] = CopyOnWriteArrayList(comments)
         }
     }
 
@@ -595,8 +614,10 @@ class SurabayaRepository(
             },
             localMutationTick,
         ) { list, _ ->
-            list.map(::mapIncident)
+            val mapped = list.map(::mapIncident)
                 .filter { "incidents:${it.id}" !in localDeletedRecords && it.authorId !in localBannedUids }
+            mapped.forEach { cachedIncidents[it.id] = it }
+            mapped
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "incidents")
             throw e
@@ -619,6 +640,17 @@ class SurabayaRepository(
         onMultiPhotoFallbackUsed: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
+        val spamCheck = SurabayaSpamProtector.checkIncidentDuplicate(
+            userId = uid,
+            title = title,
+            address = address,
+            description = description,
+            existingIncidents = cachedIncidents.values.toList(),
+        )
+        if (spamCheck is SpamCheckResult.Blocked) {
+            throw DuplicateContentException(spamCheck.reason)
+        }
+
         val recordId = PocketBaseClient.deterministicPbId("inc_${UUID.randomUUID()}")
         val (lat, lng) = SurabayaDistricts.coordinateFor(district)
         val cleanAuthor = authorName.trim().take(80).ifEmpty { "Warga Surabaya" }
@@ -705,7 +737,22 @@ class SurabayaRepository(
                         }
                     } else if (e.statusCode == 400) {
                         onPhotoSchemaMissing?.invoke()
-                        return pb.createRecord("incidents", payload).optString("id").ifBlank { recordId }
+                        val fallbackId = pb.createRecord("incidents", payload).optString("id").ifBlank { recordId }
+                        SurabayaSpamProtector.recordSubmission(uid, "incidents")
+                        cachedIncidents[fallbackId] = IncidentReport(
+                            id = fallbackId,
+                            authorId = uid,
+                            authorName = cleanAuthor,
+                            title = cleanTitle,
+                            description = cleanDesc,
+                            category = category,
+                            severity = severity,
+                            district = cleanDistrict,
+                            address = cleanAddress,
+                            mapsUrl = cleanMapsUrl,
+                            createdAt = System.currentTimeMillis(),
+                        )
+                        return fallbackId
                     } else {
                         throw e
                     }
@@ -717,7 +764,22 @@ class SurabayaRepository(
             } else {
                 pb.createRecord("incidents", payload)
             }
-            created.optString("id").ifBlank { recordId }
+            val finalId = created.optString("id").ifBlank { recordId }
+            SurabayaSpamProtector.recordSubmission(uid, "incidents")
+            cachedIncidents[finalId] = IncidentReport(
+                id = finalId,
+                authorId = uid,
+                authorName = cleanAuthor,
+                title = cleanTitle,
+                description = cleanDesc,
+                category = category,
+                severity = severity,
+                district = cleanDistrict,
+                address = cleanAddress,
+                mapsUrl = cleanMapsUrl,
+                createdAt = System.currentTimeMillis(),
+            )
+            finalId
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -809,8 +871,10 @@ class SurabayaRepository(
             },
             localMutationTick,
         ) { list, _ ->
-            list.map(::mapEvent)
+            val mapped = list.map(::mapEvent)
                 .filter { "events:${it.id}" !in localDeletedRecords && it.proposerId !in localBannedUids }
+            mapped.forEach { cachedEvents[it.id] = it }
+            mapped
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "events")
             throw e
@@ -828,8 +892,10 @@ class SurabayaRepository(
             },
             localMutationTick,
         ) { list, _ ->
-            list.map(::mapEvent)
+            val mapped = list.map(::mapEvent)
                 .filter { "events:${it.id}" !in localDeletedRecords && it.proposerId !in localBannedUids }
+            mapped.forEach { cachedEvents[it.id] = it }
+            mapped
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "events")
             throw e
@@ -848,8 +914,10 @@ class SurabayaRepository(
             },
             localMutationTick,
         ) { list, _ ->
-            list.map(::mapEvent)
+            val mapped = list.map(::mapEvent)
                 .filter { "events:${it.id}" !in localDeletedRecords }
+            mapped.forEach { cachedEvents[it.id] = it }
+            mapped
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "events")
             throw e
@@ -875,6 +943,17 @@ class SurabayaRepository(
         onMultiPhotoFallbackUsed: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
+        val spamCheck = SurabayaSpamProtector.checkEventProposalDuplicate(
+            userId = uid,
+            title = title,
+            venueName = venueName,
+            eventDateText = eventDateText,
+            existingEvents = cachedEvents.values.toList(),
+        )
+        if (spamCheck is SpamCheckResult.Blocked) {
+            throw DuplicateContentException(spamCheck.reason)
+        }
+
         val recordId = PocketBaseClient.deterministicPbId("ev_${UUID.randomUUID()}")
         val (lat, lng) = SurabayaDistricts.coordinateFor(district)
         val cleanProposer = proposerName.trim().take(80).ifEmpty { "Warga Surabaya" }
@@ -966,14 +1045,56 @@ class SurabayaRepository(
                         } catch (fallbackErr: PocketBaseException) {
                             if (fallbackErr.statusCode == 400) {
                                 onPhotoSchemaMissing?.invoke()
-                                return pb.createRecord("events", payload).optString("id").ifBlank { recordId }
+                                val fallbackId = pb.createRecord("events", payload).optString("id").ifBlank { recordId }
+                                SurabayaSpamProtector.recordSubmission(uid, "events")
+                                cachedEvents[fallbackId] = SurabayaEvent(
+                                    id = fallbackId,
+                                    proposerId = uid,
+                                    proposerName = cleanProposer,
+                                    title = cleanTitle,
+                                    category = category,
+                                    eventDateText = cleanDate,
+                                    timeText = cleanTime,
+                                    venueName = cleanVenue,
+                                    district = cleanDistrict,
+                                    address = cleanAddress,
+                                    priceLabel = cleanPrice,
+                                    description = cleanDesc,
+                                    mapsUrl = cleanMapsUrl,
+                                    status = "PENDING",
+                                    interestedCount = 1,
+                                    interestedUids = listOf(uid),
+                                    createdAt = System.currentTimeMillis(),
+                                )
+                                return fallbackId
                             } else {
                                 throw fallbackErr
                             }
                         }
                     } else if (e.statusCode == 400) {
                         onPhotoSchemaMissing?.invoke()
-                        return pb.createRecord("events", payload).optString("id").ifBlank { recordId }
+                        val fallbackId = pb.createRecord("events", payload).optString("id").ifBlank { recordId }
+                        SurabayaSpamProtector.recordSubmission(uid, "events")
+                        cachedEvents[fallbackId] = SurabayaEvent(
+                            id = fallbackId,
+                            proposerId = uid,
+                            proposerName = cleanProposer,
+                            title = cleanTitle,
+                            category = category,
+                            eventDateText = cleanDate,
+                            timeText = cleanTime,
+                            venueName = cleanVenue,
+                            district = cleanDistrict,
+                            address = cleanAddress,
+                            priceLabel = cleanPrice,
+                            description = cleanDesc,
+                            mapsUrl = cleanMapsUrl,
+                            status = "PENDING",
+                            interestedCount = 1,
+                            interestedUids = listOf(uid),
+                            createdAt = System.currentTimeMillis(),
+                        )
+                        return fallbackId
                     } else {
                         throw e
                     }
@@ -985,7 +1106,28 @@ class SurabayaRepository(
             } else {
                 pb.createRecord("events", payload)
             }
-            created.optString("id").ifBlank { recordId }
+            val finalId = created.optString("id").ifBlank { recordId }
+            SurabayaSpamProtector.recordSubmission(uid, "events")
+            cachedEvents[finalId] = SurabayaEvent(
+                id = finalId,
+                proposerId = uid,
+                proposerName = cleanProposer,
+                title = cleanTitle,
+                category = category,
+                eventDateText = cleanDate,
+                timeText = cleanTime,
+                venueName = cleanVenue,
+                district = cleanDistrict,
+                address = cleanAddress,
+                priceLabel = cleanPrice,
+                description = cleanDesc,
+                mapsUrl = cleanMapsUrl,
+                status = "PENDING",
+                interestedCount = 1,
+                interestedUids = listOf(uid),
+                createdAt = System.currentTimeMillis(),
+            )
+            finalId
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -1016,24 +1158,21 @@ class SurabayaRepository(
 
     suspend fun toggleEventInterest(event: SurabayaEvent) {
         val uid = requireUserId()
-        val list = event.interestedUids.toMutableList()
-        val already = uid in list
-        if (already) {
-            list.remove(uid)
-        } else if (list.size < 80) {
-            list.add(uid)
-        }
-        val nextCount = if (already) {
-            (event.interestedCount - 1).coerceAtLeast(0)
-        } else {
-            event.interestedCount + 1
-        }
+        val (list, nextCount) = SurabayaSpamProtector.toggleEventAttendance(
+            currentUids = event.interestedUids,
+            userId = uid,
+        )
         try {
             val patch = JSONObject().apply {
                 put("interested_count", nextCount)
                 put("interested_uids", encodeUidList(list))
             }
             pb.updateRecord("events", event.id, patch)
+            cachedEvents[event.id] = event.copy(
+                interestedUids = list,
+                interestedCount = nextCount,
+            )
+            bumpMutationTick()
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -1054,8 +1193,10 @@ class SurabayaRepository(
             },
             localMutationTick,
         ) { list, _ ->
-            list.map(::mapCulinarySpot)
+            val mapped = list.map(::mapCulinarySpot)
                 .filter { "culinary:${it.id}" !in localDeletedRecords && it.createdBy !in localBannedUids }
+            mapped.forEach { cachedCulinary[it.id] = it }
+            mapped
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "culinary")
             throw e
@@ -1082,6 +1223,17 @@ class SurabayaRepository(
         onMultiPhotoFallbackUsed: (() -> Unit)? = null,
     ): String {
         val uid = requireUserId()
+        val spamCheck = SurabayaSpamProtector.checkCulinaryDuplicate(
+            userId = uid,
+            name = name,
+            district = district,
+            description = description,
+            existingCulinary = cachedCulinary.values.toList(),
+        )
+        if (spamCheck is SpamCheckResult.Blocked) {
+            throw DuplicateContentException(spamCheck.reason)
+        }
+
         val recordId = PocketBaseClient.deterministicPbId("kul_${UUID.randomUUID()}")
         val (lat, lng) = SurabayaDistricts.coordinateFor(district)
         val cleanAuthor = authorName.trim().take(80).ifEmpty { "Warga Surabaya" }
@@ -1179,7 +1331,27 @@ class SurabayaRepository(
                         }
                     } else if (e.statusCode == 400) {
                         onPhotoSchemaMissing?.invoke()
-                        return pb.createRecord("culinary", payload).optString("id").ifBlank { recordId }
+                        val fallbackId = pb.createRecord("culinary", payload).optString("id").ifBlank { recordId }
+                        SurabayaSpamProtector.recordSubmission(uid, "culinary")
+                        cachedCulinary[fallbackId] = CulinarySpot(
+                            id = fallbackId,
+                            createdBy = uid,
+                            authorName = cleanAuthor,
+                            name = cleanName,
+                            category = category,
+                            description = cleanDesc,
+                            district = cleanDistrict,
+                            address = cleanAddress,
+                            priceRange = cleanPrice,
+                            openHour = safeOpen,
+                            closeHour = safeClose,
+                            mapsUrl = cleanMapsUrl,
+                            gofoodUrl = cleanGofoodUrl,
+                            grabfoodUrl = cleanGrabfoodUrl,
+                            shopeefoodUrl = cleanShopeefoodUrl,
+                            createdAt = System.currentTimeMillis(),
+                        )
+                        return fallbackId
                     } else {
                         throw e
                     }
@@ -1191,7 +1363,27 @@ class SurabayaRepository(
             } else {
                 pb.createRecord("culinary", payload)
             }
-            created.optString("id").ifBlank { recordId }
+            val finalId = created.optString("id").ifBlank { recordId }
+            SurabayaSpamProtector.recordSubmission(uid, "culinary")
+            cachedCulinary[finalId] = CulinarySpot(
+                id = finalId,
+                createdBy = uid,
+                authorName = cleanAuthor,
+                name = cleanName,
+                category = category,
+                description = cleanDesc,
+                district = cleanDistrict,
+                address = cleanAddress,
+                priceRange = cleanPrice,
+                openHour = safeOpen,
+                closeHour = safeClose,
+                mapsUrl = cleanMapsUrl,
+                gofoodUrl = cleanGofoodUrl,
+                grabfoodUrl = cleanGrabfoodUrl,
+                shopeefoodUrl = cleanShopeefoodUrl,
+                createdAt = System.currentTimeMillis(),
+            )
+            finalId
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -2044,6 +2236,15 @@ class SurabayaRepository(
         photos: List<PreparedPhoto> = emptyList(),
     ): String {
         val uid = requireUserId()
+        val spamCheck = SurabayaSpamProtector.checkMomentDuplicate(
+            userId = uid,
+            caption = caption,
+            existingMoments = inMemoryMoments.values.toList(),
+        )
+        if (spamCheck is SpamCheckResult.Blocked) {
+            throw DuplicateContentException(spamCheck.reason)
+        }
+
         val recordId = PocketBaseClient.deterministicPbId("mom_${UUID.randomUUID()}")
         val boundedPhotos = when {
             photos.isNotEmpty() -> photos.take(4)
@@ -2118,6 +2319,7 @@ class SurabayaRepository(
             updatedAt = System.currentTimeMillis(),
         )
         inMemoryMoments[recordId] = moment
+        SurabayaSpamProtector.recordSubmission(uid, "moments")
         bumpMutationTick()
         return recordId
     }
@@ -2622,18 +2824,30 @@ class SurabayaRepository(
         flyerPhotos: List<PreparedPhoto> = emptyList(),
     ): String {
         val uid = requireUserId()
+        val cleanPhone = phoneNumber.trim().replace(Regex("[^0-9+]"), "").take(25)
+        val cleanWa = (if (whatsappNumber.isNotBlank()) whatsappNumber else phoneNumber)
+            .trim().replace(Regex("[^0-9]"), "")
+            .let { if (it.startsWith("0")) "62" + it.drop(1) else it }
+            .take(25)
+
+        val spamCheck = SurabayaSpamProtector.checkServiceDuplicate(
+            userId = uid,
+            title = title,
+            description = description,
+            phoneNumber = cleanPhone,
+            whatsappNumber = cleanWa,
+            existingServices = inMemoryServices.values.toList(),
+        )
+        if (spamCheck is SpamCheckResult.Blocked) {
+            throw DuplicateContentException(spamCheck.reason)
+        }
+
         val recordId = PocketBaseClient.deterministicPbId("srv_${UUID.randomUUID()}")
         val boundedPhotos = when {
             flyerPhotos.isNotEmpty() -> flyerPhotos.take(3)
             flyerPhoto != null -> listOf(flyerPhoto)
             else -> emptyList()
         }
-
-        val cleanPhone = phoneNumber.trim().replace(Regex("[^0-9+]"), "").take(25)
-        val cleanWa = (if (whatsappNumber.isNotBlank()) whatsappNumber else phoneNumber)
-            .trim().replace(Regex("[^0-9]"), "")
-            .let { if (it.startsWith("0")) "62" + it.drop(1) else it }
-            .take(25)
 
         val newService = CitizenService(
             id = recordId,
@@ -2658,6 +2872,7 @@ class SurabayaRepository(
         )
 
         inMemoryServices[recordId] = newService
+        SurabayaSpamProtector.recordSubmission(uid, "services")
         bumpMutationTick()
 
         try {
@@ -2752,6 +2967,205 @@ class SurabayaRepository(
             } catch (e: Exception) {
                 Log.w(TAG, "Remote delete service warning: ${e.message}")
             }
+        }
+    }
+
+    // --- 9. POLLING WARGA & SUARA RAKYAT ---
+
+    fun observeApprovedPolls(): Flow<List<CitizenPoll>> {
+        return localMutationTick.map {
+            inMemoryPolls.values
+                .filter { it.status == "APPROVED" && "polls:${it.id}" !in localDeletedRecords }
+                .sortedByDescending { it.createdAt ?: 0L }
+        }
+    }
+
+    fun observePendingPolls(): Flow<List<CitizenPoll>> {
+        return localMutationTick.map {
+            inMemoryPolls.values
+                .filter { it.status == "PENDING" && "polls:${it.id}" !in localDeletedRecords }
+                .sortedByDescending { it.createdAt ?: 0L }
+        }
+    }
+
+    fun observeMyProposedPolls(userId: String): Flow<List<CitizenPoll>> {
+        return localMutationTick.map {
+            inMemoryPolls.values
+                .filter { it.proposerId == userId && "polls:${it.id}" !in localDeletedRecords }
+                .sortedByDescending { it.createdAt ?: 0L }
+        }
+    }
+
+    fun observePollById(pollId: String): Flow<CitizenPoll?> {
+        return localMutationTick.map {
+            inMemoryPolls[pollId]?.takeIf { "polls:${it.id}" !in localDeletedRecords }
+        }
+    }
+
+    suspend fun proposePoll(
+        title: String,
+        description: String,
+        category: String,
+        district: String,
+        optionTexts: List<String>,
+    ): String {
+        val uid = requireUserId()
+        val account = pb.getOneOrNull("users", uid)
+        val proposerName = account?.optString("name")?.takeIf { it.isNotBlank() } ?: "Warga Surabaya"
+
+        val cleanTitle = title.trim().take(150)
+        val cleanDesc = description.trim().take(1500)
+        val cleanDistrict = district.trim().ifEmpty { "Genteng" }
+        val cleanCategory = category.trim().ifEmpty { "UMUM" }
+
+        if (cleanTitle.length < 5) {
+            throw IllegalArgumentException("Judul usulan polling minimal 5 karakter.")
+        }
+
+        val validOptions = optionTexts
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .take(5)
+
+        if (validOptions.size < 2) {
+            throw IllegalArgumentException("Usulan polling minimal wajib memiliki 2 opsi pilihan.")
+        }
+
+        val pollId = "poll_" + UUID.randomUUID().toString().replace("-", "").take(16)
+        val opts = validOptions.mapIndexed { idx, optText ->
+            PollOption(
+                id = "opt_${idx + 1}_" + UUID.randomUUID().toString().take(6),
+                text = optText.take(120),
+                voteCount = 0,
+            )
+        }
+
+        val newPoll = CitizenPoll(
+            id = pollId,
+            proposerId = uid,
+            proposerName = proposerName,
+            title = cleanTitle,
+            description = cleanDesc,
+            category = cleanCategory,
+            district = cleanDistrict,
+            status = "PENDING", // Menunggu persetujuan admin/moderator
+            options = opts,
+            totalVotes = 0,
+            voterUids = emptyList(),
+            votesByUser = emptyMap(),
+            commentCount = 0,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+        )
+
+        inMemoryPolls[pollId] = newPoll
+        bumpMutationTick()
+        return pollId
+    }
+
+    suspend fun moderatePoll(pollId: String, approve: Boolean, adminNote: String = "") {
+        val current = inMemoryPolls[pollId] ?: return
+        val updated = current.copy(
+            status = if (approve) "APPROVED" else "REJECTED",
+            adminNote = adminNote.trim().take(300),
+            updatedAt = System.currentTimeMillis(),
+        )
+        inMemoryPolls[pollId] = updated
+        bumpMutationTick()
+    }
+
+    suspend fun votePoll(pollId: String, optionId: String): Boolean {
+        val uid = requireUserId()
+        val current = inMemoryPolls[pollId] ?: return false
+        if (current.status != "APPROVED") {
+            throw IllegalStateException("Polling ini belum disetujui atau sudah ditutup.")
+        }
+
+        // Cek apakah suara sudah pernah diberikan untuk opsi ini (idempotent)
+        val existingVote = current.votesByUser[uid]
+        if (existingVote == optionId) {
+            return true
+        }
+
+        // Setiap user tepat 1 suara: jika berpindah opsi, kurangi opsi lama dan tambahkan opsi baru
+        val updatedOptions = current.options.map { opt ->
+            when {
+                opt.id == optionId -> {
+                    opt.copy(voteCount = opt.voteCount + 1)
+                }
+                existingVote != null && opt.id == existingVote -> {
+                    opt.copy(voteCount = (opt.voteCount - 1).coerceAtLeast(0))
+                }
+                else -> opt
+            }
+        }
+
+        val newVotesMap = current.votesByUser.toMutableMap().apply {
+            put(uid, optionId)
+        }
+        val newVoterUids = (current.voterUids + uid).distinct()
+        val newTotalVotes = updatedOptions.sumOf { it.voteCount }
+
+        val updatedPoll = current.copy(
+            options = updatedOptions,
+            totalVotes = newTotalVotes,
+            voterUids = newVoterUids,
+            votesByUser = newVotesMap,
+            updatedAt = System.currentTimeMillis(),
+        )
+
+        inMemoryPolls[pollId] = updatedPoll
+        bumpMutationTick()
+        return true
+    }
+
+    fun observePollComments(pollId: String): Flow<List<PollComment>> {
+        return localMutationTick.map {
+            inMemoryPollComments[pollId]?.toList()?.sortedByDescending { it.createdAt ?: 0L } ?: emptyList()
+        }
+    }
+
+    suspend fun addPollComment(pollId: String, text: String): String {
+        val uid = requireUserId()
+        val cleanText = text.trim().take(500)
+        if (cleanText.isBlank()) {
+            throw IllegalArgumentException("Komentar warga tidak boleh kosong.")
+        }
+        val account = pb.getOneOrNull("users", uid)
+        val authorName = account?.optString("name")?.takeIf { it.isNotBlank() } ?: "Warga Surabaya"
+        val authorDistrict = account?.optString("district")?.takeIf { it.isNotBlank() } ?: "Genteng"
+
+        val commentId = "pcom_" + UUID.randomUUID().toString().replace("-", "").take(16)
+        val newComment = PollComment(
+            id = commentId,
+            pollId = pollId,
+            authorId = uid,
+            authorName = authorName,
+            authorDistrict = authorDistrict,
+            text = cleanText,
+            createdAt = System.currentTimeMillis(),
+        )
+
+        val list = inMemoryPollComments.computeIfAbsent(pollId) { CopyOnWriteArrayList() }
+        list.add(newComment)
+
+        inMemoryPolls[pollId]?.let { poll ->
+            inMemoryPolls[pollId] = poll.copy(
+                commentCount = list.size,
+                updatedAt = System.currentTimeMillis(),
+            )
+        }
+        bumpMutationTick()
+        return commentId
+    }
+
+    suspend fun deletePoll(pollId: String, requesterUid: String, isAdmin: Boolean) {
+        val p = inMemoryPolls[pollId]
+        if (p != null && (p.proposerId == requesterUid || isAdmin)) {
+            inMemoryPolls.remove(pollId)
+            inMemoryPollComments.remove(pollId)
+            localDeletedRecords.add("polls:$pollId")
+            bumpMutationTick()
         }
     }
 

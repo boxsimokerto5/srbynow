@@ -670,6 +670,7 @@ fun EventDetailSheetContent(
     isAdmin: Boolean,
     isSaved: Boolean,
     isInterested: Boolean,
+    isInterestPending: Boolean = false,
     currentUserId: String = "",
     onToggleInterest: () -> Unit,
     onToggleBookmark: () -> Unit,
@@ -964,12 +965,17 @@ fun EventDetailSheetContent(
                     ) {
                         Button(
                             onClick = onToggleInterest,
+                            enabled = !isInterestPending,
                             shape = CircleShape,
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isInterested) "Ikut Hadir (${event.interestedCount})" else "Tertarik (${event.interestedCount})")
+                            Text(
+                                if (isInterestPending) "Menyimpan…"
+                                else if (isInterested) "Ikut Hadir (${event.interestedCount})"
+                                else "Tertarik (${event.interestedCount})"
+                            )
                         }
                         OutlinedButton(onClick = onToggleBookmark, shape = CircleShape) {
                             Icon(if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, null, modifier = Modifier.size(16.dp))

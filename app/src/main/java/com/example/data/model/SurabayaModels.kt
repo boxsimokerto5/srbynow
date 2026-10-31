@@ -489,4 +489,54 @@ data class CitizenService(
         get() = contentReportCount >= 3
 }
 
+data class PollOption(
+    val id: String = "",
+    val text: String = "",
+    val voteCount: Int = 0,
+)
+
+data class CitizenPoll(
+    val id: String = "",
+    val proposerId: String = "",
+    val proposerName: String = "",
+    val title: String = "",
+    val description: String = "",
+    val category: String = "UMUM", // TRANSPORTASI, TATA_KOTA, KULINER_WISATA, LINGKUNGAN, LAYANAN_PUBLIK
+    val district: String = "Genteng",
+    val status: String = "APPROVED", // PENDING, APPROVED, REJECTED
+    val adminNote: String = "",
+    val options: List<PollOption> = emptyList(),
+    val totalVotes: Int = 0,
+    val voterUids: List<String> = emptyList(),
+    val votesByUser: Map<String, String> = emptyMap(), // userId -> optionId
+    val commentCount: Int = 0,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+) {
+    fun userVotedOptionId(userId: String): String? {
+        return votesByUser[userId]
+    }
+
+    fun hasUserVoted(userId: String): Boolean {
+        return userId in voterUids || votesByUser.containsKey(userId)
+    }
+
+    fun percentageForOption(optionId: String): Float {
+        if (totalVotes <= 0) return 0f
+        val opt = options.firstOrNull { it.id == optionId } ?: return 0f
+        return (opt.voteCount.toFloat() / totalVotes.toFloat()) * 100f
+    }
+}
+
+data class PollComment(
+    val id: String = "",
+    val pollId: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val authorDistrict: String = "Genteng",
+    val text: String = "",
+    val createdAt: Long? = null,
+)
+
+
 

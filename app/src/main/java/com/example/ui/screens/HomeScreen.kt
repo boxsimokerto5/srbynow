@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Emergency
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.People
@@ -82,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.R
+import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
 import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaDestination
@@ -123,12 +125,17 @@ fun HomeScreen(
     destinationsState: UiState<List<SurabayaDestination>>,
     momentsState: UiState<List<UserMoment>>,
     servicesState: UiState<List<CitizenService>> = UiState.Loading,
+    pollsState: UiState<List<CitizenPoll>> = UiState.Loading,
+    pendingPollsCount: Int = 0,
     onNavigateTab: (MainTab) -> Unit,
     onOpenIncidentDetail: (String) -> Unit,
     onOpenDestinationDetail: (String) -> Unit,
     onOpenMomentDetail: (String) -> Unit,
     onOpenServiceDetail: (String) -> Unit = {},
     onOpenCreateService: () -> Unit = {},
+    onOpenPollDetail: (String) -> Unit = {},
+    onOpenCreatePoll: () -> Unit = {},
+    onOpenAdminPendingPolls: () -> Unit = {},
     onOpenBookmarks: () -> Unit,
     onOpenProfileAndAdmin: () -> Unit,
     onOpenRadio: () -> Unit = {},
@@ -140,6 +147,17 @@ fun HomeScreen(
     var showPrivacyDialog by remember { mutableStateOf(false) }
 
     val shortcuts = listOf(
+        HomeShortcutItem(
+            title = "Polling Warga",
+            subtitle = "Suara Rakyat",
+            icon = Icons.Filled.HowToVote,
+            badge = "Baru",
+            testTag = "home_shortcut_polling",
+            onClick = {
+                val firstPoll = (pollsState as? UiState.Success)?.data?.firstOrNull()
+                if (firstPoll != null) onOpenPollDetail(firstPoll.id) else onOpenCreatePoll()
+            },
+        ),
         HomeShortcutItem(
             title = stringResource(R.string.nav_momen),
             subtitle = "Foto Warga",
@@ -592,6 +610,137 @@ fun HomeScreen(
                                         textAlign = TextAlign.Center,
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3c. Polling Warga & Suara Kota
+        item(key = "home_polls_section") {
+            Spacer(modifier = Modifier.height(8.dp))
+            HomeSectionHeader(
+                title = "Polling Warga & Suara Kota",
+                subtitle = "Beri suara & tentukan kebijakan kota Surabaya",
+                onSeeAllClick = onOpenCreatePoll,
+            )
+
+            if (isAdmin && pendingPollsCount > 0) {
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Transparent,
+                        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(HeaderMintGradient)
+                            .clickable { onOpenAdminPendingPolls() },
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Filled.Security,
+                                    contentDescription = null,
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "$pendingPollsCount Usulan Polling Menunggu Moderasi",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ToskaPrimaryDeep,
+                                )
+                            }
+                            Text(
+                                text = "Periksa →",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ToskaPrimaryDeep,
+                            )
+                        }
+                    }
+                }
+            }
+
+            when (pollsState) {
+                is UiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(26.dp))
+                    }
+                }
+                is UiState.Error -> {
+                    Text(
+                        text = "Belum dapat memuat polling warga",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+                is UiState.Success -> {
+                    val polls = pollsState.data
+                    if (polls.isEmpty()) {
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = "Belum Ada Polling Aktif",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Ayo ajukan topik atau aspirasi pembangunan yang ingin kamu tanyakan ke warga Surabaya!",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Button(
+                                    onClick = onOpenCreatePoll,
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                                ) {
+                                    Icon(imageVector = Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Buat Usulan Polling", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(polls, key = { it.id }) { poll ->
+                                HomePollCard(
+                                    poll = poll,
+                                    onClick = { onOpenPollDetail(poll.id) },
+                                )
                             }
                         }
                     }
@@ -1430,4 +1579,128 @@ private fun HomeServiceCard(
         }
     }
 }
+
+@Composable
+fun HomePollCard(
+    poll: CitizenPoll,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = modifier
+            .width(280.dp)
+            .clickable(onClick = onClick)
+            .testTag("home_poll_card_${poll.id}"),
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = ToskaPrimary.copy(alpha = 0.12f),
+                ) {
+                    Text(
+                        text = poll.category.replace("_", " "),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimaryDeep,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.HowToVote,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${poll.totalVotes} Suara",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimaryDeep,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = poll.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            poll.options.take(2).forEach { opt ->
+                val pct = poll.percentageForOption(opt.id)
+                Column(modifier = Modifier.padding(vertical = 2.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = opt.text,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "%.0f%%".format(pct),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = ToskaPrimaryDeep,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { pct / 100f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = ToskaPrimary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "💬 ${poll.commentCount} Komentar",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Ikut Polling →",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = ToskaPrimaryDeep,
+                )
+            }
+        }
+    }
+}
+
 

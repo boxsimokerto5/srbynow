@@ -14,6 +14,8 @@ import com.example.data.model.AppNotificationType
 import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
+import com.example.data.model.CitizenPoll
+import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
 import com.example.data.model.DestinationReview
@@ -21,22 +23,31 @@ import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.MomentComment
 import com.example.data.model.NearbyProfile
+import com.example.data.model.PollComment
+import com.example.data.model.PollOption
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.repository.SurabayaRepository
+import com.example.data.util.PollImageExporter
 import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.ImageSafetyScanResult
 import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
 import com.example.data.util.PreparedPhoto
+import com.example.data.util.DuplicateContentException
+import com.example.data.util.SpamCheckResult
+import com.example.data.util.SpamRateLimitException
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.SurabayaNotificationHelper
+import com.example.data.util.SurabayaSpamProtector
 import com.example.data.util.calculateDistanceKm
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,7 +58,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import com.example.data.model.CitizenService
 import kotlinx.coroutines.launch
 
 enum class MainTab {
@@ -82,6 +92,9 @@ sealed interface ActiveBottomSheet {
     data object RadioPlayer : ActiveBottomSheet
     data class ServiceDetail(val serviceId: String) : ActiveBottomSheet
     data object CreateService : ActiveBottomSheet
+    data class PollDetail(val pollId: String) : ActiveBottomSheet
+    data object CreatePoll : ActiveBottomSheet
+    data object AdminPendingPolls : ActiveBottomSheet
 }
 
 data class NearbyPeerItem(
@@ -126,6 +139,10 @@ class SurabayaViewModel(
 
     private val _isScanningPhoto = MutableStateFlow(false)
     val isScanningPhoto: StateFlow<Boolean> = _isScanningPhoto.asStateFlow()
+
+    private val activeInterestJobs = ConcurrentHashMap<String, Job>()
+    private val _pendingEventInterests = MutableStateFlow<Set<String>>(emptySet())
+    val pendingEventInterests: StateFlow<Set<String>> = _pendingEventInterests.asStateFlow()
 
     // User account & Admin streams
     val userAccount: StateFlow<UserAccount?> = repository.observeUserAccount(currentUserId)
@@ -436,6 +453,54 @@ class SurabayaViewModel(
             emit(UiState.Error(e.localizedMessage ?: "Gagal memuat promosi jasa warga"))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
+    // 8. Polling Warga & Suara Rakyat
+    val approvedPollsState: StateFlow<UiState<List<CitizenPoll>>> = combine(
+        repository.observeApprovedPolls(),
+        blockedUserIds,
+    ) { polls, blockedSet ->
+        val filtered = polls.filter { it.proposerId !in blockedSet }
+        UiState.Success(filtered) as UiState<List<CitizenPoll>>
+    }
+        .catch { e ->
+            Log.w(TAG, "observeApprovedPolls error", e)
+            emit(UiState.Error(e.localizedMessage ?: "Gagal memuat polling warga"))
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
+    val pendingPollsState: StateFlow<UiState<List<CitizenPoll>>> = repository.observePendingPolls()
+        .map { list -> UiState.Success(list) as UiState<List<CitizenPoll>> }
+        .catch { emit(UiState.Error(it.localizedMessage ?: "Gagal memuat usulan polling")) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
+    val myProposedPollsState: StateFlow<List<CitizenPoll>> = repository.observeMyProposedPolls(currentUserId)
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    private val selectedPollIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.PollDetail)?.pollId }
+
+    val activeSelectedPoll: StateFlow<CitizenPoll?> = selectedPollIdFlow.flatMapLatest { pollId ->
+        if (pollId.isNullOrBlank()) {
+            flowOf(null)
+        } else {
+            repository.observePollById(pollId)
+                .catch { emit(null) }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
+
+    val activePollComments: StateFlow<List<PollComment>> = combine(
+        selectedPollIdFlow.flatMapLatest { pollId ->
+            if (pollId.isNullOrBlank()) {
+                flowOf(emptyList())
+            } else {
+                repository.observePollComments(pollId)
+                    .catch { emit(emptyList()) }
+            }
+        },
+        blockedUserIds,
+    ) { comments, blockedSet ->
+        comments.filter { it.authorId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
     init {
         viewModelScope.launch {
@@ -758,6 +823,20 @@ class SurabayaViewModel(
         context: Context? = null,
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
+
+        val currentIncidents = (incidentsState.value as? UiState.Success)?.data.orEmpty()
+        val preCheck = SurabayaSpamProtector.checkIncidentDuplicate(
+            userId = currentUserId,
+            title = title,
+            address = address,
+            description = description,
+            existingIncidents = currentIncidents,
+        )
+        if (preCheck is SpamCheckResult.Blocked) {
+            notifyMessage(preCheck.reason)
+            return
+        }
+
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
@@ -813,6 +892,10 @@ class SurabayaViewModel(
                 }
             } catch (ce: CancellationException) {
                 throw ce
+            } catch (e: DuplicateContentException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+            } catch (e: SpamRateLimitException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
             } catch (e: Exception) {
                 notifyMessage("Gagal mengirim laporan: ${e.localizedMessage ?: "Periksa koneksi internet"}")
             } finally {
@@ -857,6 +940,20 @@ class SurabayaViewModel(
         context: Context? = null,
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
+
+        val currentEvents = (approvedEventsState.value as? UiState.Success)?.data.orEmpty()
+        val preCheck = SurabayaSpamProtector.checkEventProposalDuplicate(
+            userId = currentUserId,
+            title = title,
+            venueName = venueName,
+            eventDateText = eventDateText,
+            existingEvents = currentEvents,
+        )
+        if (preCheck is SpamCheckResult.Blocked) {
+            notifyMessage(preCheck.reason)
+            return
+        }
+
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
@@ -915,6 +1012,10 @@ class SurabayaViewModel(
                 }
             } catch (ce: CancellationException) {
                 throw ce
+            } catch (e: DuplicateContentException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+            } catch (e: SpamRateLimitException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
             } catch (e: Exception) {
                 notifyMessage("Gagal mengusulkan event: ${e.localizedMessage ?: "Periksa koneksi internet"}")
             } finally {
@@ -939,13 +1040,27 @@ class SurabayaViewModel(
     }
 
     fun toggleEventInterest(event: SurabayaEvent) {
-        viewModelScope.launch {
+        if (!SurabayaSpamProtector.canToggleEventInterest(currentUserId, event.id)) {
+            return
+        }
+        val existing = activeInterestJobs[event.id]
+        if (existing != null && existing.isActive) {
+            return
+        }
+        val job = viewModelScope.launch {
+            _pendingEventInterests.value = _pendingEventInterests.value + event.id
             try {
                 repository.toggleEventInterest(event)
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
-                notifyMessage("Gagal memperbarui minat event")
+                notifyMessage("Gagal memperbarui status kehadiran: ${e.localizedMessage ?: "Error"}")
+            } finally {
+                _pendingEventInterests.value = _pendingEventInterests.value - event.id
+                activeInterestJobs.remove(event.id)
             }
         }
+        activeInterestJobs[event.id] = job
     }
 
     fun submitCulinarySpot(
@@ -965,6 +1080,20 @@ class SurabayaViewModel(
         context: Context? = null,
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
+
+        val currentSpots = (culinaryState.value as? UiState.Success)?.data.orEmpty()
+        val preCheck = SurabayaSpamProtector.checkCulinaryDuplicate(
+            userId = currentUserId,
+            name = name,
+            district = district,
+            description = description,
+            existingCulinary = currentSpots,
+        )
+        if (preCheck is SpamCheckResult.Blocked) {
+            notifyMessage(preCheck.reason)
+            return
+        }
+
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
@@ -1025,6 +1154,10 @@ class SurabayaViewModel(
                 }
             } catch (ce: CancellationException) {
                 throw ce
+            } catch (e: DuplicateContentException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+            } catch (e: SpamRateLimitException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
             } catch (e: Exception) {
                 notifyMessage("Gagal menambah kuliner: ${e.localizedMessage ?: "Periksa koneksi internet"}")
             } finally {
@@ -1271,6 +1404,18 @@ class SurabayaViewModel(
         context: Context? = null,
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
+
+        val currentMoments = (momentsState.value as? UiState.Success)?.data.orEmpty()
+        val preCheck = SurabayaSpamProtector.checkMomentDuplicate(
+            userId = currentUserId,
+            caption = caption,
+            existingMoments = currentMoments,
+        )
+        if (preCheck is SpamCheckResult.Blocked) {
+            notifyMessage(preCheck.reason)
+            return
+        }
+
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
@@ -1307,6 +1452,12 @@ class SurabayaViewModel(
                 )
                 dismissSheet()
                 notifyMessage("Momen berhasil dibagikan ke warga Surabaya!")
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: DuplicateContentException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+            } catch (e: SpamRateLimitException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
             } catch (e: Exception) {
                 notifyMessage("Gagal membagikan momen: ${e.message}")
             } finally {
@@ -1535,6 +1686,20 @@ class SurabayaViewModel(
             return
         }
 
+        val currentServices = (servicesState.value as? UiState.Success)?.data.orEmpty()
+        val preCheck = SurabayaSpamProtector.checkServiceDuplicate(
+            userId = currentUserId,
+            title = title,
+            description = description,
+            phoneNumber = phoneNumber,
+            whatsappNumber = whatsappNumber,
+            existingServices = currentServices,
+        )
+        if (preCheck is SpamCheckResult.Blocked) {
+            notifyMessage(preCheck.reason)
+            return
+        }
+
         val appCtx = context?.applicationContext
         viewModelScope.launch {
             _isSubmitting.value = true
@@ -1576,6 +1741,12 @@ class SurabayaViewModel(
                 )
                 dismissSheet()
                 notifyMessage("Promosi jasa berhasil dipasang di Arek Surabaya!")
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: DuplicateContentException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+            } catch (e: SpamRateLimitException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
             } catch (e: Exception) {
                 notifyMessage("Gagal memasang promosi jasa: ${e.message}")
             } finally {
@@ -1603,6 +1774,153 @@ class SurabayaViewModel(
                 notifyMessage("Promosi jasa berhasil dihapus.")
             } catch (e: Exception) {
                 notifyMessage("Gagal menghapus jasa: ${e.message}")
+            }
+        }
+    }
+
+    // --- POLLING WARGA & SUARA RAKYAT OPERATIONS ---
+
+    fun openPollDetail(pollId: String) {
+        _activeSheet.value = ActiveBottomSheet.PollDetail(pollId)
+    }
+
+    fun openCreatePoll() {
+        _activeSheet.value = ActiveBottomSheet.CreatePoll
+    }
+
+    fun openAdminPendingPolls() {
+        _activeSheet.value = ActiveBottomSheet.AdminPendingPolls
+    }
+
+    fun submitPollProposal(
+        title: String,
+        description: String,
+        category: String,
+        district: String,
+        optionTexts: List<String>,
+        onComplete: (Boolean) -> Unit = {},
+    ) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                repository.proposePoll(
+                    title = title,
+                    description = description,
+                    category = category,
+                    district = district,
+                    optionTexts = optionTexts,
+                )
+                dismissSheet()
+                notifyMessage("Usulan polling berhasil diajukan! Menunggu persetujuan moderasi admin agar tampil untuk warga.")
+                onComplete(true)
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengajukan polling: ${e.message}")
+                onComplete(false)
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun votePoll(pollId: String, optionId: String) {
+        viewModelScope.launch {
+            try {
+                val success = repository.votePoll(pollId, optionId)
+                if (success) {
+                    notifyMessage("✅ Suara Anda berhasil tercatat! Terima kasih telah berpartisipasi.")
+                }
+            } catch (e: Exception) {
+                notifyMessage("Gagal memberikan suara: ${e.message}")
+            }
+        }
+    }
+
+    fun moderatePoll(pollId: String, approve: Boolean, adminNote: String = "") {
+        viewModelScope.launch {
+            try {
+                repository.moderatePoll(pollId, approve, adminNote)
+                notifyMessage(if (approve) "Usulan polling disetujui & tayang ke publik." else "Usulan polling ditolak.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal memoderasi polling: ${e.message}")
+            }
+        }
+    }
+
+    fun submitPollComment(pollId: String, text: String, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                repository.addPollComment(pollId, text)
+                notifyMessage("Komentar warga berhasil dikirim.")
+                onComplete(true)
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim komentar: ${e.message}")
+                onComplete(false)
+            }
+        }
+    }
+
+    fun sharePollText(context: Context, poll: CitizenPoll) {
+        try {
+            val optionsListText = poll.options.mapIndexed { idx, opt ->
+                "${idx + 1}. ${opt.text} (${opt.voteCount} suara - ${"%.1f".format(poll.percentageForOption(opt.id))}%)"
+            }.joinToString("\n")
+
+            val shareBody = """
+                📢 SUARA WARGA SURABAYA: POLLING KOTA
+                
+                📌 ${poll.title}
+                📍 Kategori: ${poll.category} | Wilayah: ${poll.district}
+                
+                "${poll.description}"
+                
+                Hasil Suara Sementara (${poll.totalVotes} total suara warga):
+                $optionsListText
+                
+                Ikuti polling dan sampaikan suaramu di aplikasi Arek Surabaya!
+            """.trimIndent()
+
+            val sendIntent = android.content.Intent().apply {
+                action = android.content.Intent.ACTION_SEND
+                putExtra(android.content.Intent.EXTRA_TEXT, shareBody)
+                type = "text/plain"
+            }
+            context.startActivity(android.content.Intent.createChooser(sendIntent, "Bagikan Polling Warga"))
+        } catch (e: Exception) {
+            notifyMessage("Gagal membagikan polling: ${e.message}")
+        }
+    }
+
+    fun exportPollJpg(context: Context, poll: CitizenPoll, shareDirectly: Boolean = true) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                if (shareDirectly) {
+                    PollImageExporter.sharePollAsImage(context, poll)
+                    notifyMessage("Membuka menu bagikan gambar JPG...")
+                } else {
+                    val saved = PollImageExporter.savePollImageToGallery(context, poll)
+                    if (saved) {
+                        notifyMessage("✅ Gambar hasil polling (JPG) berhasil disimpan ke Galeri!")
+                    } else {
+                        notifyMessage("Gagal menyimpan gambar JPG ke galeri.")
+                    }
+                }
+            } catch (e: Exception) {
+                notifyMessage("Ekspor gambar gagal: ${e.message}")
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun deletePoll(pollId: String) {
+        viewModelScope.launch {
+            try {
+                repository.deletePoll(pollId, currentUserId, isAdmin.value)
+                dismissSheet()
+                notifyMessage("Polling berhasil dihapus.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menghapus polling: ${e.message}")
             }
         }
     }

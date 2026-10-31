@@ -120,12 +120,14 @@ import com.example.data.model.AppNotificationType
 import com.example.data.util.SurabayaNotificationHelper
 import com.example.data.audio.RadioPlaybackState
 import com.example.data.audio.SurabayaRadioPlayer
+import com.example.ui.sheets.AdminPendingPollsSheetContent
 import com.example.ui.sheets.BookmarksSheetContent
 import com.example.ui.sheets.ChatConversationSheetContent
 import com.example.ui.sheets.CreateCulinarySheetContent
 import com.example.ui.sheets.CreateDestinationSheetContent
 import com.example.ui.sheets.CreateIncidentSheetContent
 import com.example.ui.sheets.CreateMomentSheetContent
+import com.example.ui.sheets.CreatePollSheetContent
 import com.example.ui.sheets.CreateServiceSheetContent
 import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.DestinationDetailSheetContent
@@ -133,6 +135,7 @@ import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
 import com.example.ui.sheets.MomentDetailSheetContent
 import com.example.ui.sheets.NotificationsSheetContent
+import com.example.ui.sheets.PollDetailSheetContent
 import com.example.ui.sheets.ProfileAndPrivacySheetContent
 import com.example.ui.sheets.ProposeEventSheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
@@ -269,6 +272,7 @@ fun SurabayaMainHub(
     val approvedEventsState by viewModel.approvedEventsState.collectAsStateWithLifecycle()
     val pendingEvents by viewModel.pendingEvents.collectAsStateWithLifecycle()
     val myProposedEvents by viewModel.myProposedEvents.collectAsStateWithLifecycle()
+    val pendingEventInterests by viewModel.pendingEventInterests.collectAsStateWithLifecycle()
 
     val culinaryState by viewModel.culinaryState.collectAsStateWithLifecycle()
     val culinaryReviews by viewModel.activeCulinaryReviews.collectAsStateWithLifecycle()
@@ -284,6 +288,10 @@ fun SurabayaMainHub(
     val directChatRooms by viewModel.directChatRooms.collectAsStateWithLifecycle()
     val activeChatMessages by viewModel.activeChatMessages.collectAsStateWithLifecycle()
     val servicesState by viewModel.servicesState.collectAsStateWithLifecycle()
+    val approvedPollsState by viewModel.approvedPollsState.collectAsStateWithLifecycle()
+    val pendingPollsState by viewModel.pendingPollsState.collectAsStateWithLifecycle()
+    val activeSelectedPoll by viewModel.activeSelectedPoll.collectAsStateWithLifecycle()
+    val activePollComments by viewModel.activePollComments.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -479,12 +487,17 @@ fun SurabayaMainHub(
                                 destinationsState = destinationsState,
                                 momentsState = momentsState,
                                 servicesState = servicesState,
+                                pollsState = approvedPollsState,
+                                pendingPollsCount = (pendingPollsState as? UiState.Success)?.data?.size ?: 0,
                                 onNavigateTab = { viewModel.selectTab(it) },
                                 onOpenIncidentDetail = { viewModel.openSheet(ActiveBottomSheet.IncidentDetail(it)) },
                                 onOpenDestinationDetail = { viewModel.openSheet(ActiveBottomSheet.DestinationDetail(it)) },
                                 onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
                                 onOpenServiceDetail = { viewModel.openSheet(ActiveBottomSheet.ServiceDetail(it)) },
                                 onOpenCreateService = { viewModel.openSheet(ActiveBottomSheet.CreateService) },
+                                onOpenPollDetail = { viewModel.openPollDetail(it) },
+                                onOpenCreatePoll = { viewModel.openCreatePoll() },
+                                onOpenAdminPendingPolls = { viewModel.openAdminPendingPolls() },
                                 onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
                                 onOpenProfileAndAdmin = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
                                 onOpenRadio = { viewModel.openRadioPlayer(autoPlay = true) },
@@ -679,6 +692,7 @@ fun SurabayaMainHub(
                             isAdmin = isAdmin,
                             isSaved = isSaved,
                             isInterested = currentUserId in found.interestedUids,
+                            isInterestPending = found.id in pendingEventInterests,
                             currentUserId = currentUserId,
                             onToggleInterest = { viewModel.toggleEventInterest(found) },
                             onToggleBookmark = {
@@ -1063,6 +1077,41 @@ fun SurabayaMainHub(
                             )
                         },
                         onClose = { viewModel.dismissSheet() },
+                    )
+                }
+                is ActiveBottomSheet.PollDetail -> {
+                    val activePoll = activeSelectedPoll
+                    if (activePoll != null) {
+                        PollDetailSheetContent(
+                            poll = activePoll,
+                            comments = activePollComments,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
+                            onVote = { pollId, optId -> viewModel.votePoll(pollId, optId) },
+                            onAddComment = { text -> viewModel.submitPollComment(activePoll.id, text) },
+                            onShareText = { p -> viewModel.sharePollText(context, p) },
+                            onShareJpg = { p -> viewModel.exportPollJpg(context, p, shareDirectly = true) },
+                            onDownloadJpg = { p -> viewModel.exportPollJpg(context, p, shareDirectly = false) },
+                            onDismiss = { viewModel.dismissSheet() },
+                        )
+                    }
+                }
+                ActiveBottomSheet.CreatePoll -> {
+                    CreatePollSheetContent(
+                        isSubmitting = isSubmitting,
+                        onSubmit = { title, description, category, district, options ->
+                            viewModel.submitPollProposal(title, description, category, district, options)
+                        },
+                        onDismiss = { viewModel.dismissSheet() },
+                    )
+                }
+                ActiveBottomSheet.AdminPendingPolls -> {
+                    val pendingList = (pendingPollsState as? UiState.Success)?.data ?: emptyList()
+                    AdminPendingPollsSheetContent(
+                        pendingPolls = pendingList,
+                        onApprove = { viewModel.moderatePoll(it, true) },
+                        onReject = { viewModel.moderatePoll(it, false) },
+                        onDismiss = { viewModel.dismissSheet() },
                     )
                 }
             }
