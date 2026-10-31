@@ -124,6 +124,8 @@ dependencies {
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.litert)
   implementation(libs.litert.gpu)
+  implementation(libs.androidx.media3.exoplayer)
+  implementation(libs.androidx.media3.session)
   // implementation(libs.logging.interceptor)
   // implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
