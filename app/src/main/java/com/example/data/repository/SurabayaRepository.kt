@@ -381,7 +381,8 @@ class SurabayaRepository(
         val cleanBio = bio.trim().take(240)
         val cleanInterests = interests.trim().take(200)
         val clampedRadius = searchRadiusKm.coerceIn(1.0, 50.0)
-        var missingAvatarSchema = false
+        var userAvatarSaved = false
+        var nearbyAvatarSaved = false
 
         try {
             val userPatch = JSONObject().apply {
@@ -408,20 +409,21 @@ class SurabayaRepository(
                     )
                 } catch (e: PocketBaseException) {
                     if (e.statusCode == 400) {
-                        missingAvatarSchema = true
                         pb.updateRecord("users", uid, userPatch)
                     } else {
                         throw e
                     }
                 }
-                if (updatedUser.optString("avatar").isBlank()) {
-                    missingAvatarSchema = true
-                }
+                userAvatarSaved = updatedUser.optString("avatar").isNotBlank()
             } else {
                 pb.updateRecord("users", uid, userPatch)
             }
 
+            val safeUid = escapePbValue(uid)
             val existingNearby = pb.getOneOrNull("nearby_profiles", uid)
+                ?: pb.getList("nearby_profiles", filter = "user_id = '$safeUid'", perPage = 1).firstOrNull()
+            val nearbyRecordId = existingNearby?.optString("id")?.takeIf { it.isNotBlank() } ?: uid
+
             if (existingNearby != null) {
                 val nearbyPatch = JSONObject().apply {
                     put("display_name", cleanName)
@@ -445,23 +447,20 @@ class SurabayaRepository(
                     val updatedNearby = try {
                         pb.updateRecordMultipart(
                             collection = "nearby_profiles",
-                            recordId = uid,
+                            recordId = nearbyRecordId,
                             fields = nearbyFields,
                             filePart = MultipartFilePart("avatar", avatarPhoto.fileName, avatarPhoto.mimeType, avatarPhoto.bytes),
                         )
                     } catch (e: PocketBaseException) {
                         if (e.statusCode == 400) {
-                            missingAvatarSchema = true
-                            pb.updateRecord("nearby_profiles", uid, nearbyPatch)
+                            pb.updateRecord("nearby_profiles", nearbyRecordId, nearbyPatch)
                         } else {
                             throw e
                         }
                     }
-                    if (updatedNearby.optString("avatar").isBlank()) {
-                        missingAvatarSchema = true
-                    }
+                    nearbyAvatarSaved = updatedNearby.optString("avatar").isNotBlank()
                 } else {
-                    pb.updateRecord("nearby_profiles", uid, nearbyPatch)
+                    pb.updateRecord("nearby_profiles", nearbyRecordId, nearbyPatch)
                 }
             } else {
                 val createPayload = JSONObject().apply {
@@ -497,23 +496,21 @@ class SurabayaRepository(
                         )
                     } catch (e: PocketBaseException) {
                         if (e.statusCode == 400) {
-                            missingAvatarSchema = true
                             pb.createRecord("nearby_profiles", createPayload)
                         } else {
                             throw e
                         }
                     }
-                    if (createdNearby.optString("avatar").isBlank()) {
-                        missingAvatarSchema = true
-                    }
+                    nearbyAvatarSaved = createdNearby.optString("avatar").isNotBlank()
                 } else {
                     pb.createRecord("nearby_profiles", createPayload)
                 }
             }
 
-            if (avatarPhoto != null && missingAvatarSchema) {
+            if (avatarPhoto != null && !userAvatarSaved && !nearbyAvatarSaved) {
                 onPhotoSchemaMissing?.invoke()
             }
+            bumpMutationTick()
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {

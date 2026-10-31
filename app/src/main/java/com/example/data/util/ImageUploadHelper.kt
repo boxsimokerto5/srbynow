@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
 import java.io.ByteArrayOutputStream
@@ -15,7 +16,7 @@ import kotlinx.coroutines.withContext
 
 data class PreparedPhoto(
     val fileName: String,
-    val mimeType: String = "image/jpeg",
+    val mimeType: String = "image/webp",
     val bytes: ByteArray,
 ) {
     val dataUri: String
@@ -44,17 +45,19 @@ object ImageUploadHelper {
 
     /**
      * Reads an image selected from Android Photo Picker [uri], downscales proportionally
-     * to [maxDimensionPx], applies MediaStore orientation if present, and compresses to JPEG
-     * so uploads over mobile carriers are fast and lightweight on PocketBase VPS storage.
+     * to [maxDimensionPx], applies MediaStore orientation if present, and compresses to WebP
+     * (Lossy) so uploads over mobile carriers are ultra-lightweight and lightning fast on PocketBase VPS storage.
      */
     suspend fun preparePhotoFromUri(
         context: Context,
         uri: Uri,
         prefix: String = "sby",
         maxDimensionPx: Int = DEFAULT_MAX_DIMENSION_PX,
-        initialJpegQuality: Int = 82,
+        initialQuality: Int = 80,
+        initialJpegQuality: Int = initialQuality,
     ): PreparedPhoto? = withContext(Dispatchers.IO) {
         try {
+            val quality = if (initialQuality != 80) initialQuality else initialJpegQuality
             val resolver = context.contentResolver
             val rotationDegrees = queryRotationDegrees(context, uri)
 
@@ -92,18 +95,21 @@ object ImageUploadHelper {
                 decodedBitmap.recycle()
             }
 
-            var compressedBytes = compressToJpeg(transformedBitmap, initialJpegQuality)
+            var (compressedBytes, mimeType) = compressBitmap(transformedBitmap, quality)
             if (compressedBytes.size > MAX_TARGET_BYTES) {
-                compressedBytes = compressToJpeg(transformedBitmap, 65)
+                val (fallbackBytes, fallbackMime) = compressBitmap(transformedBitmap, 60)
+                compressedBytes = fallbackBytes
+                mimeType = fallbackMime
             }
             transformedBitmap.recycle()
 
             if (compressedBytes.isEmpty()) return@withContext null
 
+            val extension = if (mimeType == "image/webp") "webp" else "jpg"
             val cleanPrefix = prefix.lowercase().replace(Regex("[^a-z0-9]"), "").ifBlank { "sby" }
             PreparedPhoto(
-                fileName = "${cleanPrefix}_${System.currentTimeMillis()}.jpg",
-                mimeType = "image/jpeg",
+                fileName = "${cleanPrefix}_${System.currentTimeMillis()}.$extension",
+                mimeType = mimeType,
                 bytes = compressedBytes,
             )
         } catch (e: Exception) {
@@ -176,9 +182,26 @@ object ImageUploadHelper {
         }
     }
 
-    private fun compressToJpeg(bitmap: Bitmap, quality: Int): ByteArray {
+    private fun getWebpLossyFormat(): Bitmap.CompressFormat {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Bitmap.CompressFormat.WEBP_LOSSY
+        } else {
+            @Suppress("DEPRECATION")
+            Bitmap.CompressFormat.WEBP
+        }
+    }
+
+    private fun compressBitmap(bitmap: Bitmap, quality: Int): Pair<ByteArray, String> {
         val output = ByteArrayOutputStream()
+        val format = getWebpLossyFormat()
+        val success = bitmap.compress(format, quality.coerceIn(30, 95), output)
+        val bytes = output.toByteArray()
+        if (success && bytes.isNotEmpty()) {
+            return Pair(bytes, "image/webp")
+        }
+        // Fallback to JPEG if WebP encoding failed on legacy OEM device
+        output.reset()
         bitmap.compress(Bitmap.CompressFormat.JPEG, quality.coerceIn(40, 95), output)
-        return output.toByteArray()
+        return Pair(output.toByteArray(), "image/jpeg")
     }
 }
