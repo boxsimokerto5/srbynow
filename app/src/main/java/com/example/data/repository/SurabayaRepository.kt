@@ -3183,7 +3183,7 @@ class SurabayaRepository(
     // --- TAMBAL BAN TERDEKAT (SALAM SATU ASPAL) OPERATIONS ---
 
     fun observeTambalBanSpots(): Flow<List<TambalBanSpot>> {
-        return combine(pb.collectionFlow("tambal_ban"), localMutationTick) { _, _ ->
+        return localMutationTick.map {
             inMemoryTambalBan.values
                 .filter { "tambal_ban:${it.id}" !in localDeletedRecords }
                 .sortedByDescending { it.verifiedCount * 10 + (it.commentCount * 2) }
@@ -3191,13 +3191,13 @@ class SurabayaRepository(
     }
 
     fun observeTambalBanById(spotId: String): Flow<TambalBanSpot?> {
-        return combine(pb.collectionFlow("tambal_ban"), localMutationTick) { _, _ ->
+        return localMutationTick.map {
             inMemoryTambalBan[spotId]?.takeIf { "tambal_ban:${it.id}" !in localDeletedRecords }
         }
     }
 
     fun observeTambalBanComments(spotId: String): Flow<List<TambalBanComment>> {
-        return combine(pb.collectionFlow("tambal_ban_comments"), localMutationTick) { _, _ ->
+        return localMutationTick.map {
             inMemoryTambalBanComments[spotId]?.toList()?.sortedByDescending { it.createdAt ?: 0L } ?: emptyList()
         }
     }
@@ -3228,11 +3228,7 @@ class SurabayaRepository(
         }
 
         val cleanMapsUrl = if (mapsUrl.isNotBlank()) {
-            val valid = LinkSecurityValidator.validateLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
-            if (valid is LinkValidationResult.Invalid) {
-                throw IllegalArgumentException(valid.reason)
-            }
-            mapsUrl.trim()
+            requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
         } else {
             ""
         }
@@ -3245,9 +3241,9 @@ class SurabayaRepository(
         if (photo != null) {
             try {
                 val fileParts = listOf(MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes))
-                val json = pb.createRecordMultipart("tambal_ban", emptyMap(), fileParts)
+                val json = pb.createRecordMultipartFiles("tambal_ban", emptyMap(), fileParts)
                 val serverId = json.optString("id").ifBlank { spotId }
-                uploadedPhotoUrl = pb.getFileUrl("tambal_ban", serverId, photo.fileName)
+                uploadedPhotoUrl = pb.buildFileUrl("tambal_ban", serverId, photo.fileName)
             } catch (e: Exception) {
                 Log.w(TAG, "Gagal upload foto tambal ban ke server, melanjutkan dengan ID lokal: ${e.message}")
             }

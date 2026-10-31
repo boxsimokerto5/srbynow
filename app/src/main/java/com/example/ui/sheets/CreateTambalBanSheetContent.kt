@@ -217,7 +217,7 @@ fun CreateTambalBanSheetContent(
         // --- KECAMATAN SURABAYA ---
         SurabayaDistrictDropdown(
             selectedDistrict = district,
-            onDistrictSelected = { district = it },
+            onSelect = { district = it },
             modifier = Modifier.fillMaxWidth(),
         )
 

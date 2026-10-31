@@ -117,6 +117,8 @@
     <string name="home_shortcuts_title">Menu &amp; Layanan Cepat</string>
     <string name="home_highlights_title">Kabar Terhangat Hari Ini</string>
     <string name="home_destinations_title">Destinasi Ikonik Surabaya</string>
+    <string name="home_culinary_title">Kuliner Legendaris Surabaya</string>
+    <string name="home_events_title">Agenda &amp; Event Surabaya</string>
     <string name="home_moments_title">Momen Warga Terkini</string>
     <string name="btn_add_moment">Posting Momen</string>
     <string name="btn_add_destination">Tambah Destinasi</string>

@@ -86,8 +86,10 @@ import coil.request.ImageRequest
 import com.example.R
 import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
+import com.example.data.model.CulinarySpot
 import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaDestination
+import com.example.data.model.SurabayaEvent
 import com.example.data.model.TambalBanSpot
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
@@ -127,6 +129,8 @@ fun HomeScreen(
     currentDistrict: String,
     incidentsState: UiState<List<IncidentReport>>,
     destinationsState: UiState<List<SurabayaDestination>>,
+    culinaryState: UiState<List<CulinarySpot>> = UiState.Loading,
+    eventsState: UiState<List<SurabayaEvent>> = UiState.Loading,
     momentsState: UiState<List<UserMoment>>,
     servicesState: UiState<List<CitizenService>> = UiState.Loading,
     pollsState: UiState<List<CitizenPoll>> = UiState.Loading,
@@ -135,6 +139,8 @@ fun HomeScreen(
     onNavigateTab: (MainTab) -> Unit,
     onOpenIncidentDetail: (String) -> Unit,
     onOpenDestinationDetail: (String) -> Unit,
+    onOpenCulinaryDetail: (String) -> Unit = {},
+    onOpenEventDetail: (String) -> Unit = {},
     onOpenMomentDetail: (String) -> Unit,
     onOpenServiceDetail: (String) -> Unit = {},
     onOpenCreateService: () -> Unit = {},
@@ -954,9 +960,121 @@ fun HomeScreen(
             }
         }
 
+        // 5b. Kuliner Legendaris Surabaya
+        item(key = "home_culinary_header") {
+            Spacer(modifier = Modifier.height(14.dp))
+            HomeSectionHeader(
+                title = stringResource(R.string.home_culinary_title),
+                subtitle = "Rekomendasi rawon, soto, penyetan & warkop favorit warga",
+                onSeeAllClick = { onNavigateTab(MainTab.KULINER) },
+            )
+        }
+
+        item(key = "home_culinary_carousel") {
+            when (culinaryState) {
+                is UiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
+                    }
+                }
+                is UiState.Error -> {
+                    Text(
+                        text = "Gagal memuat kuliner",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+                is UiState.Success -> {
+                    val list = culinaryState.data
+                    if (list.isEmpty()) {
+                        Text(
+                            text = "Belum ada kuliner terdaftar",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    } else {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(list, key = { it.id }) { spot ->
+                                HomeCulinaryCard(
+                                    spot = spot,
+                                    onClick = { onOpenCulinaryDetail(spot.id) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5c. Agenda & Event Surabaya
+        item(key = "home_events_header") {
+            Spacer(modifier = Modifier.height(14.dp))
+            HomeSectionHeader(
+                title = stringResource(R.string.home_events_title),
+                subtitle = "Festival budaya, bazar UMKM, musik & kegiatan kota",
+                onSeeAllClick = { onNavigateTab(MainTab.EVENT) },
+            )
+        }
+
+        item(key = "home_events_carousel") {
+            when (eventsState) {
+                is UiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
+                    }
+                }
+                is UiState.Error -> {
+                    Text(
+                        text = "Gagal memuat event",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+                is UiState.Success -> {
+                    val list = eventsState.data
+                    if (list.isEmpty()) {
+                        Text(
+                            text = "Belum ada event terjadwal",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    } else {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(list, key = { it.id }) { event ->
+                                HomeEventCard(
+                                    event = event,
+                                    onClick = { onOpenEventDetail(event.id) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 6. Momen Warga Terkini
         item(key = "home_moments_header") {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             HomeSectionHeader(
                 title = stringResource(R.string.home_moments_title),
                 subtitle = "Potret keseharian warga di sudut-sudut kota",
@@ -1515,6 +1633,203 @@ private fun HomeDestinationCard(
                     text = "${destination.district} • ${destination.ticketPrice}",
                     style = MaterialTheme.typography.bodySmall,
                     color = ToskaPrimaryDeep,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeCulinaryCard(
+    spot: CulinarySpot,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
+        shadowElevation = 2.dp,
+        modifier = Modifier
+            .width(220.dp)
+            .testTag("home_culinary_${spot.id}"),
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp),
+            ) {
+                val photoModel = spot.allPhotos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(spot.imageKey)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = spot.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Surface(
+                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    color = ToskaPrimaryDeep.copy(alpha = 0.9f),
+                    modifier = Modifier.align(Alignment.TopStart),
+                ) {
+                    val catLabel = when (spot.category) {
+                        "RAWON_SOTO" -> "Rawon & Soto"
+                        "PENYETAN_SAMBAL" -> "Penyetan"
+                        "KOPI_NONGKRONG" -> "Kopi & Warkop"
+                        "JAJANAN_MALAM" -> "Jajanan Malam"
+                        else -> "Legendaris"
+                    }
+                    Text(
+                        text = catLabel,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFB300),
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = String.format("%.1f", spot.ratingAvg),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(
+                    text = spot.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${spot.district} • ${spot.priceRange}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ToskaPrimaryDeep,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeEventCard(
+    event: SurabayaEvent,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
+        shadowElevation = 2.dp,
+        modifier = Modifier
+            .width(220.dp)
+            .testTag("home_event_${event.id}"),
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp),
+            ) {
+                val photoModel = event.allPhotos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(event.imageKey)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = event.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Surface(
+                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    color = Color(0xFF1E88E5).copy(alpha = 0.9f),
+                    modifier = Modifier.align(Alignment.TopStart),
+                ) {
+                    val catLabel = when (event.category) {
+                        "FESTIVAL" -> "Festival"
+                        "MUSIK_SENI" -> "Musik & Seni"
+                        "KULINER_BAZAR" -> "Bazar UMKM"
+                        "OLAHRAGA" -> "Olahraga"
+                        else -> "Komunitas"
+                    }
+                    Text(
+                        text = catLabel,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CalendarMonth,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = event.eventDateText.ifBlank { "Segera" },
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(
+                    text = event.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${event.venueName.ifBlank { event.district }} • ${event.priceLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF1E88E5),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

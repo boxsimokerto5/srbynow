@@ -514,10 +514,9 @@ class SurabayaViewModel(
         repository.observeTambalBanSpots(),
         _userLat,
         _userLng,
-        localMutationTick,
-    ) { spots, lat, lng, _ ->
+    ) { spots, lat, lng ->
         val mapped = spots.map { spot ->
-            val dist = LocationHelper.calculateDistanceKm(lat, lng, spot.latitude, spot.longitude)
+            val dist = calculateDistanceKm(lat, lng, spot.latitude, spot.longitude)
             spot.copy(distanceKm = dist)
         }.sortedBy { it.distanceKm ?: 999.0 }
         UiState.Success(mapped) as UiState<List<TambalBanSpot>>
@@ -538,7 +537,7 @@ class SurabayaViewModel(
         _userLng,
     ) { spot, lat, lng ->
         spot?.let {
-            val dist = LocationHelper.calculateDistanceKm(lat, lng, it.latitude, it.longitude)
+            val dist = calculateDistanceKm(lat, lng, it.latitude, it.longitude)
             it.copy(distanceKm = dist)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
