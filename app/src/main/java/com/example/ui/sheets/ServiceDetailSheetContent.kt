@@ -31,7 +31,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VerifiedUser
-import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -323,7 +323,7 @@ fun ServiceDetailSheetContent(
             ),
         ) {
             Icon(
-                imageVector = Icons.Outlined.Chat,
+                imageVector = Icons.AutoMirrored.Outlined.Chat,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
             )

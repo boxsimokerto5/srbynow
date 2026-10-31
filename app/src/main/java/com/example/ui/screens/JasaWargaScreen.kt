@@ -44,10 +44,12 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -354,6 +356,8 @@ fun JasaWargaScreen(
 fun ServiceSafetyWarningBanner(
     modifier: Modifier = Modifier,
 ) {
+    var showSafetyGuideDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -446,10 +450,95 @@ fun ServiceSafetyWarningBanner(
                                 color = AlertCrimson,
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            onClick = { showSafetyGuideDialog = true },
+                            shape = RoundedCornerShape(8.dp),
+                            color = AlertCrimson.copy(alpha = 0.12f),
+                            modifier = Modifier.testTag("btn_open_safety_guide"),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = "Pelajari 4 Aturan Transaksi Aman Anti-Penipuan",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AlertCrimson,
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.Security,
+                                    contentDescription = null,
+                                    tint = AlertCrimson,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (showSafetyGuideDialog) {
+        AlertDialog(
+            onDismissRequest = { showSafetyGuideDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.Security,
+                    contentDescription = null,
+                    tint = AlertCrimson,
+                    modifier = Modifier.size(32.dp),
+                )
+            },
+            title = {
+                Text(
+                    text = "Panduan Aman Transaksi Jasa Warga",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = AlertCrimson,
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "1. Pantang Transfer DP (Uang Muka):\nJangan pernah mengirim uang muka dengan alasan apa pun sebelum penyedia jasa tiba di rumah dan mulai bekerja.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "2. Bayar Setelah Cek Selesai:\nUjilah hasil pekerjaan (misal: AC sudah dingin, saluran lancar) bersama penyedia jasa sebelum melakukan pelunasan.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "3. Sepakati Tarif Total di Depan:\nPastikan harga per unit/titik, biaya suku cadang pengganti, dan ongkos jalan telah jelas sebelum pengerjaan dimulai.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "4. Laporkan Akun Mencurigakan:\nJika ada pihak yang memaksa meminta transfer duluan, gunakan tombol 'Lapor' di rincian jasa agar segera diverifikasi oleh tim admin.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showSafetyGuideDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertCrimson),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text("Saya Paham & Siap Transaksi Aman", color = Color.White)
+                }
+            },
+        )
     }
 }
 
@@ -652,7 +741,7 @@ fun CitizenServiceCard(
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Chat,
+                            imageVector = Icons.AutoMirrored.Outlined.Chat,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                         )
@@ -767,7 +856,7 @@ fun formatServiceCategory(categoryKey: String): String {
 fun openServiceWhatsApp(context: Context, service: CitizenService) {
     val waNumber = if (service.whatsappNumber.isNotBlank()) service.whatsappNumber else service.phoneNumber
     val text = Uri.encode(
-        "Halo Cak/Pak ${service.providerName}, saya melihat promosi jasa Anda di aplikasi Arek Surabaya mengenai \"${service.title}\" (${service.priceDisplay}). Apakah saat ini sedang menerima pesanan untuk area Surabaya?"
+        "Halo Cak/Pak ${service.providerName}, saya melihat promosi jasa Anda di aplikasi Arek Surabaya mengenai \"${service.title}\" (${service.priceDisplay}). Apakah saat ini sedang menerima pesanan untuk area Surabaya? (Catatan Transaksi Aman Komunitas: Pembayaran COD / tanpa DP setelah pekerjaan dicek selesai)."
     )
     val url = "https://wa.me/$waNumber?text=$text"
     try {

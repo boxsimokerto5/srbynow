@@ -22,10 +22,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Emergency
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Favorite
@@ -38,11 +41,14 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -76,6 +82,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.R
+import com.example.data.model.CitizenService
 import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.UiState
@@ -115,10 +122,13 @@ fun HomeScreen(
     incidentsState: UiState<List<IncidentReport>>,
     destinationsState: UiState<List<SurabayaDestination>>,
     momentsState: UiState<List<UserMoment>>,
+    servicesState: UiState<List<CitizenService>> = UiState.Loading,
     onNavigateTab: (MainTab) -> Unit,
     onOpenIncidentDetail: (String) -> Unit,
     onOpenDestinationDetail: (String) -> Unit,
     onOpenMomentDetail: (String) -> Unit,
+    onOpenServiceDetail: (String) -> Unit = {},
+    onOpenCreateService: () -> Unit = {},
     onOpenBookmarks: () -> Unit,
     onOpenProfileAndAdmin: () -> Unit,
     onOpenRadio: () -> Unit = {},
@@ -188,6 +198,13 @@ fun HomeScreen(
             icon = Icons.Filled.ChatBubble,
             testTag = "home_shortcut_chat",
             onClick = { onNavigateTab(MainTab.CHAT) },
+        ),
+        HomeShortcutItem(
+            title = "Jasa Warga",
+            subtitle = "Tukang & Usaha",
+            icon = Icons.Filled.Build,
+            testTag = "home_shortcut_jasa",
+            onClick = { onNavigateTab(MainTab.JASA) },
         ),
         HomeShortcutItem(
             title = stringResource(R.string.btn_bookmarks),
@@ -410,14 +427,14 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "9 Layanan Terpadu",
+                        text = "${shortcuts.size} Layanan Warga",
                         style = MaterialTheme.typography.labelSmall,
                         color = ToskaPrimaryDeep,
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Render grid 3 columns x 3 rows
+                // Render grid 3 columns
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val rows = shortcuts.chunked(3)
                     for (rowItems in rows) {
@@ -434,6 +451,147 @@ fun HomeScreen(
                             val emptySlots = 3 - rowItems.size
                             repeat(emptySlots) {
                                 Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3b. Ruang Promosi Jasa Warga (Featured Community Services Showcase)
+        item(key = "home_services_section") {
+            Spacer(modifier = Modifier.height(8.dp))
+            HomeSectionHeader(
+                title = "Ruang Promosi Jasa Warga",
+                subtitle = "AC, ledeng, servis & keahlian Arek Surabaya",
+                onSeeAllClick = { onNavigateTab(MainTab.JASA) },
+            )
+
+            // Anti-Fraud / Anti-DP Quick Alert Banner
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SoftEmergencyLightGradient)
+                        .clickable { onNavigateTab(MainTab.JASA) },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Security,
+                            contentDescription = null,
+                            tint = AlertCrimson,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Tips Aman: Dilarang Transfer DP Terlebih Dahulu!",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = AlertCrimson,
+                            )
+                            Text(
+                                text = "Bayar hanya setelah pekerjaan selesai & Anda telah memeriksa hasilnya (COD).",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            when (servicesState) {
+                is UiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(24.dp))
+                    }
+                }
+                is UiState.Error -> {
+                    Text(
+                        text = "Belum ada data promosi jasa warga",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+                is UiState.Success -> {
+                    val list = servicesState.data
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(list.take(6), key = { it.id }) { service ->
+                            HomeServiceCard(
+                                service = service,
+                                onClick = { onOpenServiceDetail(service.id) },
+                            )
+                        }
+
+                        item(key = "create_service_card") {
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = ToskaPrimary.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.4f)),
+                                modifier = Modifier
+                                    .width(160.dp)
+                                    .height(130.dp)
+                                    .clickable { onOpenCreateService() },
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(ToskaPrimary),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Add,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Pasang Jasa Anda",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ToskaPrimaryDeep,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                    Text(
+                                        text = "Gratis untuk Warga",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
                     }
@@ -1182,3 +1340,94 @@ private fun HomeMomentCard(
         }
     }
 }
+
+@Composable
+private fun HomeServiceCard(
+    service: CitizenService,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier
+            .width(220.dp)
+            .clickable { onClick() }
+            .testTag("home_service_card_${service.id}"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    color = ToskaPrimary.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(6.dp),
+                ) {
+                    Text(
+                        text = formatServiceCategory(service.category),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimaryDeep,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = ToskaPrimary,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Text(
+                        text = "Warga",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimary,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = service.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Text(
+                text = "${service.providerName} • ${service.district}",
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
+                color = ToskaPrimaryDeep,
+                shape = RoundedCornerShape(6.dp),
+            ) {
+                Text(
+                    text = service.priceDisplay,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+        }
+    }
+}
+

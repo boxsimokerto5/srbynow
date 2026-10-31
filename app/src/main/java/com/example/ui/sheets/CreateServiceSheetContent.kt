@@ -3,6 +3,7 @@ package com.example.ui.sheets
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -332,7 +333,7 @@ fun CreateServiceSheetContent(
         // District & Coverage
         SurabayaDistrictDropdown(
             selectedDistrict = district,
-            onDistrictSelected = { district = it },
+            onSelect = { district = it },
             label = "Kecamatan Tempat Tinggal / Domisili Usaha",
         )
 
@@ -388,7 +389,7 @@ fun CreateServiceSheetContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         FormMultiPhotoPickerSection(
-            photoUris = selectedPhotoUris,
+            selectedPhotoUris = selectedPhotoUris,
             maxPhotos = 3,
             onPhotosChanged = { selectedPhotoUris = it },
         )

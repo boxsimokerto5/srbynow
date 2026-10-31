@@ -18,6 +18,9 @@ data class PreparedPhoto(
     val mimeType: String = "image/jpeg",
     val bytes: ByteArray,
 ) {
+    val dataUri: String
+        get() = "data:$mimeType;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is PreparedPhoto) return false

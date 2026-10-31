@@ -2678,6 +2678,23 @@ class SurabayaRepository(
                 put("review_count", 1)
                 put("verified_badge", true)
             }
+            val fields = mapOf(
+                "id" to recordId,
+                "provider_id" to uid,
+                "provider_name" to newService.providerName,
+                "title" to newService.title,
+                "category" to newService.category,
+                "price" to newService.price.toString(),
+                "price_unit" to newService.priceUnit,
+                "district" to newService.district,
+                "coverage_area" to newService.coverageArea,
+                "phone_number" to newService.phoneNumber,
+                "whatsapp_number" to newService.whatsappNumber,
+                "description" to newService.description,
+                "rating_avg" to "5.0",
+                "review_count" to "1",
+                "verified_badge" to "true",
+            )
             val fileParts = boundedPhotos.mapIndexed { idx, p ->
                 MultipartFilePart(
                     fieldName = if (idx == 0) "flyer_photo" else "flyer_photo_$idx",
@@ -2688,7 +2705,7 @@ class SurabayaRepository(
             }
             try {
                 if (fileParts.isNotEmpty()) {
-                    pb.createRecordWithFiles("services", body, fileParts)
+                    pb.createRecordMultipartFiles("services", fields, fileParts)
                 } else {
                     pb.createRecord("services", body)
                 }
@@ -2705,8 +2722,15 @@ class SurabayaRepository(
     }
 
     suspend fun reportServiceContent(serviceId: String, reporterUid: String) {
-        reportContent(collection = "services", recordId = serviceId)
         val current = inMemoryServices[serviceId]
+        val currentCount = current?.contentReportCount ?: 0
+        val currentUids = current?.contentReportedByUids ?: emptyList()
+        reportInappropriateContent(
+            collection = "services",
+            recordId = serviceId,
+            currentCount = currentCount,
+            currentReportedUids = currentUids,
+        )
         if (current != null) {
             val updated = current.copy(
                 contentReportCount = current.contentReportCount + 1,
@@ -2724,7 +2748,7 @@ class SurabayaRepository(
             localDeletedRecords.add("services:$serviceId")
             bumpMutationTick()
             try {
-                deleteRecord("services", serviceId)
+                pb.deleteRecord("services", serviceId)
             } catch (e: Exception) {
                 Log.w(TAG, "Remote delete service warning: ${e.message}")
             }

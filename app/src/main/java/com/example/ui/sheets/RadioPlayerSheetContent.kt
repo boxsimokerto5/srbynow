@@ -32,11 +32,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeMute
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.VolumeDown
-import androidx.compose.material.icons.filled.VolumeMute
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -311,9 +311,9 @@ fun RadioPlayerSheetContent(
                     ) {
                         Icon(
                             imageVector = when {
-                                volume <= 0.01f -> Icons.Filled.VolumeMute
-                                volume < 0.5f -> Icons.Filled.VolumeDown
-                                else -> Icons.Filled.VolumeUp
+                                volume <= 0.01f -> Icons.AutoMirrored.Filled.VolumeMute
+                                volume < 0.5f -> Icons.AutoMirrored.Filled.VolumeDown
+                                else -> Icons.AutoMirrored.Filled.VolumeUp
                             },
                             contentDescription = "Volume",
                             tint = ToskaPrimaryDeep,
@@ -417,7 +417,7 @@ fun RadioPlayerSheetContent(
             ),
         ) {
             Icon(
-                imageVector = Icons.Outlined.Chat,
+                imageVector = Icons.AutoMirrored.Outlined.Chat,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
             )

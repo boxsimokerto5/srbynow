@@ -102,6 +102,7 @@ import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.DestinasiScreen
 import com.example.ui.screens.EventScreen
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.JasaWargaScreen
 import com.example.ui.screens.KejadianScreen
 import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.MomenScreen
@@ -125,6 +126,7 @@ import com.example.ui.sheets.CreateCulinarySheetContent
 import com.example.ui.sheets.CreateDestinationSheetContent
 import com.example.ui.sheets.CreateIncidentSheetContent
 import com.example.ui.sheets.CreateMomentSheetContent
+import com.example.ui.sheets.CreateServiceSheetContent
 import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.DestinationDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
@@ -134,6 +136,7 @@ import com.example.ui.sheets.NotificationsSheetContent
 import com.example.ui.sheets.ProfileAndPrivacySheetContent
 import com.example.ui.sheets.ProposeEventSheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
+import com.example.ui.sheets.ServiceDetailSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import com.example.ui.viewmodel.ActiveBottomSheet
 import com.example.ui.viewmodel.MainTab
@@ -280,6 +283,7 @@ fun SurabayaMainHub(
     val publicChatRooms by viewModel.publicChatRooms.collectAsStateWithLifecycle()
     val directChatRooms by viewModel.directChatRooms.collectAsStateWithLifecycle()
     val activeChatMessages by viewModel.activeChatMessages.collectAsStateWithLifecycle()
+    val servicesState by viewModel.servicesState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -474,10 +478,13 @@ fun SurabayaMainHub(
                                 incidentsState = incidentsState,
                                 destinationsState = destinationsState,
                                 momentsState = momentsState,
+                                servicesState = servicesState,
                                 onNavigateTab = { viewModel.selectTab(it) },
                                 onOpenIncidentDetail = { viewModel.openSheet(ActiveBottomSheet.IncidentDetail(it)) },
                                 onOpenDestinationDetail = { viewModel.openSheet(ActiveBottomSheet.DestinationDetail(it)) },
                                 onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
+                                onOpenServiceDetail = { viewModel.openSheet(ActiveBottomSheet.ServiceDetail(it)) },
+                                onOpenCreateService = { viewModel.openSheet(ActiveBottomSheet.CreateService) },
                                 onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
                                 onOpenProfileAndAdmin = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
                                 onOpenRadio = { viewModel.openRadioPlayer(autoPlay = true) },
@@ -561,6 +568,18 @@ fun SurabayaMainHub(
                                 onSelectSubTab = { viewModel.selectChatSubTab(it) },
                                 onStartNewDirectChat = { viewModel.openSheet(ActiveBottomSheet.StartDirectChat) },
                                 onOpenRoom = { viewModel.openSheet(ActiveBottomSheet.ChatConversation(it)) },
+                            )
+                            MainTab.JASA -> JasaWargaScreen(
+                                servicesState = servicesState,
+                                currentUserId = currentUserId,
+                                isAdmin = isAdmin,
+                                onOpenServiceDetail = { viewModel.openSheet(ActiveBottomSheet.ServiceDetail(it)) },
+                                onOpenCreateService = { viewModel.openSheet(ActiveBottomSheet.CreateService) },
+                                onBookmarkService = {
+                                    viewModel.toggleBookmark(it.id, "JASA", it.title, "${it.district} • ${it.priceDisplay}", it.district)
+                                },
+                                onReportService = { viewModel.reportServiceContent(it) },
+                                onBackToHome = { viewModel.selectTab(MainTab.HOME) },
                             )
                         }
                     }
@@ -842,6 +861,10 @@ fun SurabayaMainHub(
                                     viewModel.selectTab(MainTab.DESTINASI)
                                     viewModel.openSheet(ActiveBottomSheet.DestinationDetail(bm.targetId))
                                 }
+                                "JASA" -> {
+                                    viewModel.selectTab(MainTab.JASA)
+                                    viewModel.openSheet(ActiveBottomSheet.ServiceDetail(bm.targetId))
+                                }
                             }
                         },
                         onRemoveBookmark = { bm ->
@@ -994,6 +1017,51 @@ fun SurabayaMainHub(
                         stationInfo = radioStationInfo,
                         onTogglePlay = { viewModel.toggleRadio() },
                         onSetVolume = { viewModel.setRadioVolume(it) },
+                        onClose = { viewModel.dismissSheet() },
+                    )
+                }
+                is ActiveBottomSheet.ServiceDetail -> {
+                    val found = (servicesState as? UiState.Success)?.data?.firstOrNull { it.id == sheetTarget.serviceId }
+                    if (found != null) {
+                        val isSaved = bookmarks.any { it.targetId == found.id && it.targetType == "JASA" }
+                        ServiceDetailSheetContent(
+                            service = found,
+                            isSaved = isSaved,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
+                            onBookmark = {
+                                viewModel.toggleBookmark(found.id, "JASA", found.title, "${found.district} • ${found.priceDisplay}", found.district)
+                            },
+                            onReport = { viewModel.reportServiceContent(found) },
+                            onDelete = if (found.providerId == currentUserId || isAdmin) {
+                                { viewModel.deleteService(found.id) }
+                            } else {
+                                null
+                            },
+                            onClose = { viewModel.dismissSheet() },
+                        )
+                    }
+                }
+                ActiveBottomSheet.CreateService -> {
+                    CreateServiceSheetContent(
+                        defaultDistrict = currentDistrict,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { title, category, price, priceUnit, district, coverageArea, phoneNumber, whatsappNumber, description, photoUris ->
+                            viewModel.submitCitizenService(
+                                title = title,
+                                category = category,
+                                price = price,
+                                priceUnit = priceUnit,
+                                district = district,
+                                coverageArea = coverageArea,
+                                phoneNumber = phoneNumber,
+                                whatsappNumber = whatsappNumber,
+                                description = description,
+                                photoUris = photoUris,
+                                context = context,
+                            )
+                        },
                         onClose = { viewModel.dismissSheet() },
                     )
                 }
