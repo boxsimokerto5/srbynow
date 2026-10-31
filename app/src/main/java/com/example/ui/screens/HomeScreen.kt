@@ -35,6 +35,8 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
@@ -92,6 +94,7 @@ import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.SoftEmergencyLightGradient
 import com.example.ui.theme.ToskaOnPrimaryContainer
+import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 import com.example.ui.viewmodel.MainTab
 
@@ -118,6 +121,7 @@ fun HomeScreen(
     onOpenMomentDetail: (String) -> Unit,
     onOpenBookmarks: () -> Unit,
     onOpenProfileAndAdmin: () -> Unit,
+    onOpenRadio: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -140,6 +144,14 @@ fun HomeScreen(
             icon = Icons.Filled.WarningAmber,
             testTag = "home_shortcut_kejadian",
             onClick = { onNavigateTab(MainTab.KEJADIAN) },
+        ),
+        HomeShortcutItem(
+            title = stringResource(R.string.radio_ss_title),
+            subtitle = "Streaming Live",
+            icon = Icons.Filled.Radio,
+            badge = "LIVE",
+            testTag = "home_shortcut_radio_ss",
+            onClick = onOpenRadio,
         ),
         HomeShortcutItem(
             title = stringResource(R.string.nav_destinasi),
@@ -282,7 +294,104 @@ fun HomeScreen(
             }
         }
 
-        // 3. Shortcut Grid (8 shortcuts in 2 rows of 4 or 4 rows of 2)
+        // 2b. Radio Suara Surabaya 100.0 FM Live Banner
+        item(key = "home_radio_banner") {
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(HeaderMintGradient),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(ToskaPrimary.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Radio,
+                                    contentDescription = null,
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text = "SS 100.0 FM Live",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ToskaPrimaryDeep,
+                                    )
+                                    Surface(
+                                        color = AlertCrimson,
+                                        shape = RoundedCornerShape(4.dp),
+                                    ) {
+                                        Text(
+                                            text = "ON AIR",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "Kelana Kota • Pantauan lalu lintas & berita realtime",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        FilledTonalButton(
+                            onClick = onOpenRadio,
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = ToskaPrimary,
+                                contentColor = Color.White,
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            modifier = Modifier
+                                .testTag("home_btn_listen_radio")
+                                .minimumInteractiveComponentSize(),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "Putar", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Shortcut Grid (9 shortcuts in 3 rows of 3)
         item(key = "home_shortcuts_section") {
             Column(
                 modifier = Modifier
@@ -301,39 +410,31 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = "8 Layanan Terpadu",
+                        text = "9 Layanan Terpadu",
                         style = MaterialTheme.typography.labelSmall,
                         color = ToskaPrimaryDeep,
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Render grid 4 columns x 2 rows
+                // Render grid 3 columns x 3 rows
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    val row1 = shortcuts.take(4)
-                    val row2 = shortcuts.drop(4)
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        for (item in row1) {
-                            HomeShortcutButton(
-                                item = item,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        for (item in row2) {
-                            HomeShortcutButton(
-                                item = item,
-                                modifier = Modifier.weight(1f),
-                            )
+                    val rows = shortcuts.chunked(3)
+                    for (rowItems in rows) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            for (item in rowItems) {
+                                HomeShortcutButton(
+                                    item = item,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            val emptySlots = 3 - rowItems.size
+                            repeat(emptySlots) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }

@@ -40,18 +40,27 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Directions
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,7 +100,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.model.AppNotification
+import com.example.data.model.AppNotificationType
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.CulinaryReview
@@ -2456,4 +2468,387 @@ fun DestinationDetailSheetContent(
         )
     }
 }
+
+private enum class NotifFilter(val label: String) {
+    ALL("Semua"),
+    CHAT("Pesan Chat"),
+    EVENT("Event Baru"),
+    INCIDENT("Kejadian Kritis"),
+}
+
+@Composable
+fun NotificationsSheetContent(
+    notifications: List<AppNotification>,
+    onOpenNotification: (AppNotification) -> Unit,
+    onMarkAllRead: () -> Unit,
+    onTestNotification: (AppNotificationType) -> Unit,
+    onClose: () -> Unit,
+) {
+    var selectedFilter by remember { mutableStateOf(NotifFilter.ALL) }
+
+    val filteredNotifications = remember(notifications, selectedFilter) {
+        when (selectedFilter) {
+            NotifFilter.ALL -> notifications
+            NotifFilter.CHAT -> notifications.filter { it.type == AppNotificationType.CHAT }
+            NotifFilter.EVENT -> notifications.filter { it.type == AppNotificationType.EVENT }
+            NotifFilter.INCIDENT -> notifications.filter { it.type == AppNotificationType.INCIDENT }
+        }
+    }
+
+    val unreadCount = remember(notifications) { notifications.count { !it.isRead } }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 680.dp)
+            .padding(horizontal = 18.dp, vertical = 6.dp)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // --- Header ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(com.example.ui.theme.MintSoftGradient),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.NotificationsActive,
+                        contentDescription = null,
+                        tint = com.example.ui.theme.ToskaPrimaryDeep,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Column {
+                    Text(
+                        text = stringResource(R.string.notifications_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    if (unreadCount > 0) {
+                        Text(
+                            text = "$unreadCount belum dibaca",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = com.example.ui.theme.ToskaPrimaryDeep,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+
+            if (unreadCount > 0) {
+                TextButton(
+                    onClick = onMarkAllRead,
+                    modifier = Modifier.testTag("btn_mark_all_read"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DoneAll,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = com.example.ui.theme.ToskaPrimaryDeep,
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.btn_mark_all_read),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = com.example.ui.theme.ToskaPrimaryDeep,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
+
+        // --- Filter Chips ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            NotifFilter.values().forEach { filter ->
+                val isSelected = selectedFilter == filter
+                val countForFilter = remember(notifications, filter) {
+                    when (filter) {
+                        NotifFilter.ALL -> notifications.size
+                        NotifFilter.CHAT -> notifications.count { it.type == AppNotificationType.CHAT }
+                        NotifFilter.EVENT -> notifications.count { it.type == AppNotificationType.EVENT }
+                        NotifFilter.INCIDENT -> notifications.count { it.type == AppNotificationType.INCIDENT }
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected) com.example.ui.theme.ToskaPrimaryDeep else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (isSelected) com.example.ui.theme.ToskaPrimaryDeep else com.example.ui.theme.OutlineVariantLight,
+                    ),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { selectedFilter = filter },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = filter.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                        )
+                        if (countForFilter > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) Color.White.copy(alpha = 0.25f)
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                    )
+                                    .padding(horizontal = 5.dp, vertical = 1.dp),
+                            ) {
+                                Text(
+                                    text = countForFilter.toString(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Notifications List ---
+        if (filteredNotifications.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(48.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.notifications_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .testTag("notifications_list"),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 4.dp),
+            ) {
+                items(
+                    items = filteredNotifications,
+                    key = { it.id.ifBlank { "${it.title}_${it.timestamp}" } },
+                ) { notif ->
+                    val (iconVector, iconBg, iconTint, typeTag) = when (notif.type) {
+                        AppNotificationType.CHAT -> Quadruple(
+                            Icons.Filled.ChatBubble,
+                            com.example.ui.theme.MintSoftGradient,
+                            com.example.ui.theme.ToskaPrimaryDeep,
+                            "Chat",
+                        )
+                        AppNotificationType.EVENT -> Quadruple(
+                            Icons.Filled.CalendarMonth,
+                            androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFFECB3), Color(0xFFFFE082))),
+                            Color(0xFFE65100),
+                            "Event",
+                        )
+                        AppNotificationType.INCIDENT -> Quadruple(
+                            Icons.Filled.WarningAmber,
+                            androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFFEBEE), Color(0xFFFFCDD2))),
+                            com.example.ui.theme.AlertCrimson,
+                            "Kejadian",
+                        )
+                        AppNotificationType.SYSTEM -> Quadruple(
+                            Icons.Filled.Notifications,
+                            androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFE0F2FE), Color(0xFFBAE6FD))),
+                            Color(0xFF0284C7),
+                            "Info",
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (notif.isRead) Color.White else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (notif.isRead) com.example.ui.theme.OutlineVariantLight else com.example.ui.theme.ToskaPrimaryDeep.copy(alpha = 0.35f),
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onOpenNotification(notif) },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(iconBg),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = iconVector,
+                                    contentDescription = null,
+                                    tint = iconTint,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(3.dp),
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = iconTint.copy(alpha = 0.12f),
+                                    ) {
+                                        Text(
+                                            text = typeTag,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = iconTint,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        )
+                                    }
+                                    Text(
+                                        text = formatRelativeTimestamp(notif.timestamp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                Text(
+                                    text = notif.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (notif.isRead) FontWeight.Medium else FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+
+                                Text(
+                                    text = notif.message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+
+                            if (!notif.isRead) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(com.example.ui.theme.AlertCrimson),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Heads-Up Simulation Panel (Allows testing instant Android top banner) ---
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            border = BorderStroke(0.5.dp, com.example.ui.theme.OutlineVariantLight),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.NotificationsActive,
+                        contentDescription = null,
+                        tint = com.example.ui.theme.ToskaPrimaryDeep,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.btn_test_notification),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                Text(
+                    text = "Ketuk untuk mengirim notifikasi banner melayang (Heads-Up) di atas layar Android:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilledTonalButton(
+                        onClick = { onTestNotification(AppNotificationType.CHAT) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                    ) {
+                        Text("💬 Chat", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                    FilledTonalButton(
+                        onClick = { onTestNotification(AppNotificationType.EVENT) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                    ) {
+                        Text("🎉 Event", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                    FilledTonalButton(
+                        onClick = { onTestNotification(AppNotificationType.INCIDENT) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                    ) {
+                        Text("⚠️ Kejadian", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
 

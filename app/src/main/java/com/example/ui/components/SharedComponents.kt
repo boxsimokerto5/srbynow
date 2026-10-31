@@ -85,6 +85,10 @@ import coil.request.ImageRequest
 import com.example.R
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.resolveImageDrawable
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.ui.unit.sp
+import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.HeaderMintGradient
 import com.example.ui.theme.MintSoftGradient
@@ -138,9 +142,11 @@ fun SurabayaCompactTopBar(
     district: String,
     isAdmin: Boolean,
     bookmarkCount: Int,
+    notificationCount: Int = 0,
     userInitials: String,
     avatarUrl: String = "",
     onOpenBookmarks: () -> Unit,
+    onOpenNotifications: () -> Unit = {},
     onOpenProfile: () -> Unit,
 ) {
     Surface(
@@ -238,6 +244,39 @@ fun SurabayaCompactTopBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    // Notification Bell button with Unread Badge
+                    IconButton(
+                        onClick = onOpenNotifications,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("top_notifications_button"),
+                    ) {
+                        Box {
+                            Icon(
+                                imageVector = if (notificationCount > 0) Icons.Filled.Notifications else Icons.Outlined.Notifications,
+                                contentDescription = stringResource(R.string.btn_notifications),
+                                tint = if (notificationCount > 0) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (notificationCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(AlertCrimson),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = notificationCount.coerceAtMost(99).toString(),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // Bookmarks quick button
                     IconButton(
                         onClick = onOpenBookmarks,

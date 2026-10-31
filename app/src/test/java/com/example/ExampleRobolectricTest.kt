@@ -21,14 +21,21 @@ import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.test.core.app.ApplicationProvider
+import com.example.data.audio.RadioPlaybackState
+import com.example.data.audio.RadioStationInfo
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaEvent
+import com.example.data.model.UiState
+import com.example.data.model.UserAccount
+import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.SplashScreen
 import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
+import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -474,6 +481,164 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("confirm_admin_delete_btn").performClick()
     composeTestRule.waitForIdle()
     assertTrue("Expected onAdminDeletePost to be invoked", adminDeleteClicked)
+  }
+
+  @Test
+  fun `splash screen displays icon mascot, app title, and invokes finish callback`() {
+    var splashFinished = false
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(840.dp)) {
+          SplashScreen(
+            splashDurationMillis = 5000L,
+            onSplashFinished = { splashFinished = true },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Verify splash screen container, logo mascot, title, and badges are displayed
+    composeTestRule.onNodeWithTag("splash_screen_container").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("splash_screen_logo", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithTag("splash_screen_logo_card", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithTag("splash_city_badge", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithTag("splash_app_title", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Arek Surabaya", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithTag("splash_progress_indicator", useUnmergedTree = true).assertIsDisplayed()
+
+    // 2. Tapping anywhere on the splash screen invokes onSplashFinished immediately
+    composeTestRule.onNodeWithTag("splash_screen_container").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected splash screen onSplashFinished to be invoked upon tap", splashFinished)
+  }
+
+  @Test
+  fun `home screen displays Radio SS 100 FM shortcut and banner and invokes callback`() {
+    var radioOpened = false
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(840.dp)) {
+          HomeScreen(
+            userAccount = UserAccount(id = "usr_1", displayName = "Bambang"),
+            isAdmin = false,
+            currentDistrict = "Gubeng",
+            incidentsState = UiState.Success(emptyList()),
+            destinationsState = UiState.Success(emptyList()),
+            momentsState = UiState.Success(emptyList()),
+            onNavigateTab = {},
+            onOpenIncidentDetail = {},
+            onOpenDestinationDetail = {},
+            onOpenMomentDetail = {},
+            onOpenBookmarks = {},
+            onOpenProfileAndAdmin = {},
+            onOpenRadio = { radioOpened = true },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Verify Radio SS shortcut in menu section is displayed
+    composeTestRule.onNodeWithTag("home_shortcut_radio_ss", useUnmergedTree = true).assertIsDisplayed()
+
+    // 2. Click shortcut and verify callback invoked
+    composeTestRule.onNodeWithTag("home_shortcut_radio_ss").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onOpenRadio to be invoked by shortcut", radioOpened)
+
+    // 3. Verify prominent featured radio banner button is displayed
+    composeTestRule.onNodeWithTag("home_btn_listen_radio", useUnmergedTree = true).assertIsDisplayed()
+  }
+
+  @Test
+  fun `radio player sheet displays station info, controls, and toggles play state`() {
+    var togglePlayClicked = false
+    var updatedVolume: Float? = null
+    var closed = false
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(840.dp)) {
+          RadioPlayerSheetContent(
+            playbackState = RadioPlaybackState.PLAYING,
+            volume = 0.85f,
+            errorMessage = null,
+            stationInfo = RadioStationInfo(),
+            onTogglePlay = { togglePlayClicked = true },
+            onSetVolume = { updatedVolume = it },
+            onClose = { closed = true },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Verify sheet content, play button, and controls
+    composeTestRule.onNodeWithTag("radio_player_sheet_content").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("radio_play_pause_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("radio_volume_slider").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("radio_whatsapp_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("radio_phone_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("radio_share_btn").assertIsDisplayed()
+
+    // 2. Toggle play button
+    composeTestRule.onNodeWithTag("radio_play_pause_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onTogglePlay to be invoked", togglePlayClicked)
+
+    // 3. Close button
+    composeTestRule.onNodeWithTag("radio_close_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onClose to be invoked", closed)
+  }
+
+  @Test
+  fun `surabaya radio mini player displays controls and handles interaction`() {
+    var toggleClicked = false
+    var closeClicked = false
+    var openFullClicked = false
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(120.dp)) {
+          SurabayaRadioMiniPlayer(
+            playbackState = RadioPlaybackState.PLAYING,
+            stationInfo = RadioStationInfo(),
+            onToggle = { toggleClicked = true },
+            onClose = { closeClicked = true },
+            onOpenFull = { openFullClicked = true },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Verify mini player bar and buttons
+    composeTestRule.onNodeWithTag("radio_mini_player_bar").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("radio_mini_play_pause_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("radio_mini_close_btn").assertIsDisplayed()
+
+    // 2. Click play/pause on mini player
+    composeTestRule.onNodeWithTag("radio_mini_play_pause_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected mini player onToggle to be invoked", toggleClicked)
+
+    // 3. Click close on mini player
+    composeTestRule.onNodeWithTag("radio_mini_close_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected mini player onClose to be invoked", closeClicked)
+
+    // 4. Click bar to open full player
+    composeTestRule.onNodeWithTag("radio_mini_player_bar").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onOpenFull to be invoked", openFullClicked)
   }
 }
 

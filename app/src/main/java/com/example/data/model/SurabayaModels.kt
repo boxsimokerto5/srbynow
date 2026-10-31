@@ -423,3 +423,70 @@ data class DestinationReview(
     val timestamp: Long?
         get() = createdAt
 }
+
+enum class AppNotificationType {
+    CHAT,
+    EVENT,
+    INCIDENT,
+    SYSTEM,
+}
+
+data class AppNotification(
+    val id: String = "",
+    val userId: String = "",
+    val type: AppNotificationType = AppNotificationType.SYSTEM,
+    val title: String = "",
+    val message: String = "",
+    val targetId: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val isRead: Boolean = false,
+)
+
+data class CitizenService(
+    val id: String = "",
+    val providerId: String = "",
+    val providerName: String = "",
+    val title: String = "",
+    val category: String = "ELEKTRONIK_AC",
+    val price: Long = 75000L,
+    val priceUnit: String = "unit",
+    val district: String = "Gubeng",
+    val coverageArea: String = "Seluruh Surabaya & Sekitarnya",
+    val phoneNumber: String = "",
+    val whatsappNumber: String = "",
+    val description: String = "",
+    val flyerPhotoUrl: String = "",
+    val flyerPhotoUrls: List<String> = emptyList(),
+    val ratingAvg: Double = 4.9,
+    val reviewCount: Int = 0,
+    val verifiedBadge: Boolean = true,
+    val contentReportCount: Int = 0,
+    val contentReportedByUids: List<String> = emptyList(),
+    val isBanned: Boolean = false,
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+) {
+    val allPhotos: List<String>
+        get() = when {
+            flyerPhotoUrls.isNotEmpty() -> flyerPhotoUrls.filter { it.isNotBlank() }
+            flyerPhotoUrl.isNotBlank() -> listOf(flyerPhotoUrl)
+            else -> emptyList()
+        }
+
+    val firstPhotoUrl: String
+        get() = allPhotos.firstOrNull().orEmpty()
+
+    val formattedPrice: String
+        get() = "Rp %,d".format(java.util.Locale.GERMANY, price).replace(',', '.')
+
+    val priceDisplay: String
+        get() = if (price <= 0) "Tarif Negosiasi / Survei Gratis" else "$formattedPrice / $priceUnit"
+
+    val isContentBlurred: Boolean
+        get() = contentReportCount >= 1
+
+    val isContentQuarantined: Boolean
+        get() = contentReportCount >= 3
+}
+
+

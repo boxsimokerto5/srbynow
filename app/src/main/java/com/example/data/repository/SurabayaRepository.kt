@@ -2,9 +2,12 @@ package com.example.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.example.data.model.AppNotification
+import com.example.data.model.AppNotificationType
 import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
+import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
 import com.example.data.model.DestinationReview
@@ -65,6 +68,9 @@ class SurabayaRepository(
     private val inMemoryMomentComments = ConcurrentHashMap<String, CopyOnWriteArrayList<MomentComment>>()
     private val inMemoryDestinations = ConcurrentHashMap<String, SurabayaDestination>()
     private val inMemoryDestinationReviews = ConcurrentHashMap<String, CopyOnWriteArrayList<DestinationReview>>()
+    private val inMemoryServices = ConcurrentHashMap<String, CitizenService>()
+    private val inMemoryNotifications = ConcurrentHashMap<String, AppNotification>()
+    private val localNotificationsTick = MutableStateFlow(0L)
 
     init {
         // Initialize rich starter moments
@@ -76,6 +82,58 @@ class SurabayaRepository(
         for (item in SurabayaCuratedSeed.starterDestinations("system_admin")) {
             val d = mapDestination(item)
             inMemoryDestinations[d.id] = d
+        }
+        // Initialize rich starter community services
+        for (item in SurabayaCuratedSeed.starterServices("system_seed", "Warga Surabaya")) {
+            val s = mapCitizenService(item)
+            inMemoryServices[s.id] = s
+        }
+        // Initialize rich starter notifications
+        val now = System.currentTimeMillis()
+        val starterNotifs = listOf(
+            AppNotification(
+                id = "notif_chat_1",
+                userId = "",
+                type = AppNotificationType.CHAT,
+                title = "Pesan Baru dari Cak Sugeng",
+                message = "Rek, sido cangkrukan nang Balai Pemuda sore iki? Tak enteni yo!",
+                targetId = "public_balai_pemuda",
+                timestamp = now - 1000 * 60 * 15,
+                isRead = false,
+            ),
+            AppNotification(
+                id = "notif_event_1",
+                userId = "",
+                type = AppNotificationType.EVENT,
+                title = "Event Baru: Festival Rujak Uleg 2026",
+                message = "Pendaftaran warga & stand kuliner telah dibuka resmi di Kya-Kya Kembang Jepun.",
+                targetId = "event_rujak_uleg_2026",
+                timestamp = now - 1000 * 60 * 45,
+                isRead = false,
+            ),
+            AppNotification(
+                id = "notif_incident_1",
+                userId = "",
+                type = AppNotificationType.INCIDENT,
+                title = "Info Lalu Lintas: Rekayasa Jl. Tunjungan",
+                message = "Penyekatan arus lalu lintas situasional di sekitar Jl. Tunjungan karena parade budaya.",
+                targetId = "inc_001",
+                timestamp = now - 1000 * 60 * 120,
+                isRead = false,
+            ),
+            AppNotification(
+                id = "notif_chat_2",
+                userId = "",
+                type = AppNotificationType.CHAT,
+                title = "Ning Maya di Ruang Warga",
+                message = "Rekomendasi rawon kalkun di daerah Tambaksari mantap tenan, lur!",
+                targetId = "room_public_tunjungan",
+                timestamp = now - 1000 * 60 * 240,
+                isRead = true,
+            ),
+        )
+        for (notif in starterNotifs) {
+            inMemoryNotifications[notif.id] = notif
         }
     }
 
@@ -483,6 +541,46 @@ class SurabayaRepository(
             logBackendError(e, OperationType.WRITE, "bookmarks/$bookmarkRecordId")
             throw e
         }
+    }
+
+    // --- 2.1 PEMBERITAHUAN WARGA (NOTIFICATIONS) ---
+
+    fun observeNotifications(userId: String): Flow<List<AppNotification>> {
+        return combine(
+            localMutationTick,
+            localNotificationsTick,
+        ) { _, _ ->
+            inMemoryNotifications.values
+                .filter { it.userId.isBlank() || it.userId == userId }
+                .sortedByDescending { it.timestamp }
+        }
+    }
+
+    fun markNotificationAsRead(notificationId: String) {
+        val existing = inMemoryNotifications[notificationId]
+        if (existing != null && !existing.isRead) {
+            inMemoryNotifications[notificationId] = existing.copy(isRead = true)
+            localNotificationsTick.value = localNotificationsTick.value + 1L
+        }
+    }
+
+    fun markAllNotificationsAsRead(userId: String) {
+        var updated = false
+        for ((key, notif) in inMemoryNotifications) {
+            if ((notif.userId.isBlank() || notif.userId == userId) && !notif.isRead) {
+                inMemoryNotifications[key] = notif.copy(isRead = true)
+                updated = true
+            }
+        }
+        if (updated) {
+            localNotificationsTick.value = localNotificationsTick.value + 1L
+        }
+    }
+
+    fun addNotification(notification: AppNotification) {
+        val notifId = notification.id.ifBlank { UUID.randomUUID().toString() }
+        inMemoryNotifications[notifId] = notification.copy(id = notifId)
+        localNotificationsTick.value = localNotificationsTick.value + 1L
     }
 
     // --- 3. KEJADIAN SURABAYA (INCIDENTS) ---
@@ -2428,6 +2526,210 @@ class SurabayaRepository(
         comment = j.optString("comment"),
         createdAt = parsePocketBaseTimestamp(j.optString("created")),
     )
+
+    private fun mapCitizenService(j: JSONObject): CitizenService {
+        val id = j.optString("id")
+        val remotePhoto = j.optString("flyer_photo_url")
+        val rawPhotos = j.optJSONArray("flyer_photos")
+        val resolvedPhotoUrls = mutableListOf<String>()
+        if (rawPhotos != null) {
+            for (i in 0 until rawPhotos.length()) {
+                val p = rawPhotos.optString(i)
+                if (p.isNotBlank()) resolvedPhotoUrls.add(p)
+            }
+        }
+        if (resolvedPhotoUrls.isEmpty() && remotePhoto.isNotBlank()) {
+            resolvedPhotoUrls.add(remotePhoto)
+        }
+
+        val overlay = localContentReports["services:$id"]
+        val serverContentCount = j.optInt("content_report_count", 0)
+        val serverContentUids = decodeUidList(j.optString("content_reported_uids"))
+        val effectiveContentCount = when {
+            overlay == null -> serverContentCount
+            overlay.forceOverride -> overlay.count
+            else -> serverContentCount + overlay.count
+        }
+        val effectiveContentUids = when {
+            overlay == null -> serverContentUids
+            overlay.forceOverride -> overlay.uids
+            else -> (serverContentUids + overlay.uids).distinct()
+        }
+
+        return CitizenService(
+            id = id,
+            providerId = j.optString("provider_id"),
+            providerName = j.optString("provider_name", "Warga Surabaya"),
+            title = j.optString("title"),
+            category = j.optString("category", "ELEKTRONIK_AC"),
+            price = j.optLong("price", 75000L),
+            priceUnit = j.optString("price_unit", "unit"),
+            district = j.optString("district", "Gubeng"),
+            coverageArea = j.optString("coverage_area", "Seluruh Surabaya & Sekitarnya"),
+            phoneNumber = j.optString("phone_number"),
+            whatsappNumber = j.optString("whatsapp_number"),
+            description = j.optString("description"),
+            flyerPhotoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
+            flyerPhotoUrls = resolvedPhotoUrls,
+            ratingAvg = j.optDouble("rating_avg", 4.9),
+            reviewCount = j.optInt("review_count", 0),
+            verifiedBadge = j.optBoolean("verified_badge", true),
+            contentReportCount = effectiveContentCount,
+            contentReportedByUids = effectiveContentUids,
+            isBanned = j.optBoolean("is_banned", false),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    fun observeCitizenServices(): Flow<List<CitizenService>> {
+        return combine(
+            pb.observeCollection("services", pollIntervalMs = 8_000L) {
+                try {
+                    pb.getList(collection = "services", sort = "-created")
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remoteServices = remoteList.map(::mapCitizenService)
+            val combinedMap = inMemoryServices.toMutableMap()
+            for (s in remoteServices) {
+                combinedMap[s.id] = s
+            }
+            combinedMap.values
+                .filter { "services:${it.id}" !in localDeletedRecords && it.providerId !in localBannedUids }
+                .sortedByDescending { it.createdAt ?: 0L }
+        }.catch { e ->
+            Log.w(TAG, "observeCitizenServices fallback: ${e.message}")
+            emit(inMemoryServices.values.filter { "services:${it.id}" !in localDeletedRecords }.sortedByDescending { it.createdAt ?: 0L })
+        }
+    }
+
+    suspend fun createCitizenService(
+        providerName: String,
+        title: String,
+        category: String,
+        price: Long,
+        priceUnit: String,
+        district: String,
+        coverageArea: String,
+        phoneNumber: String,
+        whatsappNumber: String,
+        description: String,
+        flyerPhoto: PreparedPhoto? = null,
+        flyerPhotos: List<PreparedPhoto> = emptyList(),
+    ): String {
+        val uid = requireUserId()
+        val recordId = PocketBaseClient.deterministicPbId("srv_${UUID.randomUUID()}")
+        val boundedPhotos = when {
+            flyerPhotos.isNotEmpty() -> flyerPhotos.take(3)
+            flyerPhoto != null -> listOf(flyerPhoto)
+            else -> emptyList()
+        }
+
+        val cleanPhone = phoneNumber.trim().replace(Regex("[^0-9+]"), "").take(25)
+        val cleanWa = (if (whatsappNumber.isNotBlank()) whatsappNumber else phoneNumber)
+            .trim().replace(Regex("[^0-9]"), "")
+            .let { if (it.startsWith("0")) "62" + it.drop(1) else it }
+            .take(25)
+
+        val newService = CitizenService(
+            id = recordId,
+            providerId = uid,
+            providerName = providerName.trim().take(80).ifEmpty { "Warga Surabaya" },
+            title = title.trim().take(120),
+            category = category.trim().ifEmpty { "ELEKTRONIK_AC" },
+            price = price.coerceAtLeast(0L),
+            priceUnit = priceUnit.trim().take(30).ifEmpty { "unit" },
+            district = district.trim().ifEmpty { "Gubeng" },
+            coverageArea = coverageArea.trim().take(150).ifEmpty { "Seluruh Surabaya" },
+            phoneNumber = cleanPhone,
+            whatsappNumber = cleanWa,
+            description = description.trim().take(1200),
+            flyerPhotoUrl = boundedPhotos.firstOrNull()?.dataUri.orEmpty(),
+            flyerPhotoUrls = boundedPhotos.map { it.dataUri },
+            ratingAvg = 5.0,
+            reviewCount = 1,
+            verifiedBadge = true,
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+        )
+
+        inMemoryServices[recordId] = newService
+        bumpMutationTick()
+
+        try {
+            val body = JSONObject().apply {
+                put("id", recordId)
+                put("provider_id", uid)
+                put("provider_name", newService.providerName)
+                put("title", newService.title)
+                put("category", newService.category)
+                put("price", newService.price)
+                put("price_unit", newService.priceUnit)
+                put("district", newService.district)
+                put("coverage_area", newService.coverageArea)
+                put("phone_number", newService.phoneNumber)
+                put("whatsapp_number", newService.whatsappNumber)
+                put("description", newService.description)
+                put("rating_avg", 5.0)
+                put("review_count", 1)
+                put("verified_badge", true)
+            }
+            val fileParts = boundedPhotos.mapIndexed { idx, p ->
+                MultipartFilePart(
+                    fieldName = if (idx == 0) "flyer_photo" else "flyer_photo_$idx",
+                    fileName = p.fileName,
+                    mimeType = p.mimeType,
+                    bytes = p.bytes,
+                )
+            }
+            try {
+                if (fileParts.isNotEmpty()) {
+                    pb.createRecordWithFiles("services", body, fileParts)
+                } else {
+                    pb.createRecord("services", body)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "PocketBase services remote creation warning: ${e.message}")
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "createCitizenService remote failed, kept in local state", e)
+        }
+
+        return recordId
+    }
+
+    suspend fun reportServiceContent(serviceId: String, reporterUid: String) {
+        reportContent(collection = "services", recordId = serviceId)
+        val current = inMemoryServices[serviceId]
+        if (current != null) {
+            val updated = current.copy(
+                contentReportCount = current.contentReportCount + 1,
+                contentReportedByUids = (current.contentReportedByUids + reporterUid).distinct(),
+            )
+            inMemoryServices[serviceId] = updated
+            bumpMutationTick()
+        }
+    }
+
+    suspend fun deleteCitizenService(serviceId: String, requesterUid: String, isAdmin: Boolean) {
+        val s = inMemoryServices[serviceId]
+        if (s != null && (s.providerId == requesterUid || isAdmin)) {
+            inMemoryServices.remove(serviceId)
+            localDeletedRecords.add("services:$serviceId")
+            bumpMutationTick()
+            try {
+                deleteRecord("services", serviceId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Remote delete service warning: ${e.message}")
+            }
+        }
+    }
 
     companion object {
         private const val TAG = "SurabayaRepoPB"

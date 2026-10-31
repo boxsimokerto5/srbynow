@@ -5,7 +5,12 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.audio.RadioPlaybackState
+import com.example.data.audio.RadioStationInfo
+import com.example.data.audio.SurabayaRadioPlayer
 import com.example.data.location.LocationHelper
+import com.example.data.model.AppNotification
+import com.example.data.model.AppNotificationType
 import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
@@ -28,6 +33,7 @@ import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
 import com.example.data.util.PreparedPhoto
 import com.example.data.util.SurabayaDistricts
+import com.example.data.util.SurabayaNotificationHelper
 import com.example.data.util.calculateDistanceKm
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,6 +47,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import com.example.data.model.CitizenService
 import kotlinx.coroutines.launch
 
 enum class MainTab {
@@ -52,6 +59,7 @@ enum class MainTab {
     EVENT,
     KULINER,
     SEKITAR,
+    JASA,
 }
 
 sealed interface ActiveBottomSheet {
@@ -67,9 +75,13 @@ sealed interface ActiveBottomSheet {
     data object CreateDestination : ActiveBottomSheet
     data object GpsPrivacySettings : ActiveBottomSheet
     data object BookmarksList : ActiveBottomSheet
+    data object Notifications : ActiveBottomSheet
     data object ProfileAndAdmin : ActiveBottomSheet
     data object StartDirectChat : ActiveBottomSheet
     data class ChatConversation(val room: ChatRoom) : ActiveBottomSheet
+    data object RadioPlayer : ActiveBottomSheet
+    data class ServiceDetail(val serviceId: String) : ActiveBottomSheet
+    data object CreateService : ActiveBottomSheet
 }
 
 data class NearbyPeerItem(
@@ -85,6 +97,7 @@ class SurabayaViewModel(
     private val initialDisplayName: String,
     val currentUserEmail: String,
     private val imageSafetyScanner: ImageSafetyScanner = GeminiExplicitImageScanner(),
+    private val radioPlayer: SurabayaRadioPlayer? = null,
 ) : ViewModel() {
 
     private val _selectedTab = MutableStateFlow(MainTab.HOME)
@@ -139,6 +152,17 @@ class SurabayaViewModel(
             emit(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    val notifications: StateFlow<List<AppNotification>> = repository.observeNotifications(currentUserId)
+        .catch { e ->
+            Log.w(TAG, "observeNotifications error", e)
+            emit(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    val unreadNotificationCount: StateFlow<Int> = notifications
+        .map { list -> list.count { !it.isRead } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), 0)
 
     // 1. Kejadian Surabaya (filtered for blocked authors & quarantined posts)
     val incidentsState: StateFlow<UiState<List<IncidentReport>>> = combine(
@@ -396,6 +420,23 @@ class SurabayaViewModel(
         reviews.filter { it.authorId !in blockedSet }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
+    // 7. Promosi Jasa Warga (Community Services Directory)
+    val servicesState: StateFlow<UiState<List<CitizenService>>> = combine(
+        repository.observeCitizenServices(),
+        blockedUserIds,
+        isAdmin,
+    ) { items, blockedSet, admin ->
+        val filtered = items.filter { item ->
+            item.providerId !in blockedSet && (!item.isContentQuarantined || admin)
+        }
+        UiState.Success(filtered) as UiState<List<CitizenService>>
+    }
+        .catch { e ->
+            Log.w(TAG, "observeCitizenServices error", e)
+            emit(UiState.Error(e.localizedMessage ?: "Gagal memuat promosi jasa warga"))
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
     init {
         viewModelScope.launch {
             try {
@@ -429,6 +470,46 @@ class SurabayaViewModel(
 
     fun dismissSheet() {
         _activeSheet.value = null
+    }
+
+    // Radio Suara Surabaya 100 FM
+    val radioPlaybackState: StateFlow<RadioPlaybackState> =
+        radioPlayer?.playbackState ?: MutableStateFlow(RadioPlaybackState.STOPPED).asStateFlow()
+
+    val radioVolume: StateFlow<Float> =
+        radioPlayer?.volume ?: MutableStateFlow(0.85f).asStateFlow()
+
+    val radioErrorMessage: StateFlow<String?> =
+        radioPlayer?.errorMessage ?: MutableStateFlow<String?>(null).asStateFlow()
+
+    val radioStationInfo: StateFlow<RadioStationInfo> =
+        radioPlayer?.stationInfo ?: MutableStateFlow(RadioStationInfo()).asStateFlow()
+
+    fun playRadio() {
+        radioPlayer?.play()
+    }
+
+    fun pauseRadio() {
+        radioPlayer?.pause()
+    }
+
+    fun toggleRadio() {
+        radioPlayer?.toggle()
+    }
+
+    fun stopRadio() {
+        radioPlayer?.stop()
+    }
+
+    fun setRadioVolume(volume: Float) {
+        radioPlayer?.setVolume(volume)
+    }
+
+    fun openRadioPlayer(autoPlay: Boolean = false) {
+        openSheet(ActiveBottomSheet.RadioPlayer)
+        if (autoPlay && radioPlaybackState.value != RadioPlaybackState.PLAYING) {
+            playRadio()
+        }
     }
 
     fun clearSnackbar() {
@@ -609,6 +690,60 @@ class SurabayaViewModel(
                 notifyMessage("Gagal mengubah bookmark")
             }
         }
+    }
+
+    fun markNotificationAsRead(id: String) {
+        repository.markNotificationAsRead(id)
+    }
+
+    fun markAllNotificationsAsRead() {
+        repository.markAllNotificationsAsRead(currentUserId)
+        notifyMessage("Semua pemberitahuan ditandai sudah dibaca")
+    }
+
+    fun sendTestHeadsUpNotification(context: Context, type: AppNotificationType) {
+        val now = System.currentTimeMillis()
+        val (title, body, targetId) = when (type) {
+            AppNotificationType.CHAT -> Triple(
+                "Pesan Baru: Cak Sugeng",
+                "Rek, sido cangkrukan nang Balai Pemuda sore iki? Tak enteni yo!",
+                "public_balai_pemuda"
+            )
+            AppNotificationType.EVENT -> Triple(
+                "Agenda Baru: Festival Rujak Uleg 2026",
+                "Pendaftaran stand & pawai warga resmi dibuka di Kya-Kya!",
+                "event_rujak_uleg_2026"
+            )
+            AppNotificationType.INCIDENT -> Triple(
+                "Peringatan Lalu Lintas: Jl. Tunjungan",
+                "Arus lalu lintas dialihkan sementara karena persiapan parade budaya.",
+                "inc_001"
+            )
+            AppNotificationType.SYSTEM -> Triple(
+                "Pemberitahuan Warga Surabaya",
+                "Fitur notifikasi penting telah aktif dan siap menampilkan info terkini.",
+                ""
+            )
+        }
+        val notif = AppNotification(
+            id = "test_${System.currentTimeMillis()}",
+            userId = currentUserId,
+            type = type,
+            title = title,
+            message = body,
+            targetId = targetId,
+            timestamp = now,
+            isRead = false,
+        )
+        repository.addNotification(notif)
+        SurabayaNotificationHelper.showHeadsUpNotification(
+            context = context,
+            title = title,
+            message = body,
+            type = type,
+            targetId = targetId,
+        )
+        notifyMessage("Notifikasi banner heads-up dikirim ke layar Android")
     }
 
     fun submitIncident(
@@ -1373,6 +1508,101 @@ class SurabayaViewModel(
                 notifyMessage("Akun ${targetName.ifBlank { "pelanggar" }} telah dibekukan oleh Admin!")
             } catch (e: Exception) {
                 notifyMessage("Gagal membekukan akun pelanggar")
+            }
+        }
+    }
+
+    fun submitCitizenService(
+        title: String,
+        category: String,
+        price: Long,
+        priceUnit: String,
+        district: String,
+        coverageArea: String,
+        phoneNumber: String,
+        whatsappNumber: String,
+        description: String,
+        photoUris: List<Uri> = emptyList(),
+        context: Context? = null,
+    ) {
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+        if (title.isBlank()) {
+            notifyMessage("Mohon isi nama jasa atau usaha Anda.")
+            return
+        }
+        if (phoneNumber.isBlank() && whatsappNumber.isBlank()) {
+            notifyMessage("Mohon sertakan nomor WhatsApp atau telepon agar warga dapat menghubungi Anda.")
+            return
+        }
+
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val preparedPhotos = buildList {
+                    if (appCtx != null) {
+                        for ((idx, uri) in photoUris.take(3).withIndex()) {
+                            val compressed = ImageUploadHelper.preparePhotoFromUri(
+                                context = appCtx,
+                                uri = uri,
+                                prefix = "jasa${idx + 1}",
+                            )
+                            if (compressed != null) {
+                                add(compressed)
+                            }
+                        }
+                    }
+                }
+                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                    notifyMessage("Foto flyer gagal diproses, silakan coba lagi.")
+                    return@launch
+                }
+                if (!verifyPhotosAreSafe(preparedPhotos)) {
+                    return@launch
+                }
+
+                repository.createCitizenService(
+                    providerName = currentDisplayName(),
+                    title = title,
+                    category = category,
+                    price = price,
+                    priceUnit = priceUnit,
+                    district = district,
+                    coverageArea = coverageArea,
+                    phoneNumber = phoneNumber,
+                    whatsappNumber = whatsappNumber,
+                    description = description,
+                    flyerPhotos = preparedPhotos,
+                )
+                dismissSheet()
+                notifyMessage("Promosi jasa berhasil dipasang di Arek Surabaya!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal memasang promosi jasa: ${e.message}")
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun reportServiceContent(service: CitizenService) {
+        viewModelScope.launch {
+            try {
+                repository.reportServiceContent(service.id, currentUserId)
+                notifyMessage("Terima kasih. Laporan jasa Anda telah tercatat untuk verifikasi keamanan.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim laporan: ${e.message}")
+            }
+        }
+    }
+
+    fun deleteService(serviceId: String) {
+        viewModelScope.launch {
+            try {
+                repository.deleteCitizenService(serviceId, currentUserId, isAdmin.value)
+                dismissSheet()
+                notifyMessage("Promosi jasa berhasil dihapus.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menghapus jasa: ${e.message}")
             }
         }
     }

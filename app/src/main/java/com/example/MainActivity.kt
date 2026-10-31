@@ -9,24 +9,36 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Newspaper
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Event
@@ -39,6 +51,7 @@ import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
@@ -49,19 +62,26 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,8 +105,20 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.KejadianScreen
 import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.MomenScreen
+import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.StartDirectChatSheetContent
 import com.example.ui.screens.TemanSekitarScreen
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.example.data.model.AppNotificationType
+import com.example.data.util.SurabayaNotificationHelper
+import com.example.data.audio.RadioPlaybackState
+import com.example.data.audio.SurabayaRadioPlayer
 import com.example.ui.sheets.BookmarksSheetContent
 import com.example.ui.sheets.ChatConversationSheetContent
 import com.example.ui.sheets.CreateCulinarySheetContent
@@ -98,8 +130,10 @@ import com.example.ui.sheets.DestinationDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
 import com.example.ui.sheets.MomentDetailSheetContent
+import com.example.ui.sheets.NotificationsSheetContent
 import com.example.ui.sheets.ProfileAndPrivacySheetContent
 import com.example.ui.sheets.ProposeEventSheetContent
+import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import com.example.ui.viewmodel.ActiveBottomSheet
 import com.example.ui.viewmodel.MainTab
@@ -110,6 +144,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         configureAppCheck(this, intent)
         OAuthRedirectBus.handleIncomingIntent(intent)
+        SurabayaNotificationHelper.createNotificationChannels(this)
+        SurabayaNotificationHelper.handleIncomingIntent(intent)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
                 AndroidColor.TRANSPARENT,
@@ -130,6 +166,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         OAuthRedirectBus.handleIncomingIntent(intent)
+        SurabayaNotificationHelper.handleIncomingIntent(intent)
     }
 }
 
@@ -139,15 +176,27 @@ fun AppNavigation() {
     val pbClient = remember(context) { PocketBaseClient.getInstance(context) }
     val session by pbClient.sessionFlow.collectAsStateWithLifecycle()
     val activeSession = session
+    var isSplashVisible by rememberSaveable { mutableStateOf(true) }
 
-    if (activeSession == null) {
-        AuthScreen(onAuthSuccess = {})
-    } else {
-        SurabayaMainHub(
-            currentUserId = activeSession.userId,
-            displayName = activeSession.displayName.ifBlank { "Warga Surabaya" },
-            email = activeSession.email,
-        )
+    Crossfade(
+        targetState = isSplashVisible,
+        label = "splash_crossfade",
+    ) { showSplash ->
+        if (showSplash) {
+            SplashScreen(
+                onSplashFinished = { isSplashVisible = false }
+            )
+        } else {
+            if (activeSession == null) {
+                AuthScreen(onAuthSuccess = {})
+            } else {
+                SurabayaMainHub(
+                    currentUserId = activeSession.userId,
+                    displayName = activeSession.displayName.ifBlank { "Warga Surabaya" },
+                    email = activeSession.email,
+                )
+            }
+        }
     }
 }
 
@@ -182,6 +231,7 @@ fun SurabayaMainHub(
                     initialDisplayName = displayName,
                     currentUserEmail = email,
                     imageSafetyScanner = GeminiExplicitImageScanner(app),
+                    radioPlayer = SurabayaRadioPlayer.getInstance(app),
                 )
             }
         },
@@ -192,9 +242,18 @@ fun SurabayaMainHub(
     val activeSheet by viewModel.activeSheet.collectAsStateWithLifecycle()
     val snackbarMsg by viewModel.snackbarMessage.collectAsStateWithLifecycle()
 
+    val radioPlaybackState by viewModel.radioPlaybackState.collectAsStateWithLifecycle()
+    val radioVolume by viewModel.radioVolume.collectAsStateWithLifecycle()
+    val radioErrorMessage by viewModel.radioErrorMessage.collectAsStateWithLifecycle()
+    val radioStationInfo by viewModel.radioStationInfo.collectAsStateWithLifecycle()
+
     val userAccount by viewModel.userAccount.collectAsStateWithLifecycle()
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+    val unreadNotifCount by viewModel.unreadNotificationCount.collectAsStateWithLifecycle()
+    val pendingNotifPayload by SurabayaNotificationHelper.pendingNotificationPayload.collectAsStateWithLifecycle()
+
     val isLiveGps by viewModel.isLiveGpsActive.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
     val isScanningPhoto by viewModel.isScanningPhoto.collectAsStateWithLifecycle()
@@ -223,6 +282,51 @@ fun SurabayaMainHub(
     val activeChatMessages by viewModel.activeChatMessages.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Android 13+ Notification Runtime Permission Request
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val notifPermissionLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted ->
+                Log.d("MainActivity", "POST_NOTIFICATIONS granted: $isGranted")
+            },
+        )
+        LaunchedEffect(Unit) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    // Deep-link intent observer from Heads-up System Notification tap
+    LaunchedEffect(pendingNotifPayload) {
+        val payload = pendingNotifPayload ?: return@LaunchedEffect
+        SurabayaNotificationHelper.consumePendingPayload()
+        when (payload.type) {
+            AppNotificationType.CHAT -> {
+                viewModel.selectTab(MainTab.CHAT)
+                val targetRoom = (publicChatRooms + directChatRooms).firstOrNull { it.id == payload.targetId || it.roomKey == payload.targetId }
+                if (targetRoom != null) {
+                    viewModel.openSheet(ActiveBottomSheet.ChatConversation(targetRoom))
+                }
+            }
+            AppNotificationType.EVENT -> {
+                viewModel.selectTab(MainTab.EVENT)
+                if (payload.targetId.isNotBlank()) {
+                    viewModel.openSheet(ActiveBottomSheet.EventDetail(payload.targetId))
+                }
+            }
+            AppNotificationType.INCIDENT -> {
+                viewModel.selectTab(MainTab.KEJADIAN)
+                if (payload.targetId.isNotBlank()) {
+                    viewModel.openSheet(ActiveBottomSheet.IncidentDetail(payload.targetId))
+                }
+            }
+            AppNotificationType.SYSTEM -> {
+                viewModel.openSheet(ActiveBottomSheet.Notifications)
+            }
+        }
+    }
 
     LaunchedEffect(snackbarMsg) {
         val msg = snackbarMsg
@@ -269,47 +373,64 @@ fun SurabayaMainHub(
                     district = currentDistrict,
                     isAdmin = isAdmin,
                     bookmarkCount = bookmarks.size,
+                    notificationCount = unreadNotifCount,
                     userInitials = userInitials,
                     avatarUrl = currentAvatarUrl,
                     onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
+                    onOpenNotifications = { viewModel.openSheet(ActiveBottomSheet.Notifications) },
                     onOpenProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
                 )
             },
             bottomBar = {
                 if (!isWideTablet) {
-                    NavigationBar(
-                        windowInsets = WindowInsets.navigationBars,
-                        containerColor = androidx.compose.ui.graphics.Color.White,
-                        tonalElevation = 0.dp,
-                    ) {
-                        destinations.forEach { dest ->
-                            val selected = selectedTab == dest.tab
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = { viewModel.selectTab(dest.tab) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                        contentDescription = stringResource(dest.labelRes),
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        text = stringResource(dest.labelRes),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                        maxLines = 1,
-                                    )
-                                },
-                                colors = NavigationBarItemDefaults.colors(
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedIconColor = com.example.ui.theme.ToskaPrimaryDeep,
-                                    selectedTextColor = com.example.ui.theme.ToskaPrimaryDeep,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                ),
-                                modifier = Modifier.testTag(dest.testTag),
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (radioPlaybackState == RadioPlaybackState.PLAYING ||
+                            radioPlaybackState == RadioPlaybackState.BUFFERING ||
+                            radioPlaybackState == RadioPlaybackState.PAUSED
+                        ) {
+                            SurabayaRadioMiniPlayer(
+                                playbackState = radioPlaybackState,
+                                stationInfo = radioStationInfo,
+                                onToggle = { viewModel.toggleRadio() },
+                                onClose = { viewModel.stopRadio() },
+                                onOpenFull = { viewModel.openRadioPlayer(autoPlay = false) },
                             )
+                        }
+
+                        NavigationBar(
+                            windowInsets = WindowInsets.navigationBars,
+                            containerColor = androidx.compose.ui.graphics.Color.White,
+                            tonalElevation = 0.dp,
+                        ) {
+                            destinations.forEach { dest ->
+                                val selected = selectedTab == dest.tab
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = { viewModel.selectTab(dest.tab) },
+                                    icon = {
+                                        Icon(
+                                            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                            contentDescription = stringResource(dest.labelRes),
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = stringResource(dest.labelRes),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedIconColor = com.example.ui.theme.ToskaPrimaryDeep,
+                                        selectedTextColor = com.example.ui.theme.ToskaPrimaryDeep,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    modifier = Modifier.testTag(dest.testTag),
+                                )
+                            }
                         }
                     }
                 }
@@ -359,6 +480,7 @@ fun SurabayaMainHub(
                                 onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
                                 onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
                                 onOpenProfileAndAdmin = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
+                                onOpenRadio = { viewModel.openRadioPlayer(autoPlay = true) },
                             )
                             MainTab.MOMEN -> MomenScreen(
                                 momentsState = momentsState,
@@ -727,6 +849,40 @@ fun SurabayaMainHub(
                         },
                     )
                 }
+                ActiveBottomSheet.Notifications -> {
+                    NotificationsSheetContent(
+                        notifications = notifications,
+                        onOpenNotification = { notif ->
+                            viewModel.markNotificationAsRead(notif.id)
+                            viewModel.dismissSheet()
+                            when (notif.type) {
+                                AppNotificationType.CHAT -> {
+                                    viewModel.selectTab(MainTab.CHAT)
+                                    val foundRoom = (publicChatRooms + directChatRooms).firstOrNull { it.id == notif.targetId || it.roomKey == notif.targetId }
+                                    if (foundRoom != null) {
+                                        viewModel.openSheet(ActiveBottomSheet.ChatConversation(foundRoom))
+                                    }
+                                }
+                                AppNotificationType.EVENT -> {
+                                    viewModel.selectTab(MainTab.EVENT)
+                                    if (notif.targetId.isNotBlank()) {
+                                        viewModel.openSheet(ActiveBottomSheet.EventDetail(notif.targetId))
+                                    }
+                                }
+                                AppNotificationType.INCIDENT -> {
+                                    viewModel.selectTab(MainTab.KEJADIAN)
+                                    if (notif.targetId.isNotBlank()) {
+                                        viewModel.openSheet(ActiveBottomSheet.IncidentDetail(notif.targetId))
+                                    }
+                                }
+                                AppNotificationType.SYSTEM -> {}
+                            }
+                        },
+                        onMarkAllRead = { viewModel.markAllNotificationsAsRead() },
+                        onTestNotification = { type -> viewModel.sendTestHeadsUpNotification(context, type) },
+                        onClose = { viewModel.dismissSheet() },
+                    )
+                }
                 is ActiveBottomSheet.MomentDetail -> {
                     val found = (momentsState as? UiState.Success)?.data?.firstOrNull { it.id == sheetTarget.momentId }
                     if (found != null) {
@@ -828,6 +984,134 @@ fun SurabayaMainHub(
                         } else {
                             null
                         },
+                    )
+                }
+                ActiveBottomSheet.RadioPlayer -> {
+                    RadioPlayerSheetContent(
+                        playbackState = radioPlaybackState,
+                        volume = radioVolume,
+                        errorMessage = radioErrorMessage,
+                        stationInfo = radioStationInfo,
+                        onTogglePlay = { viewModel.toggleRadio() },
+                        onSetVolume = { viewModel.setRadioVolume(it) },
+                        onClose = { viewModel.dismissSheet() },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SurabayaRadioMiniPlayer(
+    playbackState: RadioPlaybackState,
+    stationInfo: com.example.data.audio.RadioStationInfo,
+    onToggle: () -> Unit,
+    onClose: () -> Unit,
+    onOpenFull: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onOpenFull() }
+            .testTag("radio_mini_player_bar"),
+        color = com.example.ui.theme.ToskaPrimaryDeep,
+        tonalElevation = 6.dp,
+        shadowElevation = 6.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Radio,
+                        contentDescription = null,
+                        tint = androidx.compose.ui.graphics.Color.White,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "100.0 FM • Suara Surabaya",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = androidx.compose.ui.graphics.Color.White,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (playbackState == RadioPlaybackState.PLAYING) {
+                                        com.example.ui.theme.AlertCrimson
+                                    } else {
+                                        com.example.ui.theme.StarGold
+                                    }
+                                ),
+                        )
+                    }
+                    Text(
+                        text = when (playbackState) {
+                            RadioPlaybackState.PLAYING -> "Sedang Mengudara (Live)"
+                            RadioPlaybackState.BUFFERING -> "Menghubungkan ke Siaran SS 100 FM…"
+                            RadioPlaybackState.PAUSED -> "Siaran Dijeda"
+                            else -> stationInfo.currentProgram
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onToggle,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .testTag("radio_mini_play_pause_btn"),
+                ) {
+                    Icon(
+                        imageVector = if (playbackState == RadioPlaybackState.PLAYING) {
+                            Icons.Filled.Pause
+                        } else {
+                            Icons.Filled.PlayArrow
+                        },
+                        contentDescription = if (playbackState == RadioPlaybackState.PLAYING) "Jeda" else "Putar",
+                        tint = androidx.compose.ui.graphics.Color.White,
+                    )
+                }
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .testTag("radio_mini_close_btn"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Tutup Radio",
+                        tint = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f),
                     )
                 }
             }
