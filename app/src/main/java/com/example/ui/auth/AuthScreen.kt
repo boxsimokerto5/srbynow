@@ -1,7 +1,5 @@
 package com.example.ui.auth
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -29,16 +27,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Female
 import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Male
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -130,28 +123,12 @@ fun AuthScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var infoMessage by remember { mutableStateOf<String?>(null) }
 
-    var serverOnline by remember { mutableStateOf<Boolean?>(null) }
-    var collectionsReady by remember { mutableStateOf<Boolean?>(null) }
-    var showServerConfig by rememberSaveable { mutableStateOf(false) }
-    var customServerUrl by rememberSaveable { mutableStateOf(pbClient.baseUrl) }
-
-    fun refreshServerStatus() {
-        scope.launch {
-            val healthy = pbClient.checkHealth()
-            serverOnline = healthy
-            collectionsReady = if (healthy) pbClient.checkCollectionsReady() else false
-        }
-    }
-
     val oauthCallback by OAuthRedirectBus.pendingCallback.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         val restored = pbClient.restorePersistedSession()
         if (restored != null) {
             onAuthSuccess()
-        } else {
-            customServerUrl = pbClient.baseUrl
-            refreshServerStatus()
         }
     }
 
@@ -221,12 +198,12 @@ fun AuthScreen(
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Top City + PocketBase Live Status Row
+            // Top City Badge
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 520.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
@@ -235,66 +212,21 @@ fun AuthScreen(
                     shadowElevation = 2.dp,
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             imageVector = Icons.Filled.LocationCity,
                             contentDescription = null,
                             tint = Color(0xFF026AA7),
-                            modifier = Modifier.size(15.dp),
+                            modifier = Modifier.size(16.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Warga Kota Pahlawan",
+                            text = "Warga Kota Pahlawan • Arek Suroboyo",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF0B3558),
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = CircleShape,
-                    color = when (serverOnline) {
-                        true -> Color.White.copy(alpha = 0.92f)
-                        false -> Color(0xFFFFDAD6)
-                        null -> Color.White.copy(alpha = 0.85f)
-                    },
-                    shadowElevation = 2.dp,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable { showServerConfig = !showServerConfig }
-                        .testTag("pocketbase_status_badge"),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    ) {
-                        Icon(
-                            imageVector = if (serverOnline == true) Icons.Filled.CloudDone else Icons.Filled.SettingsEthernet,
-                            contentDescription = "Status Server PocketBase",
-                            tint = when (serverOnline) {
-                                true -> OpenGreenText
-                                false -> Color(0xFF93000A)
-                                null -> Color(0xFF026AA7)
-                            },
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Text(
-                            text = when (serverOnline) {
-                                true -> "PB Aktif :8091"
-                                false -> "Cek Server"
-                                null -> "Cek PB…"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = when (serverOnline) {
-                                true -> OpenGreenText
-                                false -> Color(0xFF93000A)
-                                null -> Color(0xFF0B3558)
-                            },
                         )
                     }
                 }
@@ -342,31 +274,6 @@ fun AuthScreen(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                    }
-
-                    // Collection Setup Helper Banner (appears automatically if collections aren't imported yet OR user taps Server badge)
-                    if (collectionsReady == false || showServerConfig) {
-                        PocketBaseSetupHelperBox(
-                            currentUrl = customServerUrl,
-                            collectionsReady = collectionsReady,
-                            onUrlChange = { customServerUrl = it },
-                            onSaveUrlAndCheck = {
-                                scope.launch {
-                                    pbClient.updateServerUrl(customServerUrl)
-                                    infoMessage = "Alamat server diperbarui ke ${pbClient.baseUrl}"
-                                    refreshServerStatus()
-                                }
-                            },
-                            onCopySchemaJson = {
-                                val copied = copyCollectionsJsonToClipboard(context)
-                                infoMessage = if (copied) {
-                                    "JSON Koleksi berhasil disalin! Buka Dashboard PocketBase (:8091/_/) → ikon 🛠️ Settings → Import collections → Paste."
-                                } else {
-                                    "Gagal menyalin JSON koleksi."
-                                }
-                            },
-                            onRecheck = { refreshServerStatus() },
-                        )
                     }
 
                     // Segmented Masuk / Daftar Pill
@@ -604,7 +511,6 @@ fun AuthScreen(
                                 } catch (e: Exception) {
                                     isLoading = false
                                     errorMessage = e.localizedMessage ?: "Gagal terhubung ke server PocketBase."
-                                    refreshServerStatus()
                                 }
                             }
                         },
@@ -688,39 +594,6 @@ fun AuthScreen(
                             }
                         },
                     )
-
-                    // Quick Helper Footer: Copy JSON Schema or Configure Server
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "Server: ${pbClient.baseUrl.removePrefix("http://").removePrefix("https://")}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        FilledTonalButton(
-                            onClick = { showServerConfig = !showServerConfig },
-                            shape = CircleShape,
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.testTag("toggle_pb_setup_btn"),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.ContentCopy,
-                                contentDescription = null,
-                                modifier = Modifier.size(13.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Setup & JSON PB",
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -757,120 +630,3 @@ private fun AuthModePill(
     }
 }
 
-@Composable
-private fun PocketBaseSetupHelperBox(
-    currentUrl: String,
-    collectionsReady: Boolean?,
-    onUrlChange: (String) -> Unit,
-    onSaveUrlAndCheck: () -> Unit,
-    onCopySchemaJson: () -> Unit,
-    onRecheck: () -> Unit,
-) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = if (collectionsReady == true) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-        } else {
-            PendingAmberBg
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    imageVector = if (collectionsReady == true) Icons.Filled.CheckCircle else Icons.Filled.Warning,
-                    contentDescription = null,
-                    tint = if (collectionsReady == true) MaterialTheme.colorScheme.primary else PendingAmberText,
-                    modifier = Modifier.size(17.dp),
-                )
-                Text(
-                    text = if (collectionsReady == true) {
-                        "Koleksi PocketBase Siap Digunakan!"
-                    } else {
-                        "Langkah Terakhir: Import Koleksi di PocketBase (:8091)"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = if (collectionsReady == true) MaterialTheme.colorScheme.onSurface else PendingAmberText,
-                )
-            }
-
-            if (collectionsReady != true) {
-                Text(
-                    text = "1. Tekan tombol Salin JSON Koleksi di bawah.\n2. Di Chrome (173.249.59.183:8091/_/), ketuk ikon 🛠️ Settings (kiri bawah) → Import collections.\n3. Paste JSON → ketuk Review → Confirm and import.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = PendingAmberText,
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(
-                    onClick = onCopySchemaJson,
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("copy_pb_schema_btn"),
-                ) {
-                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text("Salin JSON Koleksi", style = MaterialTheme.typography.labelMedium)
-                }
-                OutlinedButton(
-                    onClick = onRecheck,
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                    modifier = Modifier.testTag("recheck_pb_btn"),
-                ) {
-                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Cek Lagi", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                OutlinedTextField(
-                    value = currentUrl,
-                    onValueChange = onUrlChange,
-                    label = { Text("URL PocketBase") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f),
-                )
-                FilledTonalButton(
-                    onClick = onSaveUrlAndCheck,
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                ) {
-                    Text("Simpan", style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        }
-    }
-}
-
-private fun copyCollectionsJsonToClipboard(context: Context): Boolean {
-    return try {
-        val jsonText = context.assets.open("pocketbase_collections.json")
-            .bufferedReader(Charsets.UTF_8)
-            .use { it.readText() }
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("PocketBase Surabaya Collections", jsonText))
-        true
-    } catch (_: Exception) {
-        false
-    }
-}

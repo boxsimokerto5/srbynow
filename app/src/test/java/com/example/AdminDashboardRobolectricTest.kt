@@ -18,6 +18,7 @@ import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.repository.SurabayaRepository
+import com.example.ui.auth.AuthScreen
 import com.example.ui.screens.AdminDashboardScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.collectAdminFlaggedItems
@@ -52,15 +53,14 @@ class AdminDashboardRobolectricTest {
     }
 
     @Test
-    fun `HomeScreen hides admin banner for regular citizen and shows it for official admin`() {
+    fun `HomeScreen has no admin banner or button even when user is official admin`() {
         var openedAdmin = false
-        var adminModeState = false
 
         composeTestRule.setContent {
             SurabayaHariIniTheme {
                 HomeScreen(
-                    userAccount = UserAccount(displayName = "Cak Eko", district = "Genteng", isAdmin = adminModeState),
-                    isAdmin = adminModeState,
+                    userAccount = UserAccount(displayName = "Admin Eko", district = "Genteng", isAdmin = true),
+                    isAdmin = true,
                     currentDistrict = "Genteng",
                     incidentsState = UiState.Success(emptyList()),
                     destinationsState = UiState.Success(emptyList()),
@@ -79,9 +79,10 @@ class AdminDashboardRobolectricTest {
             }
         }
 
-        // Regular citizen sees zero admin banners
+        // Even with isAdmin = true, HomeScreen contains zero admin banners because admin access is strictly in Profile
         composeTestRule.onAllNodesWithTag("home_admin_dashboard_banner").assertCountEquals(0)
         composeTestRule.onAllNodesWithTag("home_open_admin_dashboard_btn").assertCountEquals(0)
+        composeTestRule.onAllNodesWithTag("home_admin_control_card").assertCountEquals(0)
     }
 
     @Test
@@ -247,5 +248,32 @@ class AdminDashboardRobolectricTest {
         composeTestRule.onNodeWithTag("admin_tab_community").performClick()
         composeTestRule.onNodeWithTag("admin_unban_btn_u_spammer_99").assertIsDisplayed().performClick()
         assertEquals("u_spammer_99" to "Akun Spam", unbannedTarget)
+
+        // Switch to Tab 4: Server & DB -> verify PocketBase IP and JSON schema controls are present
+        composeTestRule.onNodeWithTag("admin_tab_server").performClick()
+        composeTestRule.onNodeWithTag("admin_pocketbase_config_card").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("admin_pb_url_input").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("admin_copy_pb_schema_btn").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("admin_save_pb_url_btn").assertIsDisplayed()
+    }
+
+    @Test
+    fun `AuthScreen is clean and never shows server IP badges or JSON schema setup controls to regular users`() {
+        composeTestRule.setContent {
+            SurabayaHariIniTheme {
+                AuthScreen(onAuthSuccess = {})
+            }
+        }
+
+        // Verify clean login screen without technical PocketBase badges, IPs, or JSON tools
+        composeTestRule.onAllNodesWithTag("pocketbase_status_badge").assertCountEquals(0)
+        composeTestRule.onAllNodesWithTag("toggle_pb_setup_btn").assertCountEquals(0)
+        composeTestRule.onAllNodesWithTag("copy_pb_schema_btn").assertCountEquals(0)
+        composeTestRule.onAllNodesWithTag("admin_pocketbase_config_card").assertCountEquals(0)
+
+        // Verify normal login elements are present
+        composeTestRule.onNodeWithTag("auth_tab_login").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("auth_email_input").assertIsDisplayed()
     }
 }
+

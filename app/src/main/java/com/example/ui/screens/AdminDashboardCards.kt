@@ -17,18 +17,28 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.SettingsEthernet
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,6 +69,7 @@ import com.example.data.model.IncidentReport
 import com.example.data.model.NearbyProfile
 import com.example.data.model.SurabayaEvent
 import com.example.ui.theme.AlertCrimson
+import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
@@ -698,5 +709,272 @@ fun AdminPublicGroupManageRow(
                 Text("Hapus", style = MaterialTheme.typography.labelSmall)
             }
         }
+    }
+}
+
+@Composable
+fun AdminPocketBaseConfigCard(
+    currentUrl: String,
+    serverOnline: Boolean?,
+    collectionsReady: Boolean?,
+    onUrlChange: (String) -> Unit,
+    onSaveUrlAndCheck: () -> Unit,
+    onCopySchemaJson: () -> Unit,
+    onRecheck: () -> Unit,
+    statusMessage: String? = null,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, OutlineVariantLight),
+        shadowElevation = 2.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("admin_pocketbase_config_card"),
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(MintSoftGradient),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Dns,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Server & Database PocketBase",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Konfigurasi IP, endpoint, dan skema JSON khusus Admin",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = when (serverOnline) {
+                        true -> OpenGreenBg
+                        false -> Color(0xFFFFDAD6)
+                        null -> Color(0xFFE0F2FE)
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = when (serverOnline) {
+                                true -> Icons.Filled.CloudDone
+                                false -> Icons.Filled.Warning
+                                null -> Icons.Filled.SettingsEthernet
+                            },
+                            contentDescription = null,
+                            tint = when (serverOnline) {
+                                true -> OpenGreenText
+                                false -> AlertCrimson
+                                null -> ToskaPrimaryDeep
+                            },
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = when (serverOnline) {
+                                true -> "Server Online (:8091)"
+                                false -> "Server Terputus"
+                                null -> "Memeriksa Koneksi…"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = when (serverOnline) {
+                                true -> OpenGreenText
+                                false -> AlertCrimson
+                                null -> ToskaPrimaryDeep
+                            },
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = when (collectionsReady) {
+                        true -> OpenGreenBg
+                        false -> PendingAmberBg
+                        null -> Color(0xFFF3F4F6)
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (collectionsReady == true) Icons.Filled.CheckCircle else Icons.Filled.WarningAmber,
+                            contentDescription = null,
+                            tint = if (collectionsReady == true) OpenGreenText else PendingAmberText,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = when (collectionsReady) {
+                                true -> "20 Koleksi Siap"
+                                false -> "Perlu Import JSON"
+                                null -> "Memeriksa Koleksi…"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (collectionsReady == true) OpenGreenText else PendingAmberText,
+                        )
+                    }
+                }
+            }
+
+            if (!statusMessage.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = OpenGreenBg,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = statusMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OpenGreenText,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                }
+            }
+
+            Text(
+                text = "Alamat IP & Port PocketBase Server",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = currentUrl,
+                    onValueChange = onUrlChange,
+                    label = { Text("URL Endpoint PocketBase") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("admin_pb_url_input"),
+                )
+                Button(
+                    onClick = onSaveUrlAndCheck,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimaryDeep),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .height(52.dp)
+                        .testTag("admin_save_pb_url_btn"),
+                ) {
+                    Text("Simpan", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = onCopySchemaJson,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .testTag("admin_copy_pb_schema_btn"),
+                ) {
+                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Salin JSON Koleksi", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = onRecheck,
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    modifier = Modifier
+                        .height(48.dp)
+                        .testTag("admin_recheck_pb_btn"),
+                ) {
+                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Tes Ulang", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFFF8FAFC),
+                border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.6f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "Petunjuk Import Skema Database (Admin PocketBase):",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimaryDeep,
+                    )
+                    Text(
+                        text = "1. Ketuk tombol 'Salin JSON Koleksi' di atas.\n" +
+                            "2. Buka PocketBase Admin UI di browser: $currentUrl/_/\n" +
+                            "3. Masuk ke Settings (ikon 🛠️ di pojok kiri bawah) → pilih 'Import collections'.\n" +
+                            "4. Tempel (Paste) teks JSON, ketuk 'Review' lalu 'Confirm and import'.\n" +
+                            "5. Seluruh 20 koleksi database warga Surabaya akan langsung aktif tersinkronisasi.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+fun copyAdminCollectionsJsonToClipboard(context: Context): Boolean {
+    return try {
+        val jsonText = context.assets.open("pocketbase_collections.json")
+            .bufferedReader(Charsets.UTF_8)
+            .use { it.readText() }
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("PocketBase Surabaya Collections", jsonText))
+        true
+    } catch (_: Exception) {
+        false
     }
 }

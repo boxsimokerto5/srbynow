@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GppMaybe
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
@@ -43,10 +44,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +66,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.model.ChatRoom
+import com.example.data.pocketbase.PocketBaseClient
+import kotlinx.coroutines.launch
 import com.example.data.model.CitizenPoll
 import com.example.data.model.IncidentReport
 import com.example.data.model.NearbyProfile
@@ -150,6 +156,20 @@ fun AdminDashboardScreen(
             }
         }
         return
+    }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val pbClient = remember(context) { PocketBaseClient.getInstance(context) }
+    var customServerUrl by rememberSaveable { mutableStateOf(pbClient.baseUrl) }
+    var serverOnline by remember { mutableStateOf<Boolean?>(null) }
+    var collectionsReady by remember { mutableStateOf<Boolean?>(null) }
+    var serverStatusMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        val health = pbClient.checkHealth()
+        serverOnline = health
+        collectionsReady = if (health) pbClient.checkCollectionsReady() else false
     }
 
     val totalPendingApprovals = pendingEvents.size + pendingPolls.size
@@ -336,6 +356,13 @@ fun AdminDashboardScreen(
                     icon = Icons.Filled.Groups,
                     testTag = "admin_tab_community",
                     onClick = { selectedSection = 3 },
+                )
+                AdminSectionTabChip(
+                    selected = selectedSection == 4,
+                    label = "Server & DB",
+                    icon = Icons.Filled.Storage,
+                    testTag = "admin_tab_server",
+                    onClick = { selectedSection = 4 },
                 )
             }
         }
@@ -580,6 +607,54 @@ fun AdminDashboardScreen(
                     room = room,
                     onOpenRoom = { onOpenPublicRoom(room) },
                     onDeleteRoom = { onDeletePublicRoom(room) },
+                )
+            }
+        }
+
+        // SECTION 4: SERVER & DATABASE CONFIGURATION (POCKETBASE IP & SCHEMAS)
+        if (selectedSection == 4) {
+            item(key = "admin_server_config_card") {
+                AdminPocketBaseConfigCard(
+                    currentUrl = customServerUrl,
+                    serverOnline = serverOnline,
+                    collectionsReady = collectionsReady,
+                    onUrlChange = { customServerUrl = it },
+                    onSaveUrlAndCheck = {
+                        scope.launch {
+                            pbClient.updateServerUrl(customServerUrl)
+                            val health = pbClient.checkHealth()
+                            serverOnline = health
+                            collectionsReady = if (health) pbClient.checkCollectionsReady() else false
+                            serverStatusMessage = if (serverOnline == true) {
+                                if (collectionsReady == true) "Alamat server disimpan & 20 koleksi database siap!"
+                                else "Terhubung ke server. Skema 20 koleksi perlu diimpor via PocketBase Admin UI"
+                            } else {
+                                "Gagal terhubung ke $customServerUrl"
+                            }
+                        }
+                    },
+                    onCopySchemaJson = {
+                        val copied = copyAdminCollectionsJsonToClipboard(context)
+                        serverStatusMessage = if (copied) {
+                            "JSON Koleksi berhasil disalin! Buka PocketBase (:8091/_/) → Settings 🛠️ → Import collections → Paste."
+                        } else {
+                            "Gagal menyalin JSON koleksi dari assets."
+                        }
+                    },
+                    onRecheck = {
+                        scope.launch {
+                            val health = pbClient.checkHealth()
+                            serverOnline = health
+                            collectionsReady = if (health) pbClient.checkCollectionsReady() else false
+                            serverStatusMessage = if (serverOnline == true) {
+                                if (collectionsReady == true) "Status server normal: Online & 20 koleksi aktif"
+                                else "Server online, namun beberapa koleksi belum ada di database"
+                            } else {
+                                "Server tidak merespons di ${pbClient.baseUrl}"
+                            }
+                        }
+                    },
+                    statusMessage = serverStatusMessage,
                 )
             }
         }

@@ -194,51 +194,6 @@ fun SurabayaCompactTopBar(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            if (isAdmin) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(MintSoftGradient)
-                                        .border(1.dp, OutlineVariantLight, CircleShape)
-                                        .clickable(onClick = onOpenAdminDashboard)
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                                        .testTag("top_admin_dashboard_button"),
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.AdminPanelSettings,
-                                            contentDescription = stringResource(R.string.admin_dashboard_title),
-                                            tint = ToskaPrimaryDeep,
-                                            modifier = Modifier.size(12.dp),
-                                        )
-                                        Text(
-                                            text = "Admin",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = ToskaOnPrimaryContainer,
-                                        )
-                                        if (adminAttentionCount > 0) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(CircleShape)
-                                                    .background(AlertCrimson)
-                                                    .padding(horizontal = 5.dp, vertical = 1.dp),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Text(
-                                                    text = if (adminAttentionCount > 99) "99+" else adminAttentionCount.toString(),
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color.White,
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
                         }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
