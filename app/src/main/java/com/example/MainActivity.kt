@@ -1212,6 +1212,10 @@ fun SurabayaMainHub(
                         onTogglePlay = { viewModel.toggleRadio() },
                         onSetVolume = { viewModel.setRadioVolume(it) },
                         onClose = { viewModel.dismissSheet() },
+                        defaultReporterName = effectiveName,
+                        defaultDistrict = currentDistrict,
+                        isLiveGpsActive = isLiveGps,
+                        onRequestGpsRefresh = { viewModel.refreshGpsLocation() },
                     )
                 }
                 is ActiveBottomSheet.ServiceDetail -> {

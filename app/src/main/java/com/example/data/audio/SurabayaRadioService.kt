@@ -350,7 +350,8 @@ class SurabayaRadioService : Service() {
                 currentProgram = "Kelana Kota Suara Surabaya Live",
                 description = "Pusat Pantauan Lalu Lintas, Berita Cepat & Solusi Kedaruratan Arek Surabaya",
                 hotlinePhone = "03199000000",
-                hotlineWhatsApp = "628113041000",
+                emergencyPhone = "03199534567",
+                hotlineWhatsApp = "628553010055",
                 streamUrls = listOf(
                     "https://c5.siar.us/proxy/ssfm/stream",
                     "https://c5.siar.us/proxy/ssfm/",

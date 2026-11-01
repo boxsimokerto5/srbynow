@@ -173,9 +173,9 @@
     <string name="radio_ss_playing">Sedang Mengudara (Live 100.0 FM)</string>
     <string name="radio_ss_paused">Siaran Dijeda</string>
     <string name="radio_ss_error">Gagal memuat streaming radio. Coba lagi.</string>
-    <string name="radio_ss_whatsapp">WhatsApp Gatekeeper (0811-304-1000)</string>
-    <string name="radio_ss_phone">Telepon On-Air Studio (031-99000000)</string>
-    <string name="radio_ss_share">Bagikan Siaran Radio</string>
+    <string name="radio_ss_whatsapp">Kirim Laporan WA SS (0855-3010-055)</string>
+    <string name="radio_ss_phone">Studio On-Air (031-99000000)</string>
+    <string name="radio_ss_share">Bagikan Radio</string>
     <string name="nav_jasa">Jasa Warga</string>
     <string name="services_page_title">Promosi Jasa Warga Surabaya</string>
     <string name="services_page_subtitle">Cari dan promosikan keahlian, tukang &amp; jasa lokal terpercaya</string>
@@ -279,4 +279,13 @@
     <string name="tambal_ban_gps_banner_active">GPS Aktif • Urutan jarak tambal ban dihitung akurat dari posisi Anda saat ini</string>
     <string name="notif_sheet_permission_banner_title">Notifikasi Perangkat Belum Aktif</string>
     <string name="notif_sheet_permission_banner_subtitle">Ketuk untuk melihat kegunaan izin &amp; mengaktifkan peringatan chat serta kejadian penting</string>
+    <string name="radio_gatekeeper_form_title">Formulir Laporan WA Suara Surabaya</string>
+    <string name="radio_gatekeeper_form_badge">WA Resmi • 0855-3010-055</string>
+    <string name="radio_gatekeeper_rule_notice">Ketentuan Gatekeeper SS: Sertakan Nama, Alamat, dan Tahun Kelahiran jika baru pertama kali menghubungi.</string>
+    <string name="radio_first_time_label">Baru Pertama Kali</string>
+    <string name="radio_returning_label">Sudah Pernah Lapor</string>
+    <string name="radio_voice_btn_label">Dikte Suara</string>
+    <string name="radio_voice_prompt">Ucapkan laporan situasi atau lalu lintas untuk Radio Suara Surabaya 100 FM…</string>
+    <string name="radio_voice_unavailable">Pendiktean suara Google belum tersedia di perangkat ini. Anda tetap dapat mengetik manual atau memakai mikrofon keyboard.</string>
+    <string name="radio_safety_driving_notice">Utamakan keselamatan berkendara — menepi sejenak sebelum mengirim laporan. Foto/video situasi dapat dilampirkan langsung di WhatsApp.</string>
 </resources>

@@ -17,7 +17,8 @@ data class RadioStationInfo(
     val currentProgram: String = "Kelana Kota Suara Surabaya Live",
     val description: String = "Pusat Pantauan Lalu Lintas, Berita Cepat & Solusi Kedaruratan Arek Surabaya",
     val hotlinePhone: String = "03199000000",
-    val hotlineWhatsApp: String = "628113041000",
+    val emergencyPhone: String = "03199534567",
+    val hotlineWhatsApp: String = "628553010055",
     val streamUrls: List<String> = listOf(
         "https://c5.siar.us/proxy/ssfm/stream",
         "https://c5.siar.us/proxy/ssfm/",
