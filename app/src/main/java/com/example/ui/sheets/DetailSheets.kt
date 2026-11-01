@@ -136,6 +136,9 @@ import com.example.data.model.SurabayaEvent
 import com.example.data.model.UserMoment
 import com.example.data.util.PendingExternalLink
 import com.example.data.util.SafeLinkCategory
+import com.example.data.util.SurabayaDistricts
+import com.example.data.util.calculateDistanceKm
+import com.example.data.util.formatDistanceLabel
 import com.example.data.util.formatOperatingHours
 import com.example.data.util.formatRelativeTimestamp
 import com.example.data.util.isCulinaryOpenNow
@@ -167,6 +170,7 @@ import com.example.ui.theme.PendingAmberText
 import com.example.ui.theme.SoftChatBubbleGradient
 import com.example.ui.theme.StarGold
 import com.example.ui.theme.ToskaOnPrimaryContainer
+import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 import com.example.ui.theme.ToskaPrimaryLight
 import java.util.Locale
@@ -1089,6 +1093,8 @@ fun CulinaryDetailSheetContent(
     isSaved: Boolean,
     currentUserId: String = "",
     isAdmin: Boolean = false,
+    userLat: Double = SurabayaDistricts.DEFAULT_LAT,
+    userLng: Double = SurabayaDistricts.DEFAULT_LNG,
     onBookmark: () -> Unit,
     onSubmitReview: (rating: Int, comment: String) -> Unit,
     onReportLink: () -> Unit = {},
@@ -1105,6 +1111,7 @@ fun CulinaryDetailSheetContent(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val isOpen = isCulinaryOpenNow(spot.openHour, spot.closeHour)
+    val distanceKm = calculateDistanceKm(userLat, userLng, spot.lat, spot.lng)
     var selectedStars by remember(spot.id) { mutableIntStateOf(5) }
     var reviewText by remember(spot.id) { mutableStateOf("") }
     var isDescriptionExpanded by remember(spot.id) { mutableStateOf(false) }
@@ -1267,6 +1274,15 @@ fun CulinaryDetailSheetContent(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             )
                         }
+                        Surface(shape = CircleShape, color = ToskaPrimary.copy(alpha = 0.12f)) {
+                            Text(
+                                text = "📍 ${formatDistanceLabel(distanceKm)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ToskaPrimaryDeep,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.Star, null, tint = StarGold, modifier = Modifier.size(18.dp))
@@ -1312,7 +1328,8 @@ fun CulinaryDetailSheetContent(
                                     text = listOfNotNull(
                                         spot.address.takeIf { it.isNotBlank() },
                                         spot.district.takeIf { it.isNotBlank() }?.let { "Kec. $it" },
-                                    ).joinToString(", "),
+                                        formatDistanceLabel(distanceKm),
+                                    ).joinToString(" • "),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,

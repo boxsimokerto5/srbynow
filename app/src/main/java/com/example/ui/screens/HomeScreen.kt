@@ -97,6 +97,9 @@ import com.example.data.model.TambalBanSpot
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
+import com.example.data.util.SurabayaDistricts
+import com.example.data.util.calculateDistanceKm
+import com.example.data.util.formatDistanceLabel
 import com.example.data.util.formatRelativeTimestamp
 import com.example.data.util.resolveImageDrawable
 import com.example.ui.components.AboutAppDialog
@@ -130,6 +133,8 @@ fun HomeScreen(
     userAccount: UserAccount?,
     isAdmin: Boolean,
     currentDistrict: String,
+    userLat: Double = SurabayaDistricts.DEFAULT_LAT,
+    userLng: Double = SurabayaDistricts.DEFAULT_LNG,
     incidentsState: UiState<List<IncidentReport>>,
     destinationsState: UiState<List<SurabayaDestination>>,
     culinaryState: UiState<List<CulinarySpot>> = UiState.Loading,
@@ -1079,7 +1084,9 @@ fun HomeScreen(
                     )
                 }
                 is UiState.Success -> {
-                    val list = culinaryState.data
+                    val list = remember(culinaryState.data, userLat, userLng) {
+                        culinaryState.data.sortedBy { calculateDistanceKm(userLat, userLng, it.lat, it.lng) }
+                    }
                     if (list.isEmpty()) {
                         Text(
                             text = "Belum ada kuliner terdaftar",
@@ -1094,8 +1101,10 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             items(list, key = { it.id }) { spot ->
+                                val distanceKm = calculateDistanceKm(userLat, userLng, spot.lat, spot.lng)
                                 HomeCulinaryCard(
                                     spot = spot,
+                                    distanceKm = distanceKm,
                                     onClick = { onOpenCulinaryDetail(spot.id) },
                                 )
                             }
@@ -1733,6 +1742,7 @@ private fun HomeDestinationCard(
 @Composable
 private fun HomeCulinaryCard(
     spot: CulinarySpot,
+    distanceKm: Double = 0.0,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -1782,6 +1792,19 @@ private fun HomeCulinaryCard(
                     )
                 }
                 Surface(
+                    shape = RoundedCornerShape(bottomStart = 10.dp),
+                    color = Color.Black.copy(alpha = 0.72f),
+                    modifier = Modifier.align(Alignment.TopEnd),
+                ) {
+                    Text(
+                        text = "📍 ${formatDistanceLabel(distanceKm)}",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                    )
+                }
+                Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = Color.Black.copy(alpha = 0.7f),
                     modifier = Modifier
@@ -1817,7 +1840,7 @@ private fun HomeCulinaryCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "${spot.district} • ${spot.priceRange}",
+                    text = "${spot.district} • ${formatDistanceLabel(distanceKm)} • ${spot.priceRange}",
                     style = MaterialTheme.typography.bodySmall,
                     color = ToskaPrimaryDeep,
                     maxLines = 1,

@@ -36,6 +36,7 @@ import com.example.data.model.CitizenPoll
 import com.example.data.model.PollOption
 import com.example.data.model.PollComment
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.PollingScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.sheets.CitizenProfileSheetContent
@@ -922,6 +923,76 @@ class ExampleRobolectricTest {
     composeTestRule.waitForIdle()
     assertTrue(postMomentTriggered)
   }
+
+  @Test
+  fun `kulinerScreen sorts spots by nearest gps distance by default and shows distance badges`() {
+    val userLat = -7.2575
+    val userLng = 112.7521 // Surabaya Pusat / Genteng
+
+    // Spot 1: Far away (~7.5 km away in Rungkut)
+    val spotFar = CulinarySpot(
+      id = "spot_far",
+      name = "Soto Rungkut Madura",
+      category = "RAWON_SOTO",
+      district = "Rungkut",
+      lat = -7.3200,
+      lng = 112.7700,
+      ratingAvg = 4.9,
+    )
+    // Spot 2: Very close (~100 m away in Genteng)
+    val spotNear = CulinarySpot(
+      id = "spot_near",
+      name = "Rawon Embong Malang Mantap",
+      category = "RAWON_SOTO",
+      district = "Genteng",
+      lat = -7.2580,
+      lng = 112.7525,
+      ratingAvg = 4.2,
+    )
+    // Spot 3: Medium (~2 km away in Gubeng)
+    val spotMedium = CulinarySpot(
+      id = "spot_medium",
+      name = "Penyetan Bang Ali Gubeng",
+      category = "PENYETAN_SAMBAL",
+      district = "Gubeng",
+      lat = -7.2750,
+      lng = 112.7550,
+      ratingAvg = 4.7,
+    )
+
+    val culinaryList = listOf(spotFar, spotNear, spotMedium)
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(820.dp)) {
+          KulinerScreen(
+            culinaryState = UiState.Success(culinaryList),
+            bookmarks = emptyList(),
+            currentUserId = "user_test",
+            userLat = userLat,
+            userLng = userLng,
+            isLiveGpsActive = true,
+            onSelectSpot = {},
+            onToggleBookmark = {},
+            onOpenCreateSheet = {},
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // Verify distance badges and cards are rendered
+    composeTestRule.onNodeWithTag("sort_kuliner_distance").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("sort_kuliner_rating").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("kuliner_gps_status").assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag("kuliner_card_spot_near").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("kuliner_card_spot_medium").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("kuliner_distance_tag_spot_near").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("kuliner_distance_tag_spot_medium").assertIsDisplayed()
+  }
 }
+
 
 

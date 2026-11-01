@@ -267,6 +267,8 @@ fun SurabayaMainHub(
     val pendingNotifPayload by SurabayaNotificationHelper.pendingNotificationPayload.collectAsStateWithLifecycle()
 
     val isLiveGps by viewModel.isLiveGpsActive.collectAsStateWithLifecycle()
+    val userLat by viewModel.userLat.collectAsStateWithLifecycle()
+    val userLng by viewModel.userLng.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
     val isScanningPhoto by viewModel.isScanningPhoto.collectAsStateWithLifecycle()
     val myNearbyProfile by viewModel.myNearbyProfile.collectAsStateWithLifecycle()
@@ -494,6 +496,8 @@ fun SurabayaMainHub(
                                 userAccount = userAccount,
                                 isAdmin = isAdmin,
                                 currentDistrict = currentDistrict,
+                                userLat = userLat,
+                                userLng = userLng,
                                 incidentsState = incidentsState,
                                 destinationsState = destinationsState,
                                 culinaryState = culinaryState,
@@ -574,6 +578,10 @@ fun SurabayaMainHub(
                                 culinaryState = culinaryState,
                                 bookmarks = bookmarks,
                                 currentUserId = currentUserId,
+                                userLat = userLat,
+                                userLng = userLng,
+                                isLiveGpsActive = isLiveGps,
+                                onRefreshGps = { viewModel.refreshGpsLocation() },
                                 onSelectSpot = { viewModel.openSheet(ActiveBottomSheet.CulinaryDetail(it.id)) },
                                 onToggleBookmark = {
                                     viewModel.toggleBookmark(it.id, "KULINER", it.name, it.priceRange, it.district)
@@ -807,6 +815,8 @@ fun SurabayaMainHub(
                             isSaved = isSaved,
                             currentUserId = currentUserId,
                             isAdmin = isAdmin,
+                            userLat = userLat,
+                            userLng = userLng,
                             onBookmark = { viewModel.toggleBookmark(found.id, "KULINER", found.name, found.priceRange, found.district) },
                             onSubmitReview = { stars, comment -> viewModel.submitCulinaryReview(found, stars, comment) },
                             onReportLink = { viewModel.reportCulinaryLink(found) },

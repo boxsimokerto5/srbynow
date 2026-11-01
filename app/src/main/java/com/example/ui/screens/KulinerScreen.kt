@@ -20,7 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddBusiness
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -52,10 +54,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.model.BookmarkItem
 import com.example.data.model.CulinarySpot
 import com.example.data.model.UiState
+import com.example.data.util.SurabayaDistricts
+import com.example.data.util.calculateDistanceKm
+import com.example.data.util.formatDistanceLabel
 import com.example.data.util.formatOperatingHours
 import com.example.data.util.isCulinaryOpenNow
 import androidx.compose.foundation.BorderStroke
@@ -73,6 +79,7 @@ import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.StarGold
+import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 import java.util.Locale
 
@@ -98,6 +105,10 @@ fun KulinerScreen(
     culinaryState: UiState<List<CulinarySpot>>,
     bookmarks: List<BookmarkItem>,
     currentUserId: String = "",
+    userLat: Double = SurabayaDistricts.DEFAULT_LAT,
+    userLng: Double = SurabayaDistricts.DEFAULT_LNG,
+    isLiveGpsActive: Boolean = false,
+    onRefreshGps: () -> Unit = {},
     onSelectSpot: (CulinarySpot) -> Unit,
     onToggleBookmark: (CulinarySpot) -> Unit,
     onOpenCreateSheet: () -> Unit,
@@ -106,7 +117,35 @@ fun KulinerScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("ALL") }
     var onlyOpenNow by rememberSaveable { mutableStateOf(false) }
+    var sortOption by rememberSaveable { mutableStateOf("DISTANCE") } // Default urut terdekat GPS!
     var fullscreenViewerTarget by remember { mutableStateOf<Pair<CulinarySpot, Int>?>(null) }
+
+    val sortedSpots = remember(culinaryState, searchQuery, selectedCategory, onlyOpenNow, sortOption, userLat, userLng) {
+        if (culinaryState !is UiState.Success) {
+            emptyList()
+        } else {
+            val q = searchQuery.trim().lowercase(Locale.ROOT)
+            val filtered = culinaryState.data.filter { spot ->
+                val catMatch = selectedCategory == "ALL" || spot.category == selectedCategory
+                val queryMatch = q.isEmpty() ||
+                    spot.name.lowercase(Locale.ROOT).contains(q) ||
+                    spot.district.lowercase(Locale.ROOT).contains(q) ||
+                    spot.description.lowercase(Locale.ROOT).contains(q)
+                val openMatch = !onlyOpenNow || isCulinaryOpenNow(spot.openHour, spot.closeHour)
+                catMatch && queryMatch && openMatch
+            }
+            when (sortOption) {
+                "RATING" -> filtered.sortedWith(
+                    compareByDescending<CulinarySpot> { it.ratingAvg }
+                        .thenBy { calculateDistanceKm(userLat, userLng, it.lat, it.lng) }
+                )
+                else -> filtered.sortedWith(
+                    compareBy<CulinarySpot> { calculateDistanceKm(userLat, userLng, it.lat, it.lng) }
+                        .thenByDescending { it.ratingAvg }
+                )
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -182,6 +221,7 @@ fun KulinerScreen(
                 }
             }
 
+            // Categories row
             item(key = "kuliner_categories") {
                 CategoryFilterRow(
                     categories = culinaryCategories,
@@ -189,6 +229,86 @@ fun KulinerScreen(
                     onSelect = { selectedCategory = it },
                     tagPrefix = "kuliner",
                 )
+            }
+
+            // Urutkan GPS Terdekat (Default) & Rating Toggle Bar
+            item(key = "kuliner_sort_bar") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FilterChip(
+                            selected = sortOption == "DISTANCE",
+                            onClick = { sortOption = "DISTANCE" },
+                            label = {
+                                Text(
+                                    text = "📍 Terdekat (GPS)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (sortOption == "DISTANCE") FontWeight.Bold else FontWeight.Normal,
+                                )
+                            },
+                            shape = CircleShape,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                            modifier = Modifier.testTag("sort_kuliner_distance"),
+                        )
+                        FilterChip(
+                            selected = sortOption == "RATING",
+                            onClick = { sortOption = "RATING" },
+                            label = {
+                                Text(
+                                    text = "⭐ Rating",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (sortOption == "RATING") FontWeight.Bold else FontWeight.Normal,
+                                )
+                            },
+                            shape = CircleShape,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                            ),
+                            modifier = Modifier.testTag("sort_kuliner_rating"),
+                        )
+                    }
+
+                    // GPS Status / Refresh Location Pill
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isLiveGpsActive) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, if (isLiveGpsActive) Color(0xFF81C784) else OutlineVariantLight),
+                        modifier = Modifier
+                            .clickable(onClick = onRefreshGps)
+                            .testTag("kuliner_gps_status"),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.NearMe,
+                                contentDescription = null,
+                                tint = if (isLiveGpsActive) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(13.dp),
+                            )
+                            Text(
+                                text = if (isLiveGpsActive) "GPS Aktif" else "Akurasi GPS",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                fontWeight = FontWeight.Medium,
+                                color = if (isLiveGpsActive) Color(0xFF1B5E20) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
 
             when (culinaryState) {
@@ -214,18 +334,7 @@ fun KulinerScreen(
                     }
                 }
                 is UiState.Success -> {
-                    val q = searchQuery.trim().lowercase(Locale.ROOT)
-                    val filtered = culinaryState.data.filter { spot ->
-                        val catMatch = selectedCategory == "ALL" || spot.category == selectedCategory
-                        val queryMatch = q.isEmpty() ||
-                            spot.name.lowercase(Locale.ROOT).contains(q) ||
-                            spot.district.lowercase(Locale.ROOT).contains(q) ||
-                            spot.description.lowercase(Locale.ROOT).contains(q)
-                        val openMatch = !onlyOpenNow || isCulinaryOpenNow(spot.openHour, spot.closeHour)
-                        catMatch && queryMatch && openMatch
-                    }
-
-                    if (filtered.isEmpty()) {
+                    if (sortedSpots.isEmpty()) {
                         item {
                             EmptyFeedPlaceholder(
                                 icon = Icons.Outlined.RestaurantMenu,
@@ -234,10 +343,12 @@ fun KulinerScreen(
                             )
                         }
                     } else {
-                        items(filtered, key = { it.id }) { spot ->
+                        items(sortedSpots, key = { it.id }) { spot ->
                             val isSaved = bookmarks.any { it.targetId == spot.id && it.targetType == "KULINER" }
+                            val distanceKm = calculateDistanceKm(userLat, userLng, spot.lat, spot.lng)
                             CulinaryCompactCard(
                                 spot = spot,
+                                distanceKm = distanceKm,
                                 isSaved = isSaved,
                                 isReportedByMe = currentUserId in spot.linkReportedByUids,
                                 onClick = { onSelectSpot(spot) },
@@ -292,6 +403,7 @@ fun KulinerScreen(
 @Composable
 private fun CulinaryCompactCard(
     spot: CulinarySpot,
+    distanceKm: Double = 0.0,
     isSaved: Boolean,
     isReportedByMe: Boolean,
     onClick: () -> Unit,
@@ -370,6 +482,20 @@ private fun CulinaryCompactCard(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
+                        Surface(
+                            shape = CircleShape,
+                            color = ToskaPrimary.copy(alpha = 0.12f),
+                        ) {
+                            Text(
+                                text = "📍 ${formatDistanceLabel(distanceKm)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ToskaPrimaryDeep,
+                                modifier = Modifier
+                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                                    .testTag("kuliner_distance_tag_${spot.id}"),
+                            )
+                        }
                     }
 
                     IconButton(
@@ -438,7 +564,7 @@ private fun CulinaryCompactCard(
                             modifier = Modifier.size(13.dp),
                         )
                         Text(
-                            text = spot.district,
+                            text = "${spot.district} • ${formatDistanceLabel(distanceKm)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
