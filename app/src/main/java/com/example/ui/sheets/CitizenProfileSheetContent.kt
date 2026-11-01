@@ -46,9 +46,12 @@ import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +63,7 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -142,6 +146,11 @@ fun CitizenProfileSheetContent(
 
     val totalMoments = citizenMoments.size
     val totalLikes = citizenMoments.sumOf { it.likesCount }
+
+    val personalMoments = remember(citizenMoments) { citizenMoments.filter { !it.isLensaWarga } }
+    val lensaWargaMoments = remember(citizenMoments) { citizenMoments.filter { it.isLensaWarga } }
+    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    val displayedMoments = if (selectedCategoryIndex == 0) personalMoments else lensaWargaMoments
 
     var showBlockConfirmDialog by remember { mutableStateOf(false) }
     var showAvatarZoomDialog by remember { mutableStateOf(false) }
@@ -237,48 +246,63 @@ fun CitizenProfileSheetContent(
             )
         }
 
-        // 3. Grid Section Header (Instagram Gallery Style)
+        // 3. Category Tabs: Momen vs Lensa Warga
         item {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(top = 4.dp, bottom = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.GridOn,
-                        contentDescription = null,
-                        tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(20.dp),
+                    FilterChip(
+                        selected = selectedCategoryIndex == 0,
+                        onClick = { selectedCategoryIndex = 0 },
+                        label = { Text("📸 Momen (${personalMoments.size})") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.GridOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ToskaPrimaryDeep,
+                            selectedLabelColor = Color.White,
+                            selectedLeadingIconColor = Color.White,
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).testTag("tab_citizen_moments"),
                     )
-                    Text(
-                        text = if (isMyOwnProfile) "Momen Saya" else "Momen Warga",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+
+                    FilterChip(
+                        selected = selectedCategoryIndex == 1,
+                        onClick = { selectedCategoryIndex = 1 },
+                        label = { Text("🏙️ Lensa Warga (${lensaWargaMoments.size})") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.CameraAlt,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ToskaPrimaryDeep,
+                            selectedLabelColor = Color.White,
+                            selectedLeadingIconColor = Color.White,
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.1f).testTag("tab_citizen_lensa_warga"),
                     )
-                    Surface(
-                        shape = CircleShape,
-                        color = ToskaPrimaryDeep.copy(alpha = 0.12f),
-                    ) {
-                        Text(
-                            text = "$totalMoments",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = ToskaPrimaryDeep,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        )
-                    }
                 }
 
-                if (totalMoments > 0) {
+                if (displayedMoments.isNotEmpty()) {
                     Text(
-                        text = "Ketuk foto untuk detail",
+                        text = if (selectedCategoryIndex == 0) "Momen gaya hidup & cerita warga • Ketuk foto untuk detail"
+                        else "Potret sudut kota & keramaian Surabaya • Ketuk foto untuk detail",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -287,7 +311,7 @@ fun CitizenProfileSheetContent(
         }
 
         // 4. Instagram 3-Column Square Grid
-        if (citizenMoments.isEmpty()) {
+        if (displayedMoments.isEmpty()) {
             item {
                 Surface(
                     shape = RoundedCornerShape(18.dp),
@@ -310,24 +334,30 @@ fun CitizenProfileSheetContent(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.PhotoLibrary,
+                                imageVector = if (selectedCategoryIndex == 0) Icons.Outlined.PhotoLibrary else Icons.Filled.CameraAlt,
                                 contentDescription = null,
                                 tint = ToskaPrimaryDeep,
                                 modifier = Modifier.size(28.dp),
                             )
                         }
                         Text(
-                            text = if (isMyOwnProfile) "Kamu belum membagikan Momen" else "Belum ada momen yang dibagikan",
+                            text = if (selectedCategoryIndex == 0) {
+                                if (isMyOwnProfile) "Kamu belum membagikan Momen Pribadi" else "Belum ada momen pribadi yang dibagikan"
+                            } else {
+                                if (isMyOwnProfile) "Kamu belum membagikan foto Lensa Warga" else "Belum ada foto Lensa Warga yang dibagikan"
+                            },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                         )
                         Text(
-                            text = if (isMyOwnProfile) {
-                                "Abadikan momen jalan-jalan, kulineran, atau potret kota Surabaya dan bagikan ke warga!"
+                            text = if (selectedCategoryIndex == 0) {
+                                if (isMyOwnProfile) "Abadikan momen jalan-jalan atau kulineran santai dan bagikan ke warga!"
+                                else "Warga ini belum mengunggah potret momen pribadi santai di Surabaya."
                             } else {
-                                "Warga ini belum mengunggah potret momen di Surabaya."
+                                if (isMyOwnProfile) "Abadikan sudut kota favorit, jalanan, atau keramaian Surabaya ke Lensa Warga!"
+                                else "Warga ini belum mengunggah potret sudut estetis atau dinamika kota ke Lensa Warga."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -338,7 +368,7 @@ fun CitizenProfileSheetContent(
             }
         } else {
             // Chunk moments into rows of 3 for smooth Instagram-style grid layout
-            val chunkedMoments = citizenMoments.chunked(3)
+            val chunkedMoments = displayedMoments.chunked(3)
             items(chunkedMoments) { rowMoments ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),

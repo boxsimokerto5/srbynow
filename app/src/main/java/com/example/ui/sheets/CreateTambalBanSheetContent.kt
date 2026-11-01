@@ -371,9 +371,9 @@ fun CreateTambalBanSheetContent(
         FormMultiPhotoPickerSection(
             selectedPhotoUris = photoUris,
             onPhotosChanged = { photoUris = it },
-            maxPhotos = 1,
+            maxPhotos = 3,
             title = "Foto Plang / Lokasi Tambal Ban (Opsional)",
-            subtitle = "Membantu dulur mengenali lokasi dan gerobak/bengkel tambal ban",
+            subtitle = "Bisa unggah hingga 3 foto plang, gerobak, atau bengkel tambal ban",
         )
 
         // --- LINK GOOGLE MAPS ---

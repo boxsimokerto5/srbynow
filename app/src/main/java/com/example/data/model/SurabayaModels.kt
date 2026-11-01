@@ -357,6 +357,9 @@ data class ChatMessage(
         }
 }
 
+const val POST_TYPE_MOMEN = "MOMEN"
+const val POST_TYPE_LENSA_WARGA = "LENSA_WARGA"
+
 data class UserMoment(
     val id: String = "",
     val authorId: String = "",
@@ -365,6 +368,7 @@ data class UserMoment(
     val caption: String = "",
     val locationName: String = "",
     val district: String = "Genteng",
+    val postType: String = POST_TYPE_MOMEN,
     val imageKey: String = "hero_surabaya",
     val photoUrl: String = "",
     val photoUrls: List<String> = emptyList(),
@@ -376,6 +380,9 @@ data class UserMoment(
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
 ) {
+    val isLensaWarga: Boolean
+        get() = postType == POST_TYPE_LENSA_WARGA
+
     val allPhotos: List<String>
         get() = when {
             photoUrls.isNotEmpty() -> photoUrls.filter { it.isNotBlank() }

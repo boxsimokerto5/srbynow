@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsBus
@@ -246,6 +247,14 @@ fun HomeScreen(
             icon = Icons.Filled.PhotoCamera,
             badge = "Baru",
             testTag = "home_shortcut_momen",
+            onClick = { onNavigateTab(MainTab.MOMEN) },
+        ),
+        HomeShortcutItem(
+            title = stringResource(R.string.lensa_warga_title),
+            subtitle = "Potret Kota",
+            icon = Icons.Filled.CameraAlt,
+            badge = "Estetika",
+            testTag = "home_shortcut_lensa_warga",
             onClick = { onNavigateTab(MainTab.MOMEN) },
         ),
         HomeShortcutItem(

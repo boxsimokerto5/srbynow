@@ -17,10 +17,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -33,6 +36,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,9 +62,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.R
+import com.example.data.model.POST_TYPE_LENSA_WARGA
+import com.example.data.model.POST_TYPE_MOMEN
 import com.example.data.model.UiState
 import com.example.data.model.UserMoment
 import com.example.data.util.formatRelativeTimestamp
@@ -79,6 +87,7 @@ fun MomenScreen(
     isAdmin: Boolean,
     onOpenMomentDetail: (String) -> Unit,
     onOpenCreateMoment: () -> Unit,
+    onOpenCreateLensaWarga: () -> Unit = onOpenCreateMoment,
     onToggleLike: (UserMoment) -> Unit,
     onReportMoment: (UserMoment) -> Unit,
     onBlockAuthor: (uid: String, name: String) -> Unit,
@@ -86,6 +95,7 @@ fun MomenScreen(
     modifier: Modifier = Modifier,
 ) {
     var selectedDistrict by rememberSaveable { mutableStateOf("ALL") }
+    var selectedCategory by rememberSaveable { mutableStateOf("ALL") } // "ALL", "MOMEN", "LENSA_WARGA"
     var viewerTarget by remember { mutableStateOf<Pair<UserMoment, Int>?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -99,6 +109,82 @@ fun MomenScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 6.dp),
             )
+
+            // Category Filter Bar (Semua, Momen Arek, Lensa Warga)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FilterChip(
+                    selected = selectedCategory == "ALL",
+                    onClick = { selectedCategory = "ALL" },
+                    label = { Text("Semua Foto", style = MaterialTheme.typography.labelSmall) },
+                    shape = CircleShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                    ),
+                    modifier = Modifier.testTag("filter_chip_all_moments"),
+                )
+                FilterChip(
+                    selected = selectedCategory == "MOMEN",
+                    onClick = { selectedCategory = "MOMEN" },
+                    label = { Text("📸 Momen Arek", style = MaterialTheme.typography.labelSmall) },
+                    shape = CircleShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                    ),
+                    modifier = Modifier.testTag("filter_chip_momen_personal"),
+                )
+                FilterChip(
+                    selected = selectedCategory == "LENSA_WARGA",
+                    onClick = { selectedCategory = "LENSA_WARGA" },
+                    label = { Text("🏙️ Lensa Warga", style = MaterialTheme.typography.labelSmall) },
+                    shape = CircleShape,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                    ),
+                    modifier = Modifier.testTag("filter_chip_lensa_warga"),
+                )
+            }
+
+            if (selectedCategory == "LENSA_WARGA") {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = ToskaPrimaryDeep.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, ToskaPrimaryDeep.copy(alpha = 0.25f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 4.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("🏙️", fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Lensa Warga Surabaya",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = ToskaPrimaryDeep,
+                            )
+                            Text(
+                                text = "Galeri foto sudut kota & estetika landmark Surabaya tanpa perlu tindak lanjut penanganan.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
 
             when (momentsState) {
                 is UiState.Loading -> {
@@ -115,14 +201,20 @@ fun MomenScreen(
                 }
                 is UiState.Success -> {
                     val filtered = momentsState.data.filter { moment ->
-                        selectedDistrict == "ALL" || moment.district.equals(selectedDistrict, ignoreCase = true)
+                        val matchDistrict = selectedDistrict == "ALL" || moment.district.equals(selectedDistrict, ignoreCase = true)
+                        val matchCategory = when (selectedCategory) {
+                            "LENSA_WARGA" -> moment.isLensaWarga
+                            "MOMEN" -> !moment.isLensaWarga
+                            else -> true
+                        }
+                        matchDistrict && matchCategory
                     }
 
                     if (filtered.isEmpty()) {
                         EmptyFeedPlaceholder(
-                            icon = Icons.Outlined.PhotoLibrary,
-                            title = "Belum ada momen di $selectedDistrict",
-                            subtitle = "Jadilah yang pertama mengabadikan potret seru sudut Surabaya!",
+                            icon = if (selectedCategory == "LENSA_WARGA") Icons.Filled.CameraAlt else Icons.Outlined.PhotoLibrary,
+                            title = if (selectedCategory == "LENSA_WARGA") "Belum ada potret Lensa Warga di $selectedDistrict" else "Belum ada momen di $selectedDistrict",
+                            subtitle = if (selectedCategory == "LENSA_WARGA") "Jadilah yang pertama mengabadikan sudut estetik kota Surabaya!" else "Jadilah yang pertama mengabadikan potret seru sudut Surabaya!",
                         )
                     } else {
                         LazyColumn(
@@ -151,16 +243,27 @@ fun MomenScreen(
             }
         }
 
-        // Floating Action Button to post new moment
+        // Floating Action Button to post new moment or lensa warga
         ExtendedFloatingActionButton(
-            onClick = onOpenCreateMoment,
+            onClick = {
+                if (selectedCategory == "LENSA_WARGA") {
+                    onOpenCreateLensaWarga()
+                } else {
+                    onOpenCreateMoment()
+                }
+            },
             icon = {
                 Icon(
-                    imageVector = Icons.Filled.AddAPhoto,
+                    imageVector = if (selectedCategory == "LENSA_WARGA") Icons.Filled.CameraAlt else Icons.Filled.AddAPhoto,
                     contentDescription = null,
                 )
             },
-            text = { Text(text = "Posting Momen", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    text = if (selectedCategory == "LENSA_WARGA") "Posting Lensa Warga" else "Posting Momen",
+                    fontWeight = FontWeight.Bold,
+                )
+            },
             containerColor = ToskaPrimaryDeep,
             contentColor = Color.White,
             modifier = Modifier
@@ -291,6 +394,34 @@ private fun MomentFeedCard(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                        }
+
+                        if (moment.isLensaWarga) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = ToskaPrimaryDeep.copy(alpha = 0.12f),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CameraAlt,
+                                        contentDescription = null,
+                                        tint = ToskaPrimaryDeep,
+                                        modifier = Modifier.size(11.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "Lensa Warga • Potret Kota",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = ToskaPrimaryDeep,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 10.sp,
+                                    )
+                                }
+                            }
                         }
                     }
                 }

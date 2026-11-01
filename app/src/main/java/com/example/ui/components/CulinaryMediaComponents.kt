@@ -679,7 +679,7 @@ fun FormMultiPhotoPickerSection(
     subtitle: String = stringResource(R.string.kuliner_multi_photo_subtitle),
 ) {
     val multiPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = maxPhotos),
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = maxPhotos.coerceAtLeast(2)),
     ) { uris ->
         if (uris.isNotEmpty()) {
             val combined = (selectedPhotoUris + uris).distinct().take(maxPhotos)

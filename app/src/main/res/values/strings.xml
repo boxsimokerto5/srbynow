@@ -228,4 +228,11 @@
     <string name="gender_option_unspecified">Tidak Ditampilkan</string>
     <string name="profile_photo_zoom_hint">Cubit 2 jari atau ketuk 2x untuk memperbesar foto profil</string>
     <string name="profile_tap_photo_to_zoom">Ketuk foto untuk perbesar</string>
+    <string name="lensa_warga_title">Lensa Warga</string>
+    <string name="lensa_warga_subtitle">Potret Estetika &amp; Sudut Kota Surabaya</string>
+    <string name="lensa_warga_banner_desc">Galeri foto estetika sudut kota, ikon sejarah, dan dinamika keramaian Surabaya karya warga tanpa beban pelaporan darurat.</string>
+    <string name="tab_momen_personal">Momen Arek</string>
+    <string name="tab_lensa_warga">Lensa Warga</string>
+    <string name="btn_post_lensa_warga">Posting ke Lensa Warga</string>
+    <string name="lensa_warga_location_hint">Nama Titik / Ikon Kota (Contoh: Tugu Pahlawan, Jembatan Suramadu)</string>
 </resources>

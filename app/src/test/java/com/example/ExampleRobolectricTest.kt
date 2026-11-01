@@ -57,6 +57,9 @@ import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
 import com.example.ui.sheets.PollDetailSheetContent
 import com.example.ui.sheets.ProfileAndPrivacySheetContent
+import com.example.data.model.POST_TYPE_LENSA_WARGA
+import com.example.data.model.POST_TYPE_MOMEN
+import com.example.ui.sheets.CreateTambalBanSheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import com.example.ui.viewmodel.NearbyPeerItem
@@ -1339,5 +1342,58 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("citizen_photo_zoom_close_btn").performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag("citizen_photo_zoom_dialog").assertDoesNotExist()
+  }
+
+  @Test
+  fun `createTambalBanSheetContent renders smoothly without crashing`() {
+    var closeClicked = false
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        CreateTambalBanSheetContent(
+          defaultDistrict = "Genteng",
+          onSubmit = { _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
+          onClose = { closeClicked = true },
+        )
+      }
+    }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("btn_close_sheet").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("input_tambal_name").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("input_tambal_address").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("btn_submit_tambal_ban").assertExists()
+  }
+
+  @Test
+  fun `profileSheet displays Momen and Lensa Warga categories and filters correctly`() {
+    val sampleMoments = listOf(
+      UserMoment(id = "m1", authorId = "u1", authorName = "Budi", caption = "Nongkrong di Balai Pemuda", postType = POST_TYPE_MOMEN),
+      UserMoment(id = "m2", authorId = "u1", authorName = "Budi", caption = "Kemegahan Monumen Tugu Pahlawan", postType = POST_TYPE_LENSA_WARGA, locationName = "Tugu Pahlawan"),
+    )
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        ProfileAndPrivacySheetContent(
+          userAccount = UserAccount(id = "u1", displayName = "Budi"),
+          nearbyProfile = null,
+          userEmail = "budi@surabaya.id",
+          isAdmin = false,
+          focusPrivacyOnly = false,
+          userMoments = sampleMoments,
+          onToggleAdmin = {},
+          onSaveProfile = { _, _, _, _, _, _, _ -> },
+          onSignOut = {},
+        )
+      }
+    }
+    composeTestRule.waitForIdle()
+
+    // Verify both tabs exist: Momen and Lensa Warga
+    composeTestRule.onNodeWithTag("tab_my_moments").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("tab_my_lensa_warga").assertIsDisplayed()
+
+    // Click Lensa Warga tab
+    composeTestRule.onNodeWithTag("tab_my_lensa_warga").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("moment_thumbnail_m2").assertIsDisplayed()
   }
 }

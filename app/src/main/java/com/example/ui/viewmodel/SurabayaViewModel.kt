@@ -32,6 +32,8 @@ import com.example.data.model.TambalBanSpot
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
+import com.example.data.model.POST_TYPE_MOMEN
+import com.example.data.model.POST_TYPE_LENSA_WARGA
 import com.example.data.repository.SurabayaRepository
 import com.example.data.util.PollImageExporter
 import com.example.data.util.GeminiExplicitImageScanner
@@ -85,7 +87,7 @@ sealed interface ActiveBottomSheet {
     data class CulinaryDetail(val culinaryId: String) : ActiveBottomSheet
     data object CreateCulinary : ActiveBottomSheet
     data class MomentDetail(val momentId: String) : ActiveBottomSheet
-    data object CreateMoment : ActiveBottomSheet
+    data class CreateMoment(val initialPostType: String = POST_TYPE_MOMEN) : ActiveBottomSheet
     data class DestinationDetail(val destinationId: String) : ActiveBottomSheet
     data object CreateDestination : ActiveBottomSheet
     data object GpsPrivacySettings : ActiveBottomSheet
@@ -1602,6 +1604,7 @@ class SurabayaViewModel(
         caption: String,
         district: String,
         locationName: String,
+        postType: String = POST_TYPE_MOMEN,
         photoUris: List<Uri> = emptyList(),
         context: Context? = null,
     ) {
@@ -1650,10 +1653,14 @@ class SurabayaViewModel(
                     caption = caption,
                     district = district,
                     locationName = locationName,
+                    postType = postType,
                     photos = preparedPhotos,
                 )
                 dismissSheet()
-                notifyMessage("Momen berhasil dibagikan ke warga Surabaya!")
+                notifyMessage(
+                    if (postType == POST_TYPE_LENSA_WARGA) "Foto sudut kota berhasil dibagikan ke Lensa Warga!"
+                    else "Momen berhasil dibagikan ke warga Surabaya!"
+                )
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: DuplicateContentException) {
@@ -2113,6 +2120,14 @@ class SurabayaViewModel(
 
     fun openTambalBanDetail(spotId: String) {
         _activeSheet.value = ActiveBottomSheet.TambalBanDetail(spotId)
+    }
+
+    fun openCreateMoment(postType: String = POST_TYPE_MOMEN) {
+        _activeSheet.value = ActiveBottomSheet.CreateMoment(initialPostType = postType)
+    }
+
+    fun openCreateLensaWarga() {
+        _activeSheet.value = ActiveBottomSheet.CreateMoment(initialPostType = POST_TYPE_LENSA_WARGA)
     }
 
     fun openCreateTambalBan() {

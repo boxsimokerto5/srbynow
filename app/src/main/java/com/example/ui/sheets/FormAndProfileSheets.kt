@@ -31,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.BookmarkRemove
@@ -93,6 +94,8 @@ import com.example.data.model.BookmarkItem
 import com.example.data.model.NearbyProfile
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
+import com.example.data.model.POST_TYPE_MOMEN
+import com.example.data.model.POST_TYPE_LENSA_WARGA
 import com.example.data.model.formatCitizenGenderLabel
 import com.example.data.util.LinkSecurityValidator
 import com.example.data.util.LinkValidationResult
@@ -1381,6 +1384,7 @@ fun ProfileAndPrivacySheetContent(
     userMoments: List<UserMoment> = emptyList(),
     onOpenMomentDetail: (String) -> Unit = {},
     onOpenCreateMoment: () -> Unit = {},
+    onOpenCreateLensaWarga: () -> Unit = onOpenCreateMoment,
     onUnblockUser: (String) -> Unit = {},
     onToggleAdmin: (Boolean) -> Unit,
         onSaveProfile: (
@@ -1424,7 +1428,7 @@ fun ProfileAndPrivacySheetContent(
         mutableStateOf(userAccount?.isDiscoverable ?: true)
     }
     var selectedAvatarUri by remember { mutableStateOf<Uri?>(null) }
-    var activeProfileTab by remember { mutableIntStateOf(0) }
+    var activeProfileTab by remember(focusPrivacyOnly) { mutableIntStateOf(if (focusPrivacyOnly) 2 else 0) }
     val context = LocalContext.current
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
@@ -1484,25 +1488,28 @@ fun ProfileAndPrivacySheetContent(
                 onAvatarClick = { showOwnAvatarZoom = true },
                 onGreet = {},
                 onBlock = {},
-                onEditProfile = { activeProfileTab = 1 },
+                onEditProfile = { activeProfileTab = 2 },
             )
 
-            // Segment Tabs: Momen Saya vs Pengaturan
+            val personalMoments = remember(userMoments) { userMoments.filter { !it.isLensaWarga } }
+            val lensaWargaMoments = remember(userMoments) { userMoments.filter { it.isLensaWarga } }
+
+            // Segment Tabs: Momen Pribadi vs Lensa Warga vs Pengaturan
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 FilterChip(
                     selected = activeProfileTab == 0,
                     onClick = { activeProfileTab = 0 },
-                    label = { Text("Momen Saya (${userMoments.size})") },
+                    label = { Text("Momen (${personalMoments.size})") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.GridOn,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(15.dp),
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
@@ -1516,12 +1523,31 @@ fun ProfileAndPrivacySheetContent(
                 FilterChip(
                     selected = activeProfileTab == 1,
                     onClick = { activeProfileTab = 1 },
-                    label = { Text("Pengaturan & Akun") },
+                    label = { Text("Lensa Warga (${lensaWargaMoments.size})") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.CameraAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                        selectedLeadingIconColor = Color.White,
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1.1f).testTag("tab_my_lensa_warga"),
+                )
+                FilterChip(
+                    selected = activeProfileTab == 2,
+                    onClick = { activeProfileTab = 2 },
+                    label = { Text("Pengaturan") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Settings,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(15.dp),
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
@@ -1534,6 +1560,9 @@ fun ProfileAndPrivacySheetContent(
                 )
             }
         }
+
+        val personalMoments = remember(userMoments) { userMoments.filter { !it.isLensaWarga } }
+        val lensaWargaMoments = remember(userMoments) { userMoments.filter { it.isLensaWarga } }
 
         if (!focusPrivacyOnly && activeProfileTab == 0) {
             Row(
@@ -1563,7 +1592,7 @@ fun ProfileAndPrivacySheetContent(
                 }
             }
 
-            if (userMoments.isEmpty()) {
+            if (personalMoments.isEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(18.dp),
                     color = Color(0xFFF7FBF8),
@@ -1592,13 +1621,13 @@ fun ProfileAndPrivacySheetContent(
                             )
                         }
                         Text(
-                            text = "Belum Ada Momen Diposting",
+                            text = "Belum Ada Momen Pribadi",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "Momen yang kamu bagikan akan muncul di profilmu layaknya galeri Instagram. Ayo abadikan sudut seru Surabaya!",
+                            text = "Momen santai, swafoto, atau kulineran warga akan tersimpan di sini. Abadikan dan bagikan ceritamu!",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -1614,7 +1643,7 @@ fun ProfileAndPrivacySheetContent(
                     }
                 }
             } else {
-                val chunked = userMoments.chunked(3)
+                val chunked = personalMoments.chunked(3)
                 for (rowMoments in chunked) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1635,7 +1664,107 @@ fun ProfileAndPrivacySheetContent(
             }
         }
 
-        if (focusPrivacyOnly || activeProfileTab == 1) {
+        if (!focusPrivacyOnly && activeProfileTab == 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "Galeri Lensa Warga Saya",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                OutlinedButton(
+                    onClick = onOpenCreateLensaWarga,
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.testTag("btn_post_new_lensa_warga_from_profile"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AddAPhoto,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Posting Lensa", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            if (lensaWargaMoments.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFFF7FBF8),
+                    border = BorderStroke(1.dp, OutlineVariantLight),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(ToskaPrimaryDeep.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CameraAlt,
+                                contentDescription = null,
+                                tint = ToskaPrimaryDeep,
+                                modifier = Modifier.size(28.dp),
+                            )
+                        }
+                        Text(
+                            text = "Belum Ada Foto Lensa Warga",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = "Abadikan sudut jalanan, ikon bersejarah, atau keramaian kota Surabaya untuk dinikmati bersama warga. Tanpa beban pelaporan darurat!",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        Button(
+                            onClick = onOpenCreateLensaWarga,
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimaryDeep),
+                            modifier = Modifier.testTag("btn_create_first_lensa_warga"),
+                        ) {
+                            Text("Posting ke Lensa Warga", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                val chunked = lensaWargaMoments.chunked(3)
+                for (rowMoments in chunked) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        for (moment in rowMoments) {
+                            InstagramGridThumbnail(
+                                moment = moment,
+                                onClick = { onOpenMomentDetail(moment.id) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        for (i in 0 until (3 - rowMoments.size)) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (focusPrivacyOnly || activeProfileTab == 2) {
             if (!focusPrivacyOnly) {
                 // Avatar Photo Picker Row
                 Surface(
@@ -1827,15 +1956,13 @@ fun ProfileAndPrivacySheetContent(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-        }
 
-        DistrictPickerChips(
-            selectedDistrict = district,
-            enabled = !isSubmitting,
-            onSelect = { district = it },
-        )
+            DistrictPickerChips(
+                selectedDistrict = district,
+                enabled = !isSubmitting,
+                onSelect = { district = it },
+            )
 
-        if (focusPrivacyOnly || activeProfileTab == 1) {
             Surface(
                 shape = RoundedCornerShape(18.dp),
                 color = Color(0xFFF5FBF7),
@@ -2201,21 +2328,29 @@ private fun DistrictPickerChips(
 @Composable
 fun CreateMomentSheetContent(
     defaultDistrict: String,
+    initialPostType: String = POST_TYPE_MOMEN,
     isSubmitting: Boolean = false,
     isScanningPhoto: Boolean = false,
     onSubmit: (
         caption: String,
         district: String,
         locationName: String,
+        postType: String,
         photoUris: List<Uri>,
     ) -> Unit,
 ) {
+    var postType by remember { mutableStateOf(initialPostType) }
     var caption by remember { mutableStateOf("") }
     var district by remember { mutableStateOf(defaultDistrict) }
     var locationName by remember { mutableStateOf("") }
     var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
-    val isFormValid = caption.trim().isNotEmpty() || selectedPhotoUris.isNotEmpty()
+    val isLensaWarga = postType == POST_TYPE_LENSA_WARGA
+    val isFormValid = if (isLensaWarga) {
+        (caption.trim().isNotEmpty() || selectedPhotoUris.isNotEmpty()) && locationName.trim().isNotEmpty()
+    } else {
+        caption.trim().isNotEmpty() || selectedPhotoUris.isNotEmpty()
+    }
 
     Column(
         modifier = Modifier
@@ -2227,42 +2362,104 @@ fun CreateMomentSheetContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         GoogleMapsSheetHandleHeader(
-            title = "Posting Momen Arek Surabaya",
-            subtitle = "Abadikan foto sudut kota, jalanan, suasana malam, atau kebersamaan warga (hingga 4 foto).",
+            title = if (isLensaWarga) "Posting ke Lensa Warga" else "Posting Momen Arek Surabaya",
+            subtitle = if (isLensaWarga) {
+                "Bagikan foto estetika sudut kota, ikon sejarah, atau dinamika keramaian Surabaya tanpa beban pelaporan darurat."
+            } else {
+                "Abadikan foto swafoto, nongkrong, kulineran, atau kebersamaan santai warga (hingga 4 foto)."
+            },
         )
+
+        // Category Switcher
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = !isLensaWarga,
+                onClick = { postType = POST_TYPE_MOMEN },
+                label = { Text("📸 Momen Pribadi") },
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("chip_type_momen"),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ToskaPrimaryDeep,
+                    selectedLabelColor = Color.White,
+                ),
+            )
+            FilterChip(
+                selected = isLensaWarga,
+                onClick = { postType = POST_TYPE_LENSA_WARGA },
+                label = { Text("🏙️ Lensa Warga") },
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("chip_type_lensa_warga"),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ToskaPrimaryDeep,
+                    selectedLabelColor = Color.White,
+                ),
+            )
+        }
 
         FormMultiPhotoPickerSection(
             selectedPhotoUris = selectedPhotoUris,
             onPhotosChanged = { selectedPhotoUris = it },
             maxPhotos = 4,
             enabled = !isSubmitting,
-            subtitle = "Pilih 1 - 4 foto galeri. Dilindungi pemindai AI konten eksplisit.",
+            title = if (isLensaWarga) "Foto Sudut / Ikon Kota (1 - 4 Foto)" else "Foto Momen (1 - 4 Foto)",
+            subtitle = if (isLensaWarga) {
+                "Unggah foto lanskap, gedung heritage, atau keramaian kota Surabaya."
+            } else {
+                "Pilih 1 - 4 foto galeri. Dilindungi pemindai AI konten eksplisit."
+            },
+        )
+
+        OutlinedTextField(
+            value = locationName,
+            onValueChange = { locationName = it },
+            label = {
+                Text(
+                    if (isLensaWarga) "Nama Titik / Ikon Kota (Wajib) *"
+                    else "Nama Lokasi / Tempat (Opsional)"
+                )
+            },
+            placeholder = {
+                Text(
+                    if (isLensaWarga) "Contoh: Monumen Tugu Pahlawan / Jembatan Suramadu / Alun-Alun SBY"
+                    else "Contoh: Jl. Tunjungan / Taman Bungkul"
+                )
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("moment_location_input"),
+            enabled = !isSubmitting,
         )
 
         OutlinedTextField(
             value = caption,
             onValueChange = { caption = it },
-            label = { Text("Cerita / Keterangan Momen") },
-            placeholder = { Text("Contoh: Sore syahdu di Tunjungan, lampu kota mulai menyala...") },
+            label = {
+                Text(
+                    if (isLensaWarga) "Keterangan Foto / Suasana Kota"
+                    else "Cerita / Keterangan Momen"
+                )
+            },
+            placeholder = {
+                Text(
+                    if (isLensaWarga) "Contoh: Suasana malam minggu ramai bersahabat di depan museum pahlawan..."
+                    else "Contoh: Sore syahdu di Tunjungan, lampu kota mulai menyala..."
+                )
+            },
             minLines = 3,
             maxLines = 6,
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("moment_caption_input"),
-            enabled = !isSubmitting,
-        )
-
-        OutlinedTextField(
-            value = locationName,
-            onValueChange = { locationName = it },
-            label = { Text("Nama Lokasi / Tempat (Opsional)") },
-            placeholder = { Text("Contoh: Jl. Tunjungan / Jembatan Suroboyo") },
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("moment_location_input"),
             enabled = !isSubmitting,
         )
 
@@ -2288,6 +2485,7 @@ fun CreateMomentSheetContent(
                     caption.trim(),
                     district,
                     locationName.trim(),
+                    postType,
                     selectedPhotoUris,
                 )
             },
@@ -2311,9 +2509,16 @@ fun CreateMomentSheetContent(
                     ),
                 )
             } else {
-                Icon(Icons.Filled.AddAPhoto, null, modifier = Modifier.size(18.dp))
+                Icon(
+                    imageVector = if (isLensaWarga) Icons.Filled.AddAPhoto else Icons.Filled.AddAPhoto,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Publikasikan Momen", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isLensaWarga) "Publikasikan ke Lensa Warga" else "Publikasikan Momen",
+                    fontWeight = FontWeight.Bold,
+                )
             }
         }
 

@@ -533,7 +533,8 @@ fun SurabayaMainHub(
                                 currentUserId = currentUserId,
                                 isAdmin = isAdmin,
                                 onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
-                                onOpenCreateMoment = { viewModel.openSheet(ActiveBottomSheet.CreateMoment) },
+                                onOpenCreateMoment = { viewModel.openCreateMoment() },
+                                onOpenCreateLensaWarga = { viewModel.openCreateLensaWarga() },
                                 onToggleLike = { moment -> viewModel.toggleMomentLike(moment) },
                                 onReportMoment = { viewModel.reportMomentContent(it) },
                                 onBlockAuthor = { uid, name -> viewModel.blockCitizen(uid, name) },
@@ -912,7 +913,8 @@ fun SurabayaMainHub(
                         knownCitizens = allDiscoverableCitizens,
                         userMoments = (momentsState as? UiState.Success)?.data?.filter { it.authorId == currentUserId }.orEmpty(),
                         onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
-                        onOpenCreateMoment = { viewModel.openSheet(ActiveBottomSheet.CreateMoment) },
+                        onOpenCreateMoment = { viewModel.openCreateMoment() },
+                        onOpenCreateLensaWarga = { viewModel.openCreateLensaWarga() },
                         onUnblockUser = { uid -> viewModel.unblockCitizen(uid) },
                         onToggleAdmin = { viewModel.toggleAdminMode(it) },
                         onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
@@ -1051,16 +1053,18 @@ fun SurabayaMainHub(
                         )
                     }
                 }
-                ActiveBottomSheet.CreateMoment -> {
+                is ActiveBottomSheet.CreateMoment -> {
                     CreateMomentSheetContent(
                         defaultDistrict = currentDistrict,
+                        initialPostType = sheetTarget.initialPostType,
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
-                        onSubmit = { caption, dist, loc, photos ->
+                        onSubmit = { caption, dist, loc, postType, photos ->
                             viewModel.submitMoment(
                                 caption = caption,
                                 district = dist,
                                 locationName = loc,
+                                postType = postType,
                                 photoUris = photos,
                                 context = context,
                             )

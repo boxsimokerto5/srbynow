@@ -24,6 +24,8 @@ import com.example.data.model.TambalBanComment
 import com.example.data.model.TambalBanSpot
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
+import com.example.data.model.POST_TYPE_MOMEN
+import com.example.data.model.POST_TYPE_LENSA_WARGA
 import com.example.data.model.normalizeCitizenGender
 import com.example.data.pocketbase.MultipartFilePart
 import com.example.data.pocketbase.PocketBaseClient
@@ -2575,6 +2577,7 @@ class SurabayaRepository(
         caption: String,
         locationName: String,
         district: String,
+        postType: String = POST_TYPE_MOMEN,
         photo: PreparedPhoto? = null,
         photos: List<PreparedPhoto> = emptyList(),
     ): String {
@@ -2607,6 +2610,7 @@ class SurabayaRepository(
             put("caption", cleanCaption)
             put("location_name", cleanLocation)
             put("district", cleanDistrict)
+            put("post_type", postType)
             put("image_key", "hero_surabaya")
             put("likes_count", 0)
             put("liked_by_uids", "")
@@ -2621,6 +2625,7 @@ class SurabayaRepository(
             "caption" to cleanCaption,
             "location_name" to cleanLocation,
             "district" to cleanDistrict,
+            "post_type" to postType,
             "image_key" to "hero_surabaya",
             "likes_count" to "0",
             "liked_by_uids" to "",
@@ -2654,6 +2659,7 @@ class SurabayaRepository(
             caption = cleanCaption,
             locationName = cleanLocation,
             district = cleanDistrict,
+            postType = postType,
             imageKey = "hero_surabaya",
             likesCount = 0,
             likedByUids = emptyList(),
@@ -3014,6 +3020,8 @@ class SurabayaRepository(
             else -> (serverContentUids + overlay.uids).distinct()
         }
 
+        val postType = j.optString("post_type", POST_TYPE_MOMEN).ifBlank { POST_TYPE_MOMEN }
+
         return UserMoment(
             id = id,
             authorId = j.optString("author_id"),
@@ -3022,6 +3030,7 @@ class SurabayaRepository(
             caption = j.optString("caption"),
             locationName = j.optString("location_name"),
             district = j.optString("district", "Genteng"),
+            postType = postType,
             imageKey = j.optString("image_key", "hero_surabaya"),
             photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
             photoUrls = resolvedPhotoUrls,
