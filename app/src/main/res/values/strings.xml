@@ -288,4 +288,13 @@
     <string name="radio_voice_prompt">Ucapkan laporan situasi atau lalu lintas untuk Radio Suara Surabaya 100 FM…</string>
     <string name="radio_voice_unavailable">Pendiktean suara Google belum tersedia di perangkat ini. Anda tetap dapat mengetik manual atau memakai mikrofon keyboard.</string>
     <string name="radio_safety_driving_notice">Utamakan keselamatan berkendara — menepi sejenak sebelum mengirim laporan. Foto/video situasi dapat dilampirkan langsung di WhatsApp.</string>
+    <string name="admin_dashboard_title">Pusat Kendali Admin</string>
+    <string name="admin_dashboard_subtitle">Moderasi pengajuan warga, laporan konten UGC, kejadian kota &amp; akun komunitas</string>
+    <string name="admin_tab_approvals_label">Persetujuan</string>
+    <string name="admin_tab_reports_label">Laporan UGC</string>
+    <string name="admin_tab_incidents_label">Kejadian</string>
+    <string name="admin_tab_community_label">Komunitas</string>
+    <string name="admin_btn_approve_all">Setujui Semua Permintaan</string>
+    <string name="admin_home_banner_title">Pusat Kendali Admin Surabaya</string>
+    <string name="admin_open_dashboard_btn">Buka Pusat Admin</string>
 </resources>

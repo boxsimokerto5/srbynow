@@ -134,7 +134,7 @@ class PocketBaseClient(
                 displayName = prefs[KEY_DISPLAY_NAME].orEmpty().ifBlank { "Warga Surabaya" },
                 district = prefs[KEY_DISTRICT].orEmpty().ifBlank { "Genteng" },
                 gender = normalizeCitizenGender(prefs[KEY_GENDER].orEmpty()),
-                isAdmin = prefs[KEY_IS_ADMIN] ?: false,
+                isAdmin = (prefs[KEY_IS_ADMIN] ?: false) || isOfficialAdminEmail(prefs[KEY_EMAIL]),
             )
             _sessionFlow.value = restored
             if (enableRealtimeSse) startRealtimeStream()
@@ -204,7 +204,7 @@ class PocketBaseClient(
         val cleanEmail = email.trim().lowercase()
         val cleanName = name.trim().ifBlank { cleanEmail.substringBefore("@") }.take(80)
         val cleanGender = normalizeCitizenGender(gender)
-        val isBootstrappedAdmin = cleanEmail.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true)
+        val isBootstrappedAdmin = isOfficialAdminEmail(cleanEmail)
 
         val registerBody = JSONObject().apply {
             put("email", cleanEmail)
@@ -375,7 +375,7 @@ class PocketBaseClient(
         val district = record.optString("district").ifBlank { "Genteng" }
         val gender = normalizeCitizenGender(record.optString("gender"))
         val isAdminFlag = record.optBoolean("is_admin", false) ||
-            email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true)
+            isOfficialAdminEmail(email)
         return PbUserSession(
             token = token,
             userId = record.optString("id"),
@@ -516,7 +516,7 @@ class PocketBaseClient(
                     displayName = updated.optString("name", cur.displayName).ifBlank { cur.displayName },
                     district = updated.optString("district", cur.district).ifBlank { cur.district },
                     isAdmin = updated.optBoolean("is_admin", cur.isAdmin) ||
-                        cur.email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true),
+                        isOfficialAdminEmail(cur.email),
                 )
                 saveSession(nextSession)
             }
@@ -777,7 +777,19 @@ class PocketBaseClient(
 
     companion object {
         private const val TAG = "PocketBaseClient"
+        const val PRIMARY_ADMIN_EMAIL = "eccko.w4@gmail.com"
         const val BOOTSTRAPPED_ADMIN_EMAIL = "nabilalailatus12@gmail.com"
+
+        private val OFFICIAL_ADMIN_EMAILS = setOf(
+            PRIMARY_ADMIN_EMAIL.lowercase(),
+            BOOTSTRAPPED_ADMIN_EMAIL.lowercase(),
+        )
+
+        fun isOfficialAdminEmail(email: String?): Boolean {
+            val clean = email?.trim()?.lowercase().orEmpty()
+            return clean.isNotBlank() && clean in OFFICIAL_ADMIN_EMAILS
+        }
+
         const val OAUTH2_REDIRECT_URI = "areksurabaya://oauth2redirect"
 
         private val KEY_BASE_URL = stringPreferencesKey("pb_base_url")

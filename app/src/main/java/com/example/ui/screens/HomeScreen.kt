@@ -156,7 +156,9 @@ fun HomeScreen(
     servicesState: UiState<List<CitizenService>> = UiState.Loading,
     pollsState: UiState<List<CitizenPoll>> = UiState.Loading,
     tambalBanSpotsState: UiState<List<TambalBanSpot>> = UiState.Loading,
+    pendingEventsCount: Int = 0,
     pendingPollsCount: Int = 0,
+    flaggedContentCount: Int = 0,
     onNavigateTab: (MainTab) -> Unit,
     onOpenIncidentDetail: (String) -> Unit,
     onOpenDestinationDetail: (String) -> Unit,
@@ -168,6 +170,7 @@ fun HomeScreen(
     onOpenPollDetail: (String) -> Unit = {},
     onOpenCreatePoll: () -> Unit = {},
     onOpenAdminPendingPolls: () -> Unit = {},
+    onOpenAdminDashboard: () -> Unit = {},
     onOpenTambalBanDetail: (String) -> Unit = {},
     onOpenCreateTambalBan: () -> Unit = {},
     onOpenBookmarks: () -> Unit,
@@ -315,6 +318,89 @@ fun HomeScreen(
                 isAdmin = isAdmin,
                 onOpenProfile = onOpenProfileAndAdmin,
             )
+        }
+
+        // 1b. Exclusive Official Admin Control Banner (Hidden for regular citizens)
+        if (isAdmin) {
+            item(key = "home_admin_control_card") {
+                val totalPendingRequests = pendingEventsCount + pendingPollsCount
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.Transparent,
+                        border = BorderStroke(1.dp, ToskaPrimaryDeep.copy(alpha = 0.28f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MintSoftGradient)
+                            .testTag("home_admin_dashboard_banner"),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(ToskaPrimaryDeep),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.AdminPanelSettings,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.admin_home_banner_title),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ToskaOnPrimaryContainer,
+                                    )
+                                    Text(
+                                        text = "$totalPendingRequests antrean persetujuan • $flaggedContentCount laporan konten warga",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = ToskaOnPrimaryContainer.copy(alpha = 0.85f),
+                                    )
+                                }
+                            }
+                            Button(
+                                onClick = onOpenAdminDashboard,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ToskaPrimaryDeep,
+                                    contentColor = Color.White,
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .testTag("home_open_admin_dashboard_btn"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AdminPanelSettings,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.admin_open_dashboard_btn),
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // 2. Emergency 112 Card

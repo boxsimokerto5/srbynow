@@ -99,11 +99,13 @@ import com.example.ui.auth.AuthScreen
 import com.example.ui.auth.OAuthRedirectBus
 import com.example.ui.auth.performSignOut
 import com.example.ui.components.SurabayaCompactTopBar
+import com.example.ui.screens.AdminDashboardScreen
 import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.CreatePublicGroupSheetContent
 import com.example.ui.screens.DestinasiScreen
 import com.example.ui.screens.EventScreen
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.collectAdminFlaggedItems
 import com.example.ui.screens.JasaWargaScreen
 import com.example.ui.screens.KejadianScreen
 import com.example.ui.screens.KulinerScreen
@@ -315,6 +317,29 @@ fun SurabayaMainHub(
     val tambalBanSpotsState by viewModel.tambalBanSpotsState.collectAsStateWithLifecycle()
     val activeSelectedTambalBan by viewModel.activeSelectedTambalBan.collectAsStateWithLifecycle()
     val activeTambalBanComments by viewModel.activeTambalBanComments.collectAsStateWithLifecycle()
+    val bannedProfiles by viewModel.bannedProfiles.collectAsStateWithLifecycle()
+
+    val pendingPollsList = (pendingPollsState as? UiState.Success)?.data.orEmpty()
+    val flaggedItems = remember(
+        incidentsState,
+        approvedEventsState,
+        pendingEvents,
+        culinaryState,
+        momentsState,
+        destinationsState,
+        servicesState,
+    ) {
+        collectAdminFlaggedItems(
+            incidents = (incidentsState as? UiState.Success)?.data.orEmpty(),
+            approvedEvents = (approvedEventsState as? UiState.Success)?.data.orEmpty(),
+            pendingEvents = pendingEvents,
+            culinarySpots = (culinaryState as? UiState.Success)?.data.orEmpty(),
+            moments = (momentsState as? UiState.Success)?.data.orEmpty(),
+            destinations = (destinationsState as? UiState.Success)?.data.orEmpty(),
+            services = (servicesState as? UiState.Success)?.data.orEmpty(),
+        )
+    }
+    val adminAttentionCount = pendingEvents.size + pendingPollsList.size + flaggedItems.size
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -434,10 +459,12 @@ fun SurabayaMainHub(
                     isAdmin = isAdmin,
                     bookmarkCount = bookmarks.size,
                     notificationCount = unreadNotifCount,
+                    adminAttentionCount = adminAttentionCount,
                     userInitials = userInitials,
                     avatarUrl = currentAvatarUrl,
                     onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
                     onOpenNotifications = { viewModel.openSheet(ActiveBottomSheet.Notifications) },
+                    onOpenAdminDashboard = { viewModel.openAdminDashboard() },
                     onOpenProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
                 )
             },
@@ -543,7 +570,9 @@ fun SurabayaMainHub(
                                 servicesState = servicesState,
                                 pollsState = approvedPollsState,
                                 tambalBanSpotsState = tambalBanSpotsState,
-                                pendingPollsCount = (pendingPollsState as? UiState.Success)?.data?.size ?: 0,
+                                pendingEventsCount = pendingEvents.size,
+                                pendingPollsCount = pendingPollsList.size,
+                                flaggedContentCount = flaggedItems.size,
                                 onNavigateTab = { viewModel.selectTab(it) },
                                 onOpenIncidentDetail = { viewModel.openSheet(ActiveBottomSheet.IncidentDetail(it)) },
                                 onOpenDestinationDetail = { viewModel.openSheet(ActiveBottomSheet.DestinationDetail(it)) },
@@ -555,6 +584,7 @@ fun SurabayaMainHub(
                                 onOpenPollDetail = { viewModel.openPollDetail(it) },
                                 onOpenCreatePoll = { viewModel.openCreatePoll() },
                                 onOpenAdminPendingPolls = { viewModel.openAdminPendingPolls() },
+                                onOpenAdminDashboard = { viewModel.openAdminDashboard() },
                                 onOpenTambalBanDetail = { viewModel.openTambalBanDetail(it) },
                                 onOpenCreateTambalBan = { viewModel.openCreateTambalBan() },
                                 onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
@@ -691,6 +721,51 @@ fun SurabayaMainHub(
                             )
                             MainTab.TRANSIT -> TransitScreen(
                                 onBackToHome = { viewModel.selectTab(MainTab.HOME) },
+                            )
+                            MainTab.ADMIN_DASHBOARD -> AdminDashboardScreen(
+                                adminEmail = email,
+                                currentAdminUid = currentUserId,
+                                isAdmin = isAdmin,
+                                isSubmitting = isSubmitting,
+                                pendingEvents = pendingEvents,
+                                pendingPolls = pendingPollsList,
+                                flaggedItems = flaggedItems,
+                                incidents = (incidentsState as? UiState.Success)?.data.orEmpty(),
+                                publicChatRooms = publicChatRooms,
+                                bannedProfiles = bannedProfiles,
+                                onBackToHome = { viewModel.selectTab(MainTab.HOME) },
+                                onApproveAllPending = { evs, polls ->
+                                    viewModel.approveAllPendingRequests(evs, polls)
+                                },
+                                onModerateEvent = { id, approve, note ->
+                                    viewModel.moderateEvent(id, approve, note)
+                                },
+                                onModeratePoll = { id, approve, note ->
+                                    viewModel.moderatePoll(id, approve, note)
+                                },
+                                onOpenEventDetail = { viewModel.openSheet(ActiveBottomSheet.EventDetail(it)) },
+                                onOpenPollDetail = { viewModel.openPollDetail(it) },
+                                onOpenFlaggedItem = { flagged ->
+                                    when (flagged.collection) {
+                                        "incidents" -> viewModel.openSheet(ActiveBottomSheet.IncidentDetail(flagged.id))
+                                        "events" -> viewModel.openSheet(ActiveBottomSheet.EventDetail(flagged.id))
+                                        "culinary" -> viewModel.openSheet(ActiveBottomSheet.CulinaryDetail(flagged.id))
+                                        "moments" -> viewModel.openSheet(ActiveBottomSheet.MomentDetail(flagged.id))
+                                        "destinations" -> viewModel.openSheet(ActiveBottomSheet.DestinationDetail(flagged.id))
+                                        "services" -> viewModel.openSheet(ActiveBottomSheet.ServiceDetail(flagged.id))
+                                    }
+                                },
+                                onRestoreFlaggedItem = { col, id -> viewModel.adminRestoreContent(col, id) },
+                                onClearFlaggedLinks = { col, id -> viewModel.adminClearExternalLinks(col, id) },
+                                onDeletePostPermanently = { col, id -> viewModel.adminDeletePost(col, id) },
+                                onBanAuthor = { uid, name -> viewModel.adminBanCitizen(uid, name) },
+                                onUnbanAuthor = { uid, name -> viewModel.adminUnbanCitizen(uid, name) },
+                                onOpenIncidentDetail = { viewModel.openSheet(ActiveBottomSheet.IncidentDetail(it)) },
+                                onToggleVerifyIncident = { viewModel.verifyIncident(it) },
+                                onOpenCreatePublicGroup = { viewModel.openCreatePublicGroup() },
+                                onOpenCreateDestination = { viewModel.openSheet(ActiveBottomSheet.CreateDestination) },
+                                onOpenPublicRoom = { viewModel.openSheet(ActiveBottomSheet.ChatConversation(it)) },
+                                onDeletePublicRoom = { viewModel.adminDeletePublicGroup(it) },
                             )
                         }
                     }
@@ -953,6 +1028,7 @@ fun SurabayaMainHub(
                         onOpenCreateLensaWarga = { viewModel.openCreateLensaWarga() },
                         onUnblockUser = { uid -> viewModel.unblockCitizen(uid) },
                         onToggleAdmin = { viewModel.toggleAdminMode(it) },
+                        onOpenAdminDashboard = { viewModel.openAdminDashboard() },
                         onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
                             viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context)
                         },

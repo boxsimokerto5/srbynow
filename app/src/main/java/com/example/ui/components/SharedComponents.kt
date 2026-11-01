@@ -143,10 +143,12 @@ fun SurabayaCompactTopBar(
     isAdmin: Boolean,
     bookmarkCount: Int,
     notificationCount: Int = 0,
+    adminAttentionCount: Int = 0,
     userInitials: String,
     avatarUrl: String = "",
     onOpenBookmarks: () -> Unit,
     onOpenNotifications: () -> Unit = {},
+    onOpenAdminDashboard: () -> Unit = {},
     onOpenProfile: () -> Unit,
 ) {
     Surface(
@@ -198,17 +200,19 @@ fun SurabayaCompactTopBar(
                                         .clip(CircleShape)
                                         .background(MintSoftGradient)
                                         .border(1.dp, OutlineVariantLight, CircleShape)
-                                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                                        .clickable(onClick = onOpenAdminDashboard)
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        .testTag("top_admin_dashboard_button"),
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.AdminPanelSettings,
-                                            contentDescription = null,
+                                            contentDescription = stringResource(R.string.admin_dashboard_title),
                                             tint = ToskaPrimaryDeep,
-                                            modifier = Modifier.size(11.dp),
+                                            modifier = Modifier.size(12.dp),
                                         )
                                         Text(
                                             text = "Admin",
@@ -216,6 +220,22 @@ fun SurabayaCompactTopBar(
                                             fontWeight = FontWeight.SemiBold,
                                             color = ToskaOnPrimaryContainer,
                                         )
+                                        if (adminAttentionCount > 0) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .background(AlertCrimson)
+                                                    .padding(horizontal = 5.dp, vertical = 1.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Text(
+                                                    text = if (adminAttentionCount > 99) "99+" else adminAttentionCount.toString(),
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

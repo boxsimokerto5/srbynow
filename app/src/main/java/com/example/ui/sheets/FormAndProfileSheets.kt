@@ -97,6 +97,7 @@ import com.example.data.model.UserMoment
 import com.example.data.model.POST_TYPE_MOMEN
 import com.example.data.model.POST_TYPE_LENSA_WARGA
 import com.example.data.model.formatCitizenGenderLabel
+import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.util.LinkSecurityValidator
 import com.example.data.util.LinkValidationResult
 import com.example.data.util.SafeLinkCategory
@@ -1442,7 +1443,8 @@ fun ProfileAndPrivacySheetContent(
     onOpenCreateLensaWarga: () -> Unit = onOpenCreateMoment,
     onUnblockUser: (String) -> Unit = {},
     onToggleAdmin: (Boolean) -> Unit,
-        onSaveProfile: (
+    onOpenAdminDashboard: () -> Unit = {},
+    onSaveProfile: (
         name: String,
         district: String,
         bio: String,
@@ -1465,6 +1467,7 @@ fun ProfileAndPrivacySheetContent(
         ) -> Unit
     )? = null,
 ) {
+    val isAuthorizedAdminAccount = isAdmin || PocketBaseClient.isOfficialAdminEmail(userEmail)
     var displayName by remember(userAccount?.displayName) { mutableStateOf(userAccount?.displayName ?: "Warga Surabaya") }
     var selectedGender by remember(userAccount?.gender, nearbyProfile?.gender) {
         mutableStateOf(
@@ -1546,6 +1549,32 @@ fun ProfileAndPrivacySheetContent(
                 onBlock = {},
                 onEditProfile = { activeProfileTab = 2 },
             )
+
+            if (isAuthorizedAdminAccount) {
+                Button(
+                    onClick = onOpenAdminDashboard,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ToskaPrimaryDeep,
+                        contentColor = Color.White,
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("profile_open_admin_dashboard_btn"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AdminPanelSettings,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.admin_dashboard_title),
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
 
             val personalMoments = remember(userMoments) { userMoments.filter { !it.isLensaWarga } }
             val lensaWargaMoments = remember(userMoments) { userMoments.filter { it.isLensaWarga } }
@@ -1936,50 +1965,52 @@ fun ProfileAndPrivacySheetContent(
                 }
             }
 
-            // Admin Mode Switch Card (Soft Light-Green Gradient)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MintSoftGradient, RoundedCornerShape(20.dp))
-                    .border(1.dp, OutlineVariantLight, RoundedCornerShape(20.dp)),
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+            // Admin Mode Switch Card (Visible ONLY to authorized official admin accounts)
+            if (isAuthorizedAdminAccount) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MintSoftGradient, RoundedCornerShape(20.dp))
+                        .border(1.dp, OutlineVariantLight, RoundedCornerShape(20.dp)),
                 ) {
                     Row(
+                        modifier = Modifier.padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.AdminPanelSettings,
-                            contentDescription = null,
-                            tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(24.dp),
-                        )
-                        Column {
-                            Text(
-                                text = stringResource(R.string.admin_mode_label),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = ToskaOnPrimaryContainer,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AdminPanelSettings,
+                                contentDescription = null,
+                                tint = ToskaPrimaryDeep,
+                                modifier = Modifier.size(24.dp),
                             )
-                            Text(
-                                text = "Izinkan meninjau & menyetujui usulan Event Surabaya",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = ToskaOnPrimaryContainer.copy(alpha = 0.85f),
-                            )
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.admin_mode_label),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ToskaOnPrimaryContainer,
+                                )
+                                Text(
+                                    text = "Khusus Admin Resmi (${PocketBaseClient.PRIMARY_ADMIN_EMAIL}) • Kelola laporan & persetujuan",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ToskaOnPrimaryContainer.copy(alpha = 0.85f),
+                                )
+                            }
                         }
+                        Switch(
+                            checked = isAdmin,
+                            onCheckedChange = onToggleAdmin,
+                            enabled = !isSubmitting,
+                            modifier = Modifier.testTag("admin_mode_switch"),
+                        )
                     }
-                    Switch(
-                        checked = isAdmin,
-                        onCheckedChange = onToggleAdmin,
-                        enabled = !isSubmitting,
-                        modifier = Modifier.testTag("admin_mode_switch"),
-                    )
                 }
             }
 

@@ -213,7 +213,7 @@ class SurabayaRepository(
         return pb.observeCollection("users", pollIntervalMs = 8_000L) {
             val json = pb.getOneOrNull("users", userId)
             val email = json?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
-            val isBootstrapped = email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true)
+            val isBootstrapped = isOfficialAdminEmail(email)
             val isFlagged = json?.optBoolean("is_admin", false) ?: (pb.currentSession?.isAdmin == true)
             isBootstrapped || isFlagged
         }.catch { e ->
@@ -231,7 +231,7 @@ class SurabayaRepository(
         val uid = requireUserId()
         val session = pb.currentSession
         val userName = (session?.displayName?.takeIf { it.isNotBlank() } ?: displayNameFallback).take(80)
-        val isBootstrappedAdmin = session?.email?.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true) == true
+        val isBootstrappedAdmin = isOfficialAdminEmail(session?.email)
 
         try {
             val existingUser = pb.getOneOrNull("users", uid)
@@ -1857,6 +1857,85 @@ class SurabayaRepository(
         }
     }
 
+    suspend fun adminUnbanUser(targetUid: String) {
+        val uid = requireUserId()
+        val cleanTarget = targetUid.trim()
+        if (cleanTarget.isBlank() || cleanTarget == uid) return
+        localBannedUids.remove(cleanTarget)
+        bumpMutationTick()
+
+        try {
+            try {
+                val userPatch = JSONObject().apply {
+                    put("is_banned", false)
+                    put("is_discoverable", true)
+                }
+                pb.updateRecord("users", cleanTarget, userPatch)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode == 400) {
+                    val fallbackPatch = JSONObject().apply { put("is_discoverable", true) }
+                    runCatching { pb.updateRecord("users", cleanTarget, fallbackPatch) }
+                } else if (e.statusCode != 403 && e.statusCode != 404) {
+                    throw e
+                }
+            }
+
+            try {
+                val nearbyPatch = JSONObject().apply {
+                    put("is_banned", false)
+                    put("is_discoverable", true)
+                }
+                pb.updateRecord("nearby_profiles", cleanTarget, nearbyPatch)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode == 400) {
+                    val fallbackPatch = JSONObject().apply { put("is_discoverable", true) }
+                    runCatching { pb.updateRecord("nearby_profiles", cleanTarget, fallbackPatch) }
+                } else if (e.statusCode != 403 && e.statusCode != 404) {
+                    throw e
+                }
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.UPDATE, "users/$cleanTarget")
+            throw e
+        }
+    }
+
+    fun observeBannedProfiles(): Flow<List<NearbyProfile>> {
+        return combine(
+            pb.observeCollection("nearby_profiles", pollIntervalMs = 10_000L) {
+                pb.getList(
+                    collection = "nearby_profiles",
+                    sort = "-updated",
+                )
+            },
+            localMutationTick,
+        ) { list, _ ->
+            val mapped = list.map(::mapNearbyProfile)
+            val fromBackendOrOverlay = mapped.filter { profile ->
+                profile.isBanned || profile.id in localBannedUids || profile.userId in localBannedUids
+            }
+            val coveredIds = fromBackendOrOverlay.flatMap { listOf(it.id, it.userId) }.toSet()
+            val syntheticBanned = localBannedUids
+                .filter { it.isNotBlank() && it !in coveredIds }
+                .map { uid ->
+                    NearbyProfile(
+                        id = uid,
+                        userId = uid,
+                        displayName = "Warga ($uid)",
+                        district = "Surabaya",
+                        isDiscoverable = false,
+                        isBanned = true,
+                    )
+                }
+            (fromBackendOrOverlay + syntheticBanned).distinctBy { it.userId.ifBlank { it.id } }
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.LIST, "nearby_profiles")
+            emit(emptyList())
+        }
+    }
+
     // --- 6. TEMAN SEKITAR (NEARBY FRIENDS) ---
 
     fun observeDiscoverableProfiles(): Flow<List<NearbyProfile>> {
@@ -2065,7 +2144,7 @@ class SurabayaRepository(
     private suspend fun isCurrentSessionAdmin(uid: String): Boolean {
         val userRec = pb.getOneOrNull("users", uid)
         val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
-        return email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true) ||
+        return isOfficialAdminEmail(email) ||
             userRec?.optBoolean("is_admin", false) == true ||
             (pb.currentSession?.isAdmin == true)
     }
@@ -2381,7 +2460,7 @@ class SurabayaRepository(
             bio = j.optString("bio"),
             searchRadiusKm = j.optDouble("search_radius_km", 10.0).takeIf { !it.isNaN() && it > 0.0 } ?: 10.0,
             isDiscoverable = if (j.has("is_discoverable")) j.optBoolean("is_discoverable", true) else true,
-            isAdmin = j.optBoolean("is_admin", false) || email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true),
+            isAdmin = j.optBoolean("is_admin", false) || isOfficialAdminEmail(email),
             avatarUrl = pb.buildFileUrl("users", id, j.optString("avatar")),
             blockedUids = effectiveBlocked,
             isBanned = effectiveBanned,
@@ -2985,7 +3064,7 @@ class SurabayaRepository(
         // Admin authorization check - only admin accounts can post destinations!
         val userRec = pb.getOneOrNull("users", uid)
         val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
-        val isAdmin = email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true) ||
+        val isAdmin = isOfficialAdminEmail(email) ||
             userRec?.optBoolean("is_admin", false) == true ||
             (pb.currentSession?.isAdmin == true)
         if (!isAdmin) {
@@ -4406,7 +4485,10 @@ class SurabayaRepository(
 
     companion object {
         private const val TAG = "SurabayaRepoPB"
-        const val BOOTSTRAPPED_ADMIN_EMAIL = "nabilalailatus12@gmail.com"
+        const val PRIMARY_ADMIN_EMAIL = PocketBaseClient.PRIMARY_ADMIN_EMAIL
+        const val BOOTSTRAPPED_ADMIN_EMAIL = PocketBaseClient.BOOTSTRAPPED_ADMIN_EMAIL
+
+        fun isOfficialAdminEmail(email: String?): Boolean = PocketBaseClient.isOfficialAdminEmail(email)
 
         fun buildDirectRoomId(uidA: String, uidB: String): String {
             val cleanA = uidA.trim().replace(Regex("[^a-zA-Z0-9_\\-]"), "_").take(56)

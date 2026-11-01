@@ -79,6 +79,7 @@ enum class MainTab {
     POLLING,
     TAMBAL_BAN,
     TRANSIT,
+    ADMIN_DASHBOARD,
 }
 
 sealed interface ActiveBottomSheet {
@@ -172,12 +173,20 @@ class SurabayaViewModel(
         .map { it?.blockedUids?.toSet().orEmpty() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptySet())
 
+    private val isBootstrappedEmailAdmin: Boolean =
+        com.example.data.pocketbase.PocketBaseClient.isOfficialAdminEmail(currentUserEmail)
+
     val isAdmin: StateFlow<Boolean> = repository.observeAdminRole(currentUserId)
+        .map { repoAdmin -> repoAdmin || isBootstrappedEmailAdmin }
         .catch { e ->
             Log.w(TAG, "observeAdminRole error", e)
-            emit(false)
+            emit(isBootstrappedEmailAdmin)
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), isBootstrappedEmailAdmin)
+
+    val bannedProfiles: StateFlow<List<NearbyProfile>> = repository.observeBannedProfiles()
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
     val bookmarks: StateFlow<List<BookmarkItem>> = repository.observeBookmarks(currentUserId)
         .catch { e ->
@@ -1927,6 +1936,62 @@ class SurabayaViewModel(
                 notifyMessage("Akun ${targetName.ifBlank { "pelanggar" }} telah dibekukan oleh Admin!")
             } catch (e: Exception) {
                 notifyMessage("Gagal membekukan akun pelanggar")
+            }
+        }
+    }
+
+    fun adminUnbanCitizen(targetUid: String, targetName: String) {
+        val cleanUid = targetUid.trim()
+        if (cleanUid.isBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.adminUnbanUser(cleanUid)
+                notifyMessage("Akun ${targetName.ifBlank { "warga" }} berhasil dipulihkan kembali oleh Admin.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal memulihkan akun warga")
+            }
+        }
+    }
+
+    fun openAdminDashboard() {
+        if (!isAdmin.value) {
+            notifyMessage("Halaman Pusat Kendali hanya dapat diakses oleh Admin Resmi Surabaya.")
+            return
+        }
+        dismissSheet()
+        _selectedTab.value = MainTab.ADMIN_DASHBOARD
+    }
+
+    fun approveAllPendingRequests(
+        eventsToApprove: List<SurabayaEvent>,
+        pollsToApprove: List<CitizenPoll>,
+        adminNote: String = "Disetujui melalui Pusat Kendali Admin Surabaya.",
+    ) {
+        if (!isAdmin.value) return
+        val total = eventsToApprove.size + pollsToApprove.size
+        if (total == 0) {
+            notifyMessage("Tidak ada pengajuan menunggu saat ini.")
+            return
+        }
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            var approvedCount = 0
+            try {
+                for (ev in eventsToApprove) {
+                    runCatching {
+                        repository.moderateEvent(ev.id, approve = true, adminNote = adminNote)
+                        approvedCount++
+                    }
+                }
+                for (poll in pollsToApprove) {
+                    runCatching {
+                        repository.moderatePoll(poll.id, approve = true, adminNote = adminNote)
+                        approvedCount++
+                    }
+                }
+                notifyMessage("Berhasil menyetujui $approvedCount pengajuan warga sekaligus!")
+            } finally {
+                _isSubmitting.value = false
             }
         }
     }

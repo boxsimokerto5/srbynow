@@ -17,11 +17,11 @@
       { "system": false, "id": "sbyusr09", "name": "gender", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 24, "pattern": "" } }
     ],
     "indexes": [],
-    "listRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
-    "viewRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
+    "listRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com'",
+    "viewRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com'",
     "createRule": "",
-    "updateRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
-    "deleteRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
+    "updateRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com'",
+    "deleteRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com'",
     "options": {
       "allowEmailAuth": true,
       "allowOAuth2Auth": true,
@@ -75,11 +75,11 @@
       { "system": false, "id": "sbynp012", "name": "gender", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 24, "pattern": "" } }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "viewRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "listRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "viewRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "createRule": "@request.auth.id != '' && (@request.data.user_id = @request.auth.id || @request.data.user_id = 'seed_system')",
-    "updateRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "deleteRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "updateRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -114,7 +114,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != ''",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -133,7 +133,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -168,11 +168,11 @@
       { "system": false, "id": "sbyev024", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "viewRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "createRule": "@request.auth.id != '' && @request.data.proposer_id = @request.auth.id && (@request.data.status = 'PENDING' || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "updateRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com' || status = 'APPROVED' || (proposer_id = @request.auth.id && status = 'PENDING' && @request.data.status = 'PENDING'))",
-    "deleteRule": "@request.auth.id != '' && (proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "listRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "viewRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "createRule": "@request.auth.id != '' && @request.data.proposer_id = @request.auth.id && (@request.data.status = 'PENDING' || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "updateRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com' || status = 'APPROVED' || (proposer_id = @request.auth.id && status = 'PENDING' && @request.data.status = 'PENDING'))",
+    "deleteRule": "@request.auth.id != '' && (proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -211,7 +211,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id",
     "updateRule": "@request.auth.id != ''",
-    "deleteRule": "@request.auth.id != '' && (created_by = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (created_by = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -231,7 +231,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -255,9 +255,9 @@
     "indexes": [],
     "listRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
     "viewRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
-    "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id && ((@request.data.room_type = 'PUBLIC' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')) || (@request.data.room_type = 'DIRECT' && (@request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)))",
+    "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id && ((@request.data.room_type = 'PUBLIC' && (@request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')) || (@request.data.room_type = 'DIRECT' && (@request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)))",
     "updateRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
-    "deleteRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -283,7 +283,7 @@
     "viewRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
     "createRule": "@request.auth.id != '' && @request.data.sender_id = @request.auth.id && (@request.data.room_type = 'PUBLIC' || @request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)",
     "updateRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
-    "deleteRule": "@request.auth.id != '' && (sender_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (sender_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -318,9 +318,9 @@
     "indexes": [],
     "listRule": "@request.auth.id != ''",
     "viewRule": "@request.auth.id != ''",
-    "createRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "createRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "updateRule": "@request.auth.id != ''",
-    "deleteRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -340,7 +340,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -369,7 +369,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != ''",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -389,7 +389,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -423,7 +423,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.provider_id = @request.auth.id",
     "updateRule": "@request.auth.id != ''",
-    "deleteRule": "@request.auth.id != '' && (provider_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (provider_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -461,7 +461,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != ''",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -481,7 +481,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -505,11 +505,11 @@
       { "system": false, "id": "sbypl013", "name": "comment_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "viewRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "createRule": "@request.auth.id != '' && @request.data.proposer_id = @request.auth.id && (@request.data.status = 'PENDING' || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "updateRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com' || status = 'APPROVED' || (proposer_id = @request.auth.id && status = 'PENDING' && @request.data.status = 'PENDING'))",
-    "deleteRule": "@request.auth.id != '' && (proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "listRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "viewRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "createRule": "@request.auth.id != '' && @request.data.proposer_id = @request.auth.id && (@request.data.status = 'PENDING' || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "updateRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com' || status = 'APPROVED' || (proposer_id = @request.auth.id && status = 'PENDING' && @request.data.status = 'PENDING'))",
+    "deleteRule": "@request.auth.id != '' && (proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -529,7 +529,7 @@
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
     "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -550,7 +550,7 @@
     "viewRule": "@request.auth.id != '' && (user_id = '' || user_id = @request.auth.id)",
     "createRule": "@request.auth.id != ''",
     "updateRule": "@request.auth.id != '' && (user_id = '' || user_id = @request.auth.id)",
-    "deleteRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   }
 ]
