@@ -297,4 +297,16 @@
     <string name="admin_btn_approve_all">Setujui Semua Permintaan</string>
     <string name="admin_home_banner_title">Pusat Kendali Admin Surabaya</string>
     <string name="admin_open_dashboard_btn">Buka Pusat Admin</string>
+    <string name="barkas_page_title">Barkas Warga SBY</string>
+    <string name="barkas_page_subtitle">Jual beli barang bekas antarwarga • COD aman di Surabaya</string>
+    <string name="barkas_btn_post">Jual Barang</string>
+    <string name="barkas_cod_safety_notice">Tips Aman COD Surabaya: Utamakan ketemuan langsung di tempat ramai/terang, cek fungsi barang sebelum bayar, dan hindari transfer uang muka (DP) ke orang belum dikenal.</string>
+    <string name="barkas_sold_badge">TERJUAL</string>
+    <string name="barkas_available_badge">TERSEDIA</string>
+    <string name="barkas_mark_sold_btn">Tandai Terjual</string>
+    <string name="barkas_reopen_btn">Buka Kembali</string>
+    <string name="barkas_comments_title">Komentar &amp; Tanya Jawab (%1$d)</string>
+    <string name="barkas_comments_empty">Belum ada komentar. Tanyakan kondisi, kelengkapan, atau tawar sopan di sini!</string>
+    <string name="barkas_comment_hint">Tanyakan kelengkapan, lokasi COD, atau tawar harga…</string>
 </resources>
+

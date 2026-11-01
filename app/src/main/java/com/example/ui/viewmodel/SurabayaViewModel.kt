@@ -11,6 +11,8 @@ import com.example.data.audio.SurabayaRadioPlayer
 import com.example.data.location.LocationHelper
 import com.example.data.model.AppNotification
 import com.example.data.model.AppNotificationType
+import com.example.data.model.BarkasComment
+import com.example.data.model.BarkasItem
 import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
@@ -79,6 +81,7 @@ enum class MainTab {
     POLLING,
     TAMBAL_BAN,
     TRANSIT,
+    BARKAS,
     ADMIN_DASHBOARD,
 }
 
@@ -109,6 +112,8 @@ sealed interface ActiveBottomSheet {
     data object AdminPendingPolls : ActiveBottomSheet
     data class TambalBanDetail(val spotId: String) : ActiveBottomSheet
     data object CreateTambalBan : ActiveBottomSheet
+    data class BarkasDetail(val barkasId: String) : ActiveBottomSheet
+    data object CreateBarkas : ActiveBottomSheet
 }
 
 data class NearbyPeerItem(
@@ -577,6 +582,43 @@ class SurabayaViewModel(
                 flowOf(emptyList())
             } else {
                 repository.observeTambalBanComments(spotId).catch { emit(emptyList()) }
+            }
+        },
+        blockedUserIds,
+    ) { comments, blockedSet ->
+        comments.filter { it.authorId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    // --- BARKAS WARGA (JUAL BELI BARANG BEKAS) STATEFLOWS ---
+
+    val barkasItemsState: StateFlow<UiState<List<BarkasItem>>> = combine(
+        repository.observeBarkasItems(),
+        blockedUserIds,
+        isAdmin,
+    ) { items, blockedSet, admin ->
+        val filtered = items.filter { item ->
+            item.sellerId !in blockedSet && (!item.isContentQuarantined || admin)
+        }
+        UiState.Success(filtered) as UiState<List<BarkasItem>>
+    }.catch { emit(UiState.Error(it.localizedMessage ?: "Gagal memuat daftar barang bekas")) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
+    private val selectedBarkasIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.BarkasDetail)?.barkasId }
+
+    val activeSelectedBarkas: StateFlow<BarkasItem?> = selectedBarkasIdFlow.flatMapLatest { barkasId ->
+        if (barkasId.isNullOrBlank()) {
+            flowOf(null)
+        } else {
+            repository.observeBarkasById(barkasId).catch { emit(null) }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
+
+    val activeBarkasComments: StateFlow<List<BarkasComment>> = combine(
+        selectedBarkasIdFlow.flatMapLatest { barkasId ->
+            if (barkasId.isNullOrBlank()) {
+                flowOf(emptyList())
+            } else {
+                repository.observeBarkasComments(barkasId).catch { emit(emptyList()) }
             }
         },
         blockedUserIds,
@@ -2360,6 +2402,174 @@ class SurabayaViewModel(
                 notifyMessage("Gagal menghapus tambal ban: ${e.message}")
             }
         }
+    }
+
+    // --- BARKAS WARGA (JUAL BELI BARANG BEKAS) OPERATIONS ---
+
+    fun openBarkasDetail(barkasId: String) {
+        _activeSheet.value = ActiveBottomSheet.BarkasDetail(barkasId)
+    }
+
+    fun openCreateBarkas() {
+        if (isCurrentUserFrozen()) return
+        _activeSheet.value = ActiveBottomSheet.CreateBarkas
+    }
+
+    fun submitBarkasItem(
+        title: String,
+        category: String,
+        itemCondition: String,
+        price: Long,
+        isNegotiable: Boolean,
+        district: String,
+        codLocation: String,
+        description: String,
+        whatsappNumber: String = "",
+        photoUris: List<Uri> = emptyList(),
+        context: Context? = null,
+        onComplete: (Boolean) -> Unit = {},
+    ) {
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val rateCheck = SurabayaSpamProtector.checkRateLimit(
+                    userId = currentUserId,
+                    category = "barkas_items",
+                    cooldownMs = SurabayaSpamProtector.COOLDOWN_SERVICES_MS,
+                )
+                if (rateCheck is SpamCheckResult.Blocked) {
+                    notifyMessage("⚠️ ${rateCheck.reason}")
+                    onComplete(false)
+                    return@launch
+                }
+
+                val preparedPhotos = if (photoUris.isNotEmpty() && appCtx != null) {
+                    photoUris.take(4).mapNotNull { uri ->
+                        ImageUploadHelper.preparePhotoFromUri(
+                            context = appCtx,
+                            uri = uri,
+                            prefix = "barkas",
+                            maxDimensionPx = 1080,
+                            initialJpegQuality = 82,
+                        )
+                    }
+                } else {
+                    emptyList()
+                }
+
+                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                    notifyMessage("Foto barang gagal diproses, silakan coba lagi.")
+                    onComplete(false)
+                    return@launch
+                }
+
+                if (preparedPhotos.isNotEmpty() && !verifyPhotosAreSafe(preparedPhotos)) {
+                    onComplete(false)
+                    return@launch
+                }
+
+                repository.createBarkasItem(
+                    sellerName = currentDisplayName(),
+                    title = title,
+                    category = category,
+                    itemCondition = itemCondition,
+                    price = price,
+                    isNegotiable = isNegotiable,
+                    district = district,
+                    codLocation = codLocation,
+                    description = description,
+                    whatsappNumber = whatsappNumber,
+                    photos = preparedPhotos,
+                )
+                SurabayaSpamProtector.recordSubmission(currentUserId, "barkas_items")
+                dismissSheet()
+                notifyMessage("✅ Barang bekas berhasil dipasang di Barkas Warga Surabaya!")
+                onComplete(true)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: DuplicateContentException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+                onComplete(false)
+            } catch (e: SpamRateLimitException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+                onComplete(false)
+            } catch (e: Exception) {
+                notifyMessage("Gagal memasang barang bekas: ${e.message}")
+                onComplete(false)
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun toggleBarkasSold(barkasId: String, explicitSold: Boolean? = null) {
+        viewModelScope.launch {
+            try {
+                val nowSold = repository.toggleBarkasSoldStatus(
+                    barkasId = barkasId,
+                    requesterUid = currentUserId,
+                    isAdmin = isAdmin.value,
+                    explicitSold = explicitSold,
+                )
+                notifyMessage(
+                    if (nowSold) "✅ Lapak berhasil ditandai TERJUAL!"
+                    else "Lapak dibuka kembali dan berstatus TERSEDIA.",
+                )
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengubah status barang: ${e.message}")
+            }
+        }
+    }
+
+    fun submitBarkasComment(barkasId: String, text: String, onComplete: (Boolean) -> Unit = {}) {
+        if (isCurrentUserFrozen()) return
+        viewModelScope.launch {
+            try {
+                repository.addBarkasComment(barkasId, text)
+                notifyMessage("Komentar berhasil dikirim.")
+                onComplete(true)
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim komentar: ${e.message}")
+                onComplete(false)
+            }
+        }
+    }
+
+    fun reportBarkasContent(item: BarkasItem) {
+        viewModelScope.launch {
+            try {
+                repository.reportBarkasContent(item.id, currentUserId)
+                notifyMessage("Terima kasih. Laporan kiriman Barkas telah diteruskan ke Pusat Kendali Admin.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim laporan: ${e.message}")
+            }
+        }
+    }
+
+    fun deleteBarkasItem(barkasId: String) {
+        viewModelScope.launch {
+            try {
+                repository.deleteBarkasItem(barkasId, currentUserId, isAdmin.value)
+                dismissSheet()
+                notifyMessage("Lapak barang bekas berhasil dihapus.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menghapus lapak: ${e.message}")
+            }
+        }
+    }
+
+    fun chatWithBarkasSeller(item: BarkasItem) {
+        if (item.sellerId.isBlank() || item.sellerId == currentUserId) return
+        val sellerProfile = NearbyProfile(
+            id = item.sellerId,
+            userId = item.sellerId,
+            displayName = item.sellerName.ifBlank { "Penjual Surabaya" },
+            district = item.district.ifBlank { "Surabaya" },
+        )
+        greetNearbyPeer(sellerProfile)
     }
 
     private companion object {

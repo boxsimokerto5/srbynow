@@ -4,9 +4,12 @@ import android.content.Context
 import android.util.Log
 import com.example.data.model.AppNotification
 import com.example.data.model.AppNotificationType
+import com.example.data.model.BarkasComment
+import com.example.data.model.BarkasItem
 import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
+import com.example.data.model.SurabayaBarkasSeed
 import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
@@ -99,6 +102,8 @@ class SurabayaRepository(
     private val inMemoryPollComments = ConcurrentHashMap<String, CopyOnWriteArrayList<PollComment>>()
     private val inMemoryTambalBan = ConcurrentHashMap<String, TambalBanSpot>()
     private val inMemoryTambalBanComments = ConcurrentHashMap<String, CopyOnWriteArrayList<TambalBanComment>>()
+    private val inMemoryBarkas = ConcurrentHashMap<String, BarkasItem>()
+    private val inMemoryBarkasComments = ConcurrentHashMap<String, CopyOnWriteArrayList<BarkasComment>>()
     private val cachedIncidents = ConcurrentHashMap<String, IncidentReport>()
     private val cachedEvents = ConcurrentHashMap<String, SurabayaEvent>()
     private val cachedCulinary = ConcurrentHashMap<String, CulinarySpot>()
@@ -181,6 +186,13 @@ class SurabayaRepository(
         }
         for ((spotId, comments) in SurabayaCuratedSeed.starterTambalBanComments()) {
             inMemoryTambalBanComments[spotId] = CopyOnWriteArrayList(comments)
+        }
+        // Initialize rich starter Barkas Warga (Jual Beli Barang Bekas) & comments
+        for (barkas in SurabayaBarkasSeed.starterItems("system_seed")) {
+            inMemoryBarkas[barkas.id] = barkas
+        }
+        for ((barkasId, comments) in SurabayaBarkasSeed.starterComments()) {
+            inMemoryBarkasComments[barkasId] = CopyOnWriteArrayList(comments)
         }
     }
 
@@ -1714,6 +1726,15 @@ class SurabayaRepository(
             uids = emptyList(),
             forceOverride = true,
         )
+        if (collection == "barkas_items") {
+            inMemoryBarkas[recordId]?.let { item ->
+                inMemoryBarkas[recordId] = item.copy(contentReportCount = 0, contentReportedByUids = emptyList())
+            }
+        } else if (collection == "services") {
+            inMemoryServices[recordId]?.let { svc ->
+                inMemoryServices[recordId] = svc.copy(contentReportCount = 0, contentReportedByUids = emptyList())
+            }
+        }
         bumpMutationTick()
 
         try {
@@ -1725,7 +1746,7 @@ class SurabayaRepository(
                 pb.updateRecord(collection, recordId, patch)
                 localContentReports.remove(key)
             } catch (e: PocketBaseException) {
-                if (e.statusCode != 400) throw e
+                if (e.statusCode != 400 && e.statusCode != 404) throw e
             }
         } catch (ce: CancellationException) {
             throw ce
@@ -1740,12 +1761,23 @@ class SurabayaRepository(
         recordId: String,
     ) {
         requireUserId()
+        if (collection == "barkas_items") {
+            inMemoryBarkas.remove(recordId)
+            inMemoryBarkasComments.remove(recordId)
+        } else if (collection == "services") {
+            inMemoryServices.remove(recordId)
+        }
+        localDeletedRecords.add("$collection:$recordId")
+        bumpMutationTick()
         try {
             pb.deleteRecord(collection, recordId)
-            localDeletedRecords.add("$collection:$recordId")
-            bumpMutationTick()
         } catch (ce: CancellationException) {
             throw ce
+        } catch (e: PocketBaseException) {
+            if (e.statusCode != 404) {
+                logBackendError(e, OperationType.DELETE, "$collection/$recordId")
+                throw e
+            }
         } catch (e: Exception) {
             logBackendError(e, OperationType.DELETE, "$collection/$recordId")
             throw e
@@ -4480,6 +4512,420 @@ class SurabayaRepository(
             localDeletedRecords.add("tambal_ban:$spotId")
             bumpMutationTick()
             runCatching { pb.deleteRecord("tambal_ban", spotId) }
+        }
+    }
+
+    // --- BARKAS WARGA (JUAL BELI BARANG BEKAS SURABAYA) OPERATIONS ---
+
+    private fun mapBarkasItem(j: JSONObject): BarkasItem {
+        val id = j.optString("id")
+        val photoFiles = extractFileNames(j, "photos")
+        val resolvedPhotos = when {
+            photoFiles.isNotEmpty() -> photoFiles.map { pb.buildFileUrl("barkas_items", id, it) }
+            else -> j.optString("photo_url")
+                .split("|")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+        }
+        val overlay = localContentReports["barkas_items:$id"]
+        val serverContentCount = j.optInt("content_report_count", 0)
+        val serverContentUids = decodeUidList(j.optString("content_reported_uids"))
+        val effectiveContentCount = when {
+            overlay == null -> serverContentCount
+            overlay.forceOverride -> overlay.count
+            else -> serverContentCount + overlay.count
+        }
+        val effectiveContentUids = when {
+            overlay == null -> serverContentUids
+            overlay.forceOverride -> overlay.uids
+            else -> (serverContentUids + overlay.uids).distinct()
+        }
+
+        return BarkasItem(
+            id = id,
+            sellerId = j.optString("seller_id"),
+            sellerName = j.optString("seller_name", "Warga Surabaya").ifBlank { "Warga Surabaya" },
+            title = j.optString("title"),
+            category = j.optString("category", "LAINNYA").ifBlank { "LAINNYA" },
+            itemCondition = j.optString("item_condition", "BEKAS_TERAWAT").ifBlank { "BEKAS_TERAWAT" },
+            price = j.optLong("price", 0L).coerceAtLeast(0L),
+            isNegotiable = j.optBoolean("is_negotiable", true),
+            district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+            codLocation = j.optString("cod_location"),
+            description = j.optString("description"),
+            whatsappNumber = j.optString("whatsapp_number"),
+            photoUrl = resolvedPhotos.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotos,
+            isSold = j.optBoolean("is_sold", false),
+            commentCount = j.optInt("comment_count", 0),
+            contentReportCount = effectiveContentCount,
+            contentReportedByUids = effectiveContentUids,
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    private fun mapBarkasComment(j: JSONObject): BarkasComment = BarkasComment(
+        id = j.optString("id"),
+        barkasId = j.optString("barkas_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya").ifBlank { "Warga Surabaya" },
+        authorDistrict = j.optString("author_district", "Genteng").ifBlank { "Genteng" },
+        text = j.optString("text"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
+    fun observeBarkasItems(): Flow<List<BarkasItem>> {
+        return combine(
+            pb.observeCollection("barkas_items", pollIntervalMs = 6_500L) {
+                try {
+                    pb.getList(collection = "barkas_items", sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val combinedMap = inMemoryBarkas.toMutableMap()
+            for (json in remoteList) {
+                val mapped = mapBarkasItem(json)
+                combinedMap[mapped.id] = mapped
+                inMemoryBarkas[mapped.id] = mapped
+            }
+            combinedMap.values
+                .filter { "barkas_items:${it.id}" !in localDeletedRecords && it.sellerId !in localBannedUids }
+                .sortedWith(
+                    compareBy<BarkasItem> { it.isSold }
+                        .thenByDescending { it.createdAt ?: 0L },
+                )
+        }.catch {
+            emit(
+                inMemoryBarkas.values
+                    .filter { "barkas_items:${it.id}" !in localDeletedRecords }
+                    .sortedWith(
+                        compareBy<BarkasItem> { it.isSold }
+                            .thenByDescending { it.createdAt ?: 0L },
+                    ),
+            )
+        }
+    }
+
+    fun observeBarkasById(barkasId: String): Flow<BarkasItem?> {
+        return combine(
+            pb.observeCollection("barkas_items", pollIntervalMs = 5_500L) {
+                try {
+                    pb.getOneOrNull("barkas_items", barkasId)
+                } catch (_: Exception) {
+                    null
+                }
+            },
+            localMutationTick,
+        ) { remoteJson, _ ->
+            if ("barkas_items:$barkasId" in localDeletedRecords) {
+                null
+            } else if (remoteJson != null) {
+                val mapped = mapBarkasItem(remoteJson)
+                inMemoryBarkas[barkasId] = mapped
+                mapped
+            } else {
+                inMemoryBarkas[barkasId]
+            }
+        }.catch {
+            emit(inMemoryBarkas[barkasId]?.takeIf { "barkas_items:${it.id}" !in localDeletedRecords })
+        }
+    }
+
+    fun observeBarkasComments(barkasId: String): Flow<List<BarkasComment>> {
+        val safeBarkasId = escapePbValue(barkasId)
+        return combine(
+            pb.observeCollection("barkas_comments", pollIntervalMs = 4_500L) {
+                try {
+                    pb.getList(
+                        collection = "barkas_comments",
+                        filter = "barkas_id = '$safeBarkasId'",
+                        sort = "created",
+                    )
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remote = remoteList.map(::mapBarkasComment)
+            val localList = inMemoryBarkasComments[barkasId]?.toList() ?: emptyList()
+            (remote + localList).distinctBy { it.id }.sortedBy { it.createdAt ?: 0L }
+        }.catch {
+            emit(inMemoryBarkasComments[barkasId]?.toList()?.sortedBy { it.createdAt ?: 0L } ?: emptyList())
+        }
+    }
+
+    suspend fun createBarkasItem(
+        sellerName: String,
+        title: String,
+        category: String,
+        itemCondition: String,
+        price: Long,
+        isNegotiable: Boolean,
+        district: String,
+        codLocation: String,
+        description: String,
+        whatsappNumber: String = "",
+        photos: List<PreparedPhoto> = emptyList(),
+    ): String {
+        val uid = requireUserId()
+        val cleanTitle = title.trim().take(140)
+        if (cleanTitle.length < 3) {
+            throw IllegalArgumentException("Nama barang bekas minimal 3 karakter.")
+        }
+        val cleanDescription = description.trim().take(1500)
+        if (cleanDescription.length < 5) {
+            throw IllegalArgumentException("Jelaskan kondisi atau kelengkapan barang minimal 5 karakter.")
+        }
+
+        val cleanWa = whatsappNumber
+            .trim()
+            .replace(Regex("[^0-9]"), "")
+            .let { if (it.startsWith("0")) "62" + it.drop(1) else it }
+            .take(28)
+
+        val recordId = PocketBaseClient.deterministicPbId("brk_${UUID.randomUUID()}")
+        val boundedPhotos = photos.take(4)
+        val cleanSellerName = sellerName.trim().take(80).ifEmpty {
+            pb.currentSession?.displayName?.ifBlank { "Warga Surabaya" } ?: "Warga Surabaya"
+        }
+        val cleanCategory = category.trim().uppercase().ifEmpty { "LAINNYA" }.take(40)
+        val cleanCondition = itemCondition.trim().uppercase().ifEmpty { "BEKAS_TERAWAT" }.take(40)
+        val cleanDistrict = district.trim().ifEmpty { "Genteng" }.take(60)
+        val cleanCod = codLocation.trim().take(180)
+        val safePrice = price.coerceAtLeast(0L)
+        val now = System.currentTimeMillis()
+
+        var resolvedPhotoUrls = boundedPhotos.map { it.dataUri }
+
+        try {
+            if (boundedPhotos.isNotEmpty()) {
+                val fields = mapOf(
+                    "id" to recordId,
+                    "seller_id" to uid,
+                    "seller_name" to cleanSellerName,
+                    "title" to cleanTitle,
+                    "category" to cleanCategory,
+                    "item_condition" to cleanCondition,
+                    "price" to safePrice.toString(),
+                    "is_negotiable" to isNegotiable.toString(),
+                    "district" to cleanDistrict,
+                    "cod_location" to cleanCod,
+                    "description" to cleanDescription,
+                    "whatsapp_number" to cleanWa,
+                    "is_sold" to "false",
+                    "comment_count" to "0",
+                    "content_report_count" to "0",
+                    "content_reported_uids" to "",
+                )
+                val fileParts = boundedPhotos.mapIndexed { idx, p ->
+                    MultipartFilePart(
+                        fieldName = "photos",
+                        fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                        mimeType = p.mimeType,
+                        bytes = p.bytes,
+                    )
+                }
+                val created = pb.createRecordMultipartFiles("barkas_items", fields, fileParts)
+                val serverId = created.optString("id").ifBlank { recordId }
+                val storedFiles = extractFileNames(created, "photos")
+                if (storedFiles.isNotEmpty()) {
+                    resolvedPhotoUrls = storedFiles.map { pb.buildFileUrl("barkas_items", serverId, it) }
+                }
+            } else {
+                val payload = JSONObject().apply {
+                    put("id", recordId)
+                    put("seller_id", uid)
+                    put("seller_name", cleanSellerName)
+                    put("title", cleanTitle)
+                    put("category", cleanCategory)
+                    put("item_condition", cleanCondition)
+                    put("price", safePrice)
+                    put("is_negotiable", isNegotiable)
+                    put("district", cleanDistrict)
+                    put("cod_location", cleanCod)
+                    put("description", cleanDescription)
+                    put("whatsapp_number", cleanWa)
+                    put("is_sold", false)
+                    put("comment_count", 0)
+                    put("content_report_count", 0)
+                    put("content_reported_uids", "")
+                }
+                pb.createRecord("barkas_items", payload)
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "createBarkasItem PB sync fallback: ${e.message}")
+        }
+
+        val newItem = BarkasItem(
+            id = recordId,
+            sellerId = uid,
+            sellerName = cleanSellerName,
+            title = cleanTitle,
+            category = cleanCategory,
+            itemCondition = cleanCondition,
+            price = safePrice,
+            isNegotiable = isNegotiable,
+            district = cleanDistrict,
+            codLocation = cleanCod,
+            description = cleanDescription,
+            whatsappNumber = cleanWa,
+            photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotoUrls,
+            isSold = false,
+            commentCount = 0,
+            createdAt = now,
+            updatedAt = now,
+        )
+
+        inMemoryBarkas[recordId] = newItem
+        SurabayaSpamProtector.recordSubmission(uid, "barkas_items")
+        bumpMutationTick()
+        return recordId
+    }
+
+    suspend fun toggleBarkasSoldStatus(
+        barkasId: String,
+        requesterUid: String = requireUserId(),
+        isAdmin: Boolean = false,
+        explicitSold: Boolean? = null,
+    ): Boolean {
+        val uid = requesterUid.ifBlank { requireUserId() }
+        val current = inMemoryBarkas[barkasId]
+            ?: runCatching { pb.getOneOrNull("barkas_items", barkasId)?.let(::mapBarkasItem) }.getOrNull()
+            ?: throw IllegalArgumentException("Barang tidak ditemukan.")
+
+        if (current.sellerId != uid && !isAdmin && !isCurrentSessionAdmin(uid)) {
+            throw IllegalStateException("Hanya pemilik barang yang dapat mengubah status terjual.")
+        }
+
+        val nextSold = explicitSold ?: !current.isSold
+        val updated = current.copy(
+            isSold = nextSold,
+            updatedAt = System.currentTimeMillis(),
+        )
+        inMemoryBarkas[barkasId] = updated
+        bumpMutationTick()
+
+        try {
+            pb.updateRecord(
+                "barkas_items",
+                barkasId,
+                JSONObject().apply {
+                    put("is_sold", nextSold)
+                },
+            )
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "toggleBarkasSoldStatus PB sync fallback: ${e.message}")
+        }
+
+        return nextSold
+    }
+
+    suspend fun addBarkasComment(barkasId: String, text: String): String {
+        val uid = requireUserId()
+        val cleanText = text.trim().take(600)
+        if (cleanText.length < 2) {
+            throw IllegalArgumentException("Komentar minimal 2 karakter.")
+        }
+
+        val account = runCatching { pb.getOneOrNull("users", uid) }.getOrNull()
+        val authorName = account?.optString("name")?.takeIf { it.isNotBlank() }
+            ?: pb.currentSession?.displayName?.takeIf { it.isNotBlank() }
+            ?: "Warga Surabaya"
+        val authorDistrict = account?.optString("district")?.takeIf { it.isNotBlank() }
+            ?: pb.currentSession?.district?.takeIf { it.isNotBlank() }
+            ?: "Genteng"
+
+        val commentId = PocketBaseClient.deterministicPbId("bcm_${UUID.randomUUID()}")
+        val now = System.currentTimeMillis()
+        val newComment = BarkasComment(
+            id = commentId,
+            barkasId = barkasId,
+            authorId = uid,
+            authorName = authorName,
+            authorDistrict = authorDistrict,
+            text = cleanText,
+            createdAt = now,
+        )
+
+        val list = inMemoryBarkasComments.computeIfAbsent(barkasId) { CopyOnWriteArrayList() }
+        list.add(newComment)
+
+        val currentItem = inMemoryBarkas[barkasId]
+            ?: runCatching { pb.getOneOrNull("barkas_items", barkasId)?.let(::mapBarkasItem) }.getOrNull()
+        val nextCount = maxOf((currentItem?.commentCount ?: 0) + 1, list.size)
+        if (currentItem != null) {
+            inMemoryBarkas[barkasId] = currentItem.copy(
+                commentCount = nextCount,
+                updatedAt = now,
+            )
+        }
+        bumpMutationTick()
+
+        try {
+            val payload = JSONObject().apply {
+                put("id", commentId)
+                put("barkas_id", barkasId)
+                put("author_id", uid)
+                put("author_name", authorName.take(80))
+                put("author_district", authorDistrict.take(60))
+                put("text", cleanText)
+            }
+            pb.createRecord("barkas_comments", payload)
+            runCatching {
+                pb.updateRecord(
+                    "barkas_items",
+                    barkasId,
+                    JSONObject().apply {
+                        put("comment_count", nextCount)
+                    },
+                )
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "addBarkasComment PB sync fallback: ${e.message}")
+        }
+
+        return commentId
+    }
+
+    suspend fun reportBarkasContent(barkasId: String, reporterUid: String) {
+        val current = inMemoryBarkas[barkasId]
+        val currentCount = current?.contentReportCount ?: 0
+        val currentUids = current?.contentReportedByUids ?: emptyList()
+        reportInappropriateContent(
+            collection = "barkas_items",
+            recordId = barkasId,
+            currentCount = currentCount,
+            currentReportedUids = currentUids,
+        )
+        if (current != null && reporterUid !in current.contentReportedByUids) {
+            inMemoryBarkas[barkasId] = current.copy(
+                contentReportCount = current.contentReportCount + 1,
+                contentReportedByUids = (current.contentReportedByUids + reporterUid).distinct(),
+            )
+            bumpMutationTick()
+        }
+    }
+
+    suspend fun deleteBarkasItem(barkasId: String, requesterUid: String, isAdmin: Boolean) {
+        val current = inMemoryBarkas[barkasId]
+        if (current == null || current.sellerId == requesterUid || isAdmin || isCurrentSessionAdmin(requesterUid)) {
+            inMemoryBarkas.remove(barkasId)
+            inMemoryBarkasComments.remove(barkasId)
+            localDeletedRecords.add("barkas_items:$barkasId")
+            bumpMutationTick()
+            runCatching { pb.deleteRecord("barkas_items", barkasId) }
         }
     }
 

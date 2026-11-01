@@ -713,13 +713,14 @@ class SurabayaPocketBaseRepositoryTest {
         )
 
         val arr = JSONArray(assetJsonText)
-        assertEquals("Expected exactly 20 collections in PocketBase schema", 20, arr.length())
+        assertEquals("Expected exactly 22 collections in PocketBase schema", 22, arr.length())
 
         val expectedCollections = listOf(
             "users", "bookmarks", "nearby_profiles", "incidents", "incident_comments",
             "events", "culinary", "culinary_reviews", "chat_rooms", "chat_messages",
             "destinations", "destination_reviews", "moments", "moment_comments",
             "services", "tambal_ban", "tambal_ban_comments", "polls", "poll_comments", "notifications",
+            "barkas_items", "barkas_comments",
         )
         val seenColIds = mutableSetOf<String>()
         val seenColNames = mutableListOf<String>()
@@ -803,6 +804,37 @@ class SurabayaPocketBaseRepositoryTest {
         assertTrue(repoAdmin.observeTambalBanSpots().first().any { it.id == tbId && it.is24Hours })
         repoCitizen.addTambalBanComment(tbId, "Pelayanan cepat!")
         assertEquals(1, repoAdmin.observeTambalBanComments(tbId).first().size)
+
+        // Barkas Warga round-trip: post item, comment from another user, owner marks sold
+        val barkasId = repoCitizen.createBarkasItem(
+            sellerName = "Dimas",
+            title = "Sepeda Lipat Element Pikes Bekas Mulus",
+            category = "KENDARAAN",
+            itemCondition = "BEKAS_TERAWAT",
+            price = 2350000L,
+            isNegotiable = true,
+            district = "Gubeng",
+            codLocation = "Taman Prestasi / Balai Kota",
+            description = "Masih mulus terawat, ban luar dalam baru ganti.",
+            whatsappNumber = "081234567890",
+        )
+        assertEquals(15, barkasId.length)
+        val createdBarkas = repoAdmin.observeBarkasItems().first().firstOrNull { it.id == barkasId }
+        assertTrue("Created barkas must be visible and available", createdBarkas != null && !createdBarkas.isSold)
+
+        repoAdmin.addBarkasComment(barkasId, "Masih bisa nego 2,1 juta COD besok sore mas?")
+        val barkasComments = repoCitizen.observeBarkasComments(barkasId).first()
+        assertEquals(1, barkasComments.size)
+        assertEquals("Masih bisa nego 2,1 juta COD besok sore mas?", barkasComments.first().text)
+
+        val nowSold = repoCitizen.toggleBarkasSoldStatus(
+            barkasId = barkasId,
+            requesterUid = sCitizen.userId,
+            isAdmin = false,
+        )
+        assertTrue("Owner must be able to mark Barkas item as sold", nowSold)
+        assertTrue(repoAdmin.observeBarkasItems().first().first { it.id == barkasId }.isSold)
+
         shadowOf(Looper.getMainLooper()).idle()
     }
 

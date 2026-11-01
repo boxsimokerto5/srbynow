@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
@@ -278,6 +279,14 @@ fun HomeScreen(
             icon = Icons.Filled.Build,
             testTag = "home_shortcut_jasa",
             onClick = { onNavigateTab(MainTab.JASA) },
+        ),
+        HomeShortcutItem(
+            title = "Barkas Warga",
+            subtitle = "Jual Beli Bekas",
+            icon = Icons.Filled.Storefront,
+            badge = "COD SBY",
+            testTag = "home_shortcut_barkas",
+            onClick = { onNavigateTab(MainTab.BARKAS) },
         ),
         HomeShortcutItem(
             title = "Tambal Ban",

@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.data.model.BarkasItem
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinarySpot
 import com.example.data.model.IncidentReport
@@ -42,6 +43,7 @@ fun collectAdminFlaggedItems(
     moments: List<UserMoment>,
     destinations: List<SurabayaDestination>,
     services: List<CitizenService>,
+    barkasItems: List<BarkasItem> = emptyList(),
 ): List<AdminFlaggedItem> {
     val aggregated = mutableListOf<AdminFlaggedItem>()
 
@@ -146,6 +148,23 @@ fun collectAdminFlaggedItems(
             linkReportCount = 0,
             hasExternalLink = false,
             createdAt = svc.createdAt,
+        )
+    }
+
+    barkasItems.filter { it.contentReportCount > 0 }.forEach { brk ->
+        aggregated += AdminFlaggedItem(
+            id = brk.id,
+            collection = "barkas_items",
+            sourceLabel = "Barkas Warga",
+            title = brk.title,
+            snippet = "${brk.formattedPrice} (${brk.negotiableLabel}) • ${brk.description}",
+            district = brk.district,
+            authorId = brk.sellerId,
+            authorName = brk.sellerName.ifBlank { "Penjual Barkas" },
+            contentReportCount = brk.contentReportCount,
+            linkReportCount = 0,
+            hasExternalLink = false,
+            createdAt = brk.createdAt,
         )
     }
 

@@ -107,6 +107,7 @@ import com.example.ui.screens.EventScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.collectAdminFlaggedItems
 import com.example.ui.screens.JasaWargaScreen
+import com.example.ui.screens.BarkasScreen
 import com.example.ui.screens.KejadianScreen
 import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.MomenScreen
@@ -129,9 +130,11 @@ import com.example.data.util.SurabayaNotificationHelper
 import com.example.data.audio.RadioPlaybackState
 import com.example.data.audio.SurabayaRadioPlayer
 import com.example.ui.sheets.AdminPendingPollsSheetContent
+import com.example.ui.sheets.BarkasDetailSheetContent
 import com.example.ui.sheets.BookmarksSheetContent
 import com.example.ui.sheets.ChatConversationSheetContent
 import com.example.ui.sheets.CitizenProfileSheetContent
+import com.example.ui.sheets.CreateBarkasSheetContent
 import com.example.ui.sheets.CreateCulinarySheetContent
 import com.example.ui.sheets.CreateDestinationSheetContent
 import com.example.ui.sheets.CreateIncidentSheetContent
@@ -317,6 +320,9 @@ fun SurabayaMainHub(
     val tambalBanSpotsState by viewModel.tambalBanSpotsState.collectAsStateWithLifecycle()
     val activeSelectedTambalBan by viewModel.activeSelectedTambalBan.collectAsStateWithLifecycle()
     val activeTambalBanComments by viewModel.activeTambalBanComments.collectAsStateWithLifecycle()
+    val barkasItemsState by viewModel.barkasItemsState.collectAsStateWithLifecycle()
+    val activeSelectedBarkas by viewModel.activeSelectedBarkas.collectAsStateWithLifecycle()
+    val activeBarkasComments by viewModel.activeBarkasComments.collectAsStateWithLifecycle()
     val bannedProfiles by viewModel.bannedProfiles.collectAsStateWithLifecycle()
 
     val pendingPollsList = (pendingPollsState as? UiState.Success)?.data.orEmpty()
@@ -328,6 +334,7 @@ fun SurabayaMainHub(
         momentsState,
         destinationsState,
         servicesState,
+        barkasItemsState,
     ) {
         collectAdminFlaggedItems(
             incidents = (incidentsState as? UiState.Success)?.data.orEmpty(),
@@ -337,6 +344,7 @@ fun SurabayaMainHub(
             moments = (momentsState as? UiState.Success)?.data.orEmpty(),
             destinations = (destinationsState as? UiState.Success)?.data.orEmpty(),
             services = (servicesState as? UiState.Success)?.data.orEmpty(),
+            barkasItems = (barkasItemsState as? UiState.Success)?.data.orEmpty(),
         )
     }
     val adminAttentionCount = pendingEvents.size + pendingPollsList.size + flaggedItems.size
@@ -722,6 +730,25 @@ fun SurabayaMainHub(
                             MainTab.TRANSIT -> TransitScreen(
                                 onBackToHome = { viewModel.selectTab(MainTab.HOME) },
                             )
+                            MainTab.BARKAS -> BarkasScreen(
+                                barkasState = barkasItemsState,
+                                bookmarks = bookmarks,
+                                currentUserId = currentUserId,
+                                isAdmin = isAdmin,
+                                onOpenBarkasDetail = { viewModel.openBarkasDetail(it) },
+                                onOpenCreateBarkas = { viewModel.openCreateBarkas() },
+                                onToggleSold = { item -> viewModel.toggleBarkasSold(item.id) },
+                                onToggleBookmark = { item ->
+                                    viewModel.toggleBookmark(
+                                        targetId = item.id,
+                                        targetType = "BARKAS",
+                                        title = item.title,
+                                        subtitle = "${item.formattedPrice} • Kec. ${item.district}",
+                                        district = item.district,
+                                    )
+                                },
+                                onBackToHome = { viewModel.selectTab(MainTab.HOME) },
+                            )
                             MainTab.ADMIN_DASHBOARD -> AdminDashboardScreen(
                                 adminEmail = email,
                                 currentAdminUid = currentUserId,
@@ -753,6 +780,7 @@ fun SurabayaMainHub(
                                         "moments" -> viewModel.openSheet(ActiveBottomSheet.MomentDetail(flagged.id))
                                         "destinations" -> viewModel.openSheet(ActiveBottomSheet.DestinationDetail(flagged.id))
                                         "services" -> viewModel.openSheet(ActiveBottomSheet.ServiceDetail(flagged.id))
+                                        "barkas_items" -> viewModel.openBarkasDetail(flagged.id)
                                     }
                                 },
                                 onRestoreFlaggedItem = { col, id -> viewModel.adminRestoreContent(col, id) },
@@ -1100,6 +1128,10 @@ fun SurabayaMainHub(
                                     viewModel.selectTab(MainTab.JASA)
                                     viewModel.openSheet(ActiveBottomSheet.ServiceDetail(bm.targetId))
                                 }
+                                "BARKAS" -> {
+                                    viewModel.selectTab(MainTab.BARKAS)
+                                    viewModel.openBarkasDetail(bm.targetId)
+                                }
                             }
                         },
                         onRemoveBookmark = { bm ->
@@ -1416,6 +1448,62 @@ fun SurabayaMainHub(
                                 phoneNumber = phoneNumber,
                                 whatsappNumber = whatsappNumber,
                                 photoUri = photoUri,
+                                context = context,
+                            )
+                        },
+                        onClose = { viewModel.dismissSheet() },
+                    )
+                }
+                is ActiveBottomSheet.BarkasDetail -> {
+                    val found = activeSelectedBarkas
+                        ?: (barkasItemsState as? UiState.Success)?.data?.firstOrNull { it.id == sheetTarget.barkasId }
+                    if (found != null) {
+                        val isSaved = bookmarks.any { it.targetId == found.id && it.targetType == "BARKAS" }
+                        BarkasDetailSheetContent(
+                            item = found,
+                            comments = activeBarkasComments,
+                            isSaved = isSaved,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
+                            onToggleSold = { viewModel.toggleBarkasSold(found.id) },
+                            onChatSeller = { viewModel.chatWithBarkasSeller(found) },
+                            onToggleBookmark = {
+                                viewModel.toggleBookmark(
+                                    targetId = found.id,
+                                    targetType = "BARKAS",
+                                    title = found.title,
+                                    subtitle = "${found.formattedPrice} • Kec. ${found.district}",
+                                    district = found.district,
+                                )
+                            },
+                            onSendComment = { text -> viewModel.submitBarkasComment(found.id, text) },
+                            onReport = { viewModel.reportBarkasContent(found) },
+                            onDelete = if (found.isOwnedBy(currentUserId) || isAdmin) {
+                                { viewModel.deleteBarkasItem(found.id) }
+                            } else {
+                                null
+                            },
+                            onClose = { viewModel.dismissSheet() },
+                        )
+                    }
+                }
+                ActiveBottomSheet.CreateBarkas -> {
+                    CreateBarkasSheetContent(
+                        defaultDistrict = currentDistrict,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { title, cat, cond, price, nego, dist, codLoc, desc, wa, photos ->
+                            viewModel.submitBarkasItem(
+                                title = title,
+                                category = cat,
+                                itemCondition = cond,
+                                price = price,
+                                isNegotiable = nego,
+                                district = dist,
+                                codLocation = codLoc,
+                                description = desc,
+                                whatsappNumber = wa,
+                                photoUris = photos,
                                 context = context,
                             )
                         },
