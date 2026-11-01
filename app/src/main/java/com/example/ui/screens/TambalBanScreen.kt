@@ -81,12 +81,19 @@ import com.example.R
 import com.example.data.model.TambalBanSpot
 import com.example.data.model.UiState
 import com.example.data.util.SafeLinkCategory
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.runtime.LaunchedEffect
 import com.example.ui.components.openExternalUrlSafely
+import com.example.ui.sheets.LocationUsageContext
+import com.example.ui.sheets.hasAnyLocationPermission
+import com.example.ui.sheets.rememberLocationPermissionWithDisclosure
 import com.example.ui.theme.HeaderMintGradient
+import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.SoftEmergencyLightGradient
+import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 
@@ -105,6 +112,7 @@ private enum class TambalBanFilter {
 fun TambalBanScreen(
     spotsState: UiState<List<TambalBanSpot>>,
     currentUserId: String = "",
+    isLiveGpsActive: Boolean = false,
     onBackToHome: () -> Unit,
     onOpenDetail: (String) -> Unit,
     onCreateSpot: () -> Unit,
@@ -116,6 +124,17 @@ fun TambalBanScreen(
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf(TambalBanFilter.ALL) }
+
+    val requestOrRefreshGps = rememberLocationPermissionWithDisclosure(
+        usageContext = LocationUsageContext.TAMBAL_BAN,
+        onPermissionGranted = onRefreshLocation,
+    )
+
+    LaunchedEffect(isLiveGpsActive) {
+        if (!isLiveGpsActive && hasAnyLocationPermission(context)) {
+            onRefreshLocation()
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -150,11 +169,11 @@ fun TambalBanScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = onRefreshLocation,
+                        onClick = requestOrRefreshGps,
                         modifier = Modifier.testTag("btn_refresh_tambal_gps"),
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.MyLocation,
+                            imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.MyLocation,
                             contentDescription = "Perbarui Lokasi GPS",
                             tint = Color.White,
                         )
@@ -295,6 +314,55 @@ fun TambalBanScreen(
                             }
                         }
 
+                        // --- 1B. CONTEXTUAL GPS ACCURACY BANNER ---
+                        item(key = "tambal_ban_gps_banner") {
+                            Surface(
+                                onClick = requestOrRefreshGps,
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isLiveGpsActive) OpenGreenBg else Color.Transparent,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isLiveGpsActive) OpenGreenText.copy(alpha = 0.3f) else OutlineVariantLight,
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (!isLiveGpsActive) {
+                                            Modifier.background(MintSoftGradient, RoundedCornerShape(14.dp))
+                                        } else {
+                                            Modifier
+                                        },
+                                    )
+                                    .testTag("tambal_ban_gps_status_banner"),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.MyLocation,
+                                        contentDescription = null,
+                                        tint = if (isLiveGpsActive) OpenGreenText else ToskaPrimaryDeep,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Text(
+                                        text = stringResource(
+                                            if (isLiveGpsActive) {
+                                                R.string.tambal_ban_gps_banner_active
+                                            } else {
+                                                R.string.tambal_ban_gps_banner_inactive
+                                            },
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isLiveGpsActive) OpenGreenText else ToskaOnPrimaryContainer,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                        }
+
                         // --- 2. SEARCH BAR ---
                         item(key = "search_tambal_ban") {
                             OutlinedTextField(
@@ -345,7 +413,12 @@ fun TambalBanScreen(
 
                                 FilterChip(
                                     selected = selectedFilter == TambalBanFilter.NEARBY_ONLY,
-                                    onClick = { selectedFilter = TambalBanFilter.NEARBY_ONLY },
+                                    onClick = {
+                                        selectedFilter = TambalBanFilter.NEARBY_ONLY
+                                        if (!hasAnyLocationPermission(context)) {
+                                            requestOrRefreshGps()
+                                        }
+                                    },
                                     label = { Text("Dekat (< 5 km)") },
                                     leadingIcon = {
                                         Icon(

@@ -143,11 +143,17 @@ import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
 import com.example.ui.sheets.MomentDetailSheetContent
 import com.example.ui.sheets.NotificationsSheetContent
+import com.example.ui.sheets.PermissionDisclosureBottomSheet
+import com.example.ui.sheets.PermissionSheetMode
 import com.example.ui.sheets.PollDetailSheetContent
 import com.example.ui.sheets.ProfileAndPrivacySheetContent
 import com.example.ui.sheets.ProposeEventSheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.sheets.ServiceDetailSheetContent
+import com.example.ui.sheets.hasNotificationPermission
+import com.example.ui.sheets.hasSeenInitialNotificationDisclosure
+import com.example.ui.sheets.markInitialNotificationDisclosureSeen
+import kotlinx.coroutines.delay
 import com.example.ui.sheets.TambalBanDetailSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import com.example.ui.viewmodel.ActiveBottomSheet
@@ -319,7 +325,8 @@ fun SurabayaMainHub(
         }
     }
 
-    // Android 13+ Notification Runtime Permission Request
+    // Android 13+ Notification Permission Slide-Up Disclosure (replaces abrupt raw startup popup)
+    var showInitialNotifDisclosure by remember { mutableStateOf(false) }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val notifPermissionLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
@@ -328,9 +335,26 @@ fun SurabayaMainHub(
             },
         )
         LaunchedEffect(Unit) {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (!hasNotificationPermission(context) && !hasSeenInitialNotificationDisclosure(context)) {
+                delay(650)
+                if (activeSheet == null && !hasNotificationPermission(context)) {
+                    showInitialNotifDisclosure = true
+                }
             }
+        }
+        if (showInitialNotifDisclosure && activeSheet == null) {
+            PermissionDisclosureBottomSheet(
+                mode = PermissionSheetMode.Notification(showSettingsShortcut = false),
+                onDismiss = {
+                    markInitialNotificationDisclosureSeen(context)
+                    showInitialNotifDisclosure = false
+                },
+                onConfirmNotificationRequest = {
+                    markInitialNotificationDisclosureSeen(context)
+                    showInitialNotifDisclosure = false
+                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                },
+            )
         }
     }
 
@@ -659,6 +683,7 @@ fun SurabayaMainHub(
                             MainTab.TAMBAL_BAN -> TambalBanScreen(
                                 spotsState = tambalBanSpotsState,
                                 currentUserId = currentUserId,
+                                isLiveGpsActive = isLiveGps,
                                 onBackToHome = { viewModel.selectTab(MainTab.HOME) },
                                 onOpenDetail = { viewModel.openTambalBanDetail(it) },
                                 onCreateSpot = { viewModel.openCreateTambalBan() },
@@ -739,6 +764,8 @@ fun SurabayaMainHub(
                         defaultDistrict = currentDistrict,
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
+                        isLiveGpsActive = isLiveGps,
+                        onRequestGpsRefresh = { viewModel.refreshGpsLocation() },
                         onSubmit = { title, desc, cat, sev, dist, addr, mapsUrl, photoUris ->
                             viewModel.submitIncident(
                                 title = title,
@@ -1292,6 +1319,8 @@ fun SurabayaMainHub(
                         defaultDistrict = currentDistrict,
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
+                        isLiveGpsActive = isLiveGps,
+                        onRequestGpsRefresh = { viewModel.refreshGpsLocation() },
                         onSubmit = { name, description, district, address, is24Hours, isTubeless, forMotor, forMobil, canCallOut, mapsUrl, phoneNumber, whatsappNumber, photoUri ->
                             viewModel.submitTambalBanSpot(
                                 name = name,

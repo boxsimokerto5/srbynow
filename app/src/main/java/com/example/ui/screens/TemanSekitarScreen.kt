@@ -1,9 +1,8 @@
 package com.example.ui.screens
 
-import android.Manifest
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import com.example.ui.sheets.LocationUsageContext
+import com.example.ui.sheets.rememberLocationPermissionWithDisclosure
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,15 +93,10 @@ fun TemanSekitarScreen(
     onBlockPeer: (NearbyProfile) -> Unit = {},
     onOpenCitizenProfile: (NearbyProfile) -> Unit = {},
 ) {
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
-        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (granted) {
-            onRefreshGps()
-        }
-    }
+    val requestOrRefreshGps = rememberLocationPermissionWithDisclosure(
+        usageContext = LocationUsageContext.NEARBY_CITIZENS,
+        onPermissionGranted = onRefreshGps,
+    )
 
     val radiusKm = (userAccount?.searchRadiusKm ?: 10.0).toInt()
     val district = userAccount?.district ?: "Genteng"
@@ -206,14 +200,7 @@ fun TemanSekitarScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Button(
-                            onClick = {
-                                permissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION,
-                                    ),
-                                )
-                            },
+                            onClick = requestOrRefreshGps,
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,

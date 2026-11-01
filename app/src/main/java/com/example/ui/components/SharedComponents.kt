@@ -1303,12 +1303,12 @@ fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 PrivacyPolicyClause(
-                    title = "1. Lokasi & Radius GPS",
-                    description = "Lokasi GPS Anda hanya digunakan untuk menghitung jarak perkiraan antarwarga di menu Teman Sekitar dan menyortir info terdekat. Lokasi presisi rumah Anda TIDAK PERNAH disimpan permanen atau diumbar ke publik.",
+                    title = "1. Lokasi GPS & Minimalisasi Data",
+                    description = "Lokasi GPS hanya diambil saat fitur digunakan untuk mengurutkan lokasi Tambal Ban, Kuliner, & Destinasi terdekat, menandai titik akurat Laporan Kejadian warga, serta menghitung estimasi jarak kecamatan di Teman Sekitar. Aplikasi mendukung Lokasi Perkiraan (Approximate), TIDAK PERNAH melacak lokasi di latar belakang, dan tidak pernah mengumbar koordinat rumah Anda ke publik.",
                 )
                 PrivacyPolicyClause(
-                    title = "2. Kendali Visibilitas Profil",
-                    description = "Anda memiliki kendali penuh untuk menyembunyikan profil Anda kapan saja dari menu Teman Sekitar melalui tombol 'Tampilkan Profil' di pengaturan akun.",
+                    title = "2. Kendali Visibilitas Profil & Izin Notifikasi",
+                    description = "Anda memiliki kendali penuh untuk menyembunyikan profil dari Teman Sekitar (Mode Privat) serta mengatur izin Pemberitahuan (untuk pesan Chat warga, info Kejadian sekitar, & kontrol Radio 100 FM) kapan saja.",
                 )
                 PrivacyPolicyClause(
                     title = "3. Pemindaian Konten AI & Moderasi",

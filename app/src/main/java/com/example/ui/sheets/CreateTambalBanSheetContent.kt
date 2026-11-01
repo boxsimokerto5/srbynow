@@ -57,17 +57,28 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.ui.components.FormMultiPhotoPickerSection
 import com.example.ui.components.SurabayaDistrictDropdown
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.example.data.location.LocationHelper
 import com.example.ui.theme.AlertCrimson
+import com.example.ui.theme.OpenGreenBg
+import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.SoftEmergencyLightGradient
+import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
+import java.util.Locale
+import kotlinx.coroutines.launch
 
 @Composable
 fun CreateTambalBanSheetContent(
     defaultDistrict: String = "Genteng",
     isSubmitting: Boolean = false,
     isScanningPhoto: Boolean = false,
+    isLiveGpsActive: Boolean = false,
+    onRequestGpsRefresh: () -> Unit = {},
     onSubmit: (
         name: String,
         description: String,
@@ -86,6 +97,8 @@ fun CreateTambalBanSheetContent(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var district by remember { mutableStateOf(defaultDistrict.ifBlank { "Genteng" }) }
     var address by remember { mutableStateOf("") }
@@ -99,6 +112,29 @@ fun CreateTambalBanSheetContent(
     var phoneNumber by remember { mutableStateOf("") }
     var whatsappNumber by remember { mutableStateOf("") }
     var photoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var gpsCoordinatesApplied by remember { mutableStateOf(false) }
+
+    val applyTambalBanGps = rememberLocationPermissionWithDisclosure(
+        usageContext = LocationUsageContext.TAMBAL_BAN,
+        onPermissionGranted = {
+            onRequestGpsRefresh()
+            coroutineScope.launch {
+                val gps = LocationHelper(context).fetchCurrentLocationOrDefault()
+                if (gps.isLiveGps) {
+                    district = gps.nearestDistrict
+                    if (mapsUrl.isBlank()) {
+                        mapsUrl = String.format(
+                            Locale.US,
+                            "https://www.google.com/maps/search/?api=1&query=%.6f,%.6f",
+                            gps.lat,
+                            gps.lng,
+                        )
+                    }
+                    gpsCoordinatesApplied = true
+                }
+            }
+        },
+    )
 
     val isNameValid = name.trim().length >= 4
     val isAddressValid = address.trim().length >= 5
@@ -213,6 +249,50 @@ fun CreateTambalBanSheetContent(
                 focusedLabelColor = ToskaPrimary,
             ),
         )
+
+        // --- PINPOINT GPS HELPER CARD ---
+        Surface(
+            onClick = { if (!isSubmitting) applyTambalBanGps() },
+            shape = RoundedCornerShape(14.dp),
+            color = if (gpsCoordinatesApplied || isLiveGpsActive) OpenGreenBg else MaterialTheme.colorScheme.surface,
+            border = BorderStroke(
+                1.dp,
+                if (gpsCoordinatesApplied || isLiveGpsActive) OpenGreenText.copy(alpha = 0.4f) else OutlineVariantLight,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_tambal_ban_use_gps_card"),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MyLocation,
+                    contentDescription = null,
+                    tint = if (gpsCoordinatesApplied) OpenGreenText else ToskaPrimaryDeep,
+                    modifier = Modifier.size(20.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (gpsCoordinatesApplied) {
+                            "Titik GPS Tambal Ban Terdeteksi (Kec. $district)"
+                        } else {
+                            stringResource(R.string.tambal_ban_use_current_gps_title)
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ToskaOnPrimaryContainer,
+                    )
+                    Text(
+                        text = stringResource(R.string.tambal_ban_use_current_gps_subtitle),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
 
         // --- KECAMATAN SURABAYA ---
         SurabayaDistrictDropdown(

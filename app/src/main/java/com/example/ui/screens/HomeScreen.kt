@@ -1,12 +1,13 @@
 package com.example.ui.screens
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.example.ui.sheets.LocationUsageContext
+import com.example.ui.sheets.PermissionDisclosureBottomSheet
+import com.example.ui.sheets.PermissionSheetMode
+import com.example.ui.sheets.hasAnyLocationPermission
+import com.example.ui.sheets.rememberLocationPermissionWithDisclosure
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -178,49 +179,16 @@ fun HomeScreen(
     val greetingName = userAccount?.displayName?.ifBlank { "Warga Surabaya" } ?: "Warga Surabaya"
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showPermissionOverviewSheet by remember { mutableStateOf(false) }
 
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
-        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (granted) {
-            onRefreshGps()
-        }
-    }
-
-    val requestOrRefreshGps: () -> Unit = {
-        val hasPerm = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
-        if (hasPerm) {
-            onRefreshGps()
-        } else {
-            locationPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                ),
-            )
-        }
-    }
+    val requestOrRefreshGps = rememberLocationPermissionWithDisclosure(
+        usageContext = LocationUsageContext.GENERAL_NEARBY,
+        onPermissionGranted = onRefreshGps,
+    )
 
     LaunchedEffect(isLiveGpsActive) {
-        if (!isLiveGpsActive) {
-            val hasPerm = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-            ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-            ) == PackageManager.PERMISSION_GRANTED
-            if (hasPerm) {
-                onRefreshGps()
-            }
+        if (!isLiveGpsActive && hasAnyLocationPermission(context)) {
+            onRefreshGps()
         }
     }
 
@@ -1459,6 +1427,22 @@ fun HomeScreen(
                             modifier = Modifier.padding(horizontal = 4.dp),
                         )
                         Text(
+                            text = stringResource(R.string.perm_footer_link_label),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ToskaPrimaryDeep,
+                            modifier = Modifier
+                                .clickable { showPermissionOverviewSheet = true }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .testTag("home_footer_link_permissions"),
+                        )
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+                        Text(
                             text = "v1.0.0",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1474,6 +1458,13 @@ fun HomeScreen(
     }
     if (showPrivacyDialog) {
         PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false })
+    }
+    if (showPermissionOverviewSheet) {
+        PermissionDisclosureBottomSheet(
+            mode = PermissionSheetMode.Overview,
+            onDismiss = { showPermissionOverviewSheet = false },
+            onConfirmLocationRequest = onRefreshGps,
+        )
     }
 }
 

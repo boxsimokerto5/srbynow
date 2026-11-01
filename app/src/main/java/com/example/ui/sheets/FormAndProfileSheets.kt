@@ -117,17 +117,23 @@ import com.example.ui.components.rateArekSurabayaOnPlayStore
 import com.example.ui.components.shareArekSurabayaApp
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
+import androidx.compose.runtime.rememberCoroutineScope
+import com.example.data.location.LocationHelper
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimaryDeep
+import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @Composable
 fun CreateIncidentSheetContent(
     defaultDistrict: String,
     isSubmitting: Boolean = false,
     isScanningPhoto: Boolean = false,
+    isLiveGpsActive: Boolean = false,
+    onRequestGpsRefresh: () -> Unit = {},
     onSubmit: (
         title: String,
         desc: String,
@@ -139,6 +145,8 @@ fun CreateIncidentSheetContent(
         photoUris: List<Uri>,
     ) -> Unit,
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("LALU_LINTAS") }
@@ -147,6 +155,29 @@ fun CreateIncidentSheetContent(
     var address by remember { mutableStateOf("") }
     var mapsUrl by remember { mutableStateOf("") }
     var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var gpsCoordinatesApplied by remember { mutableStateOf(false) }
+
+    val applyIncidentGps = rememberLocationPermissionWithDisclosure(
+        usageContext = LocationUsageContext.INCIDENT_REPORT,
+        onPermissionGranted = {
+            onRequestGpsRefresh()
+            coroutineScope.launch {
+                val gps = LocationHelper(context).fetchCurrentLocationOrDefault()
+                if (gps.isLiveGps) {
+                    district = gps.nearestDistrict
+                    if (mapsUrl.isBlank()) {
+                        mapsUrl = String.format(
+                            Locale.US,
+                            "https://www.google.com/maps/search/?api=1&query=%.6f,%.6f",
+                            gps.lat,
+                            gps.lng,
+                        )
+                    }
+                    gpsCoordinatesApplied = true
+                }
+            }
+        },
+    )
 
     val mapsValidation = remember(mapsUrl) {
         LinkSecurityValidator.validateOptionalLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
@@ -224,6 +255,49 @@ fun CreateIncidentSheetContent(
                     label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     shape = CircleShape,
                 )
+            }
+        }
+
+        Surface(
+            onClick = { if (!isSubmitting) applyIncidentGps() },
+            shape = RoundedCornerShape(16.dp),
+            color = if (gpsCoordinatesApplied || isLiveGpsActive) OpenGreenBg else MaterialTheme.colorScheme.surface,
+            border = BorderStroke(
+                1.dp,
+                if (gpsCoordinatesApplied || isLiveGpsActive) OpenGreenText.copy(alpha = 0.4f) else OutlineVariantLight,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_incident_use_gps_card"),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MyLocation,
+                    contentDescription = null,
+                    tint = if (gpsCoordinatesApplied) OpenGreenText else ToskaPrimaryDeep,
+                    modifier = Modifier.size(20.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (gpsCoordinatesApplied) {
+                            "Titik GPS Kejadian Terdeteksi (Kec. $district)"
+                        } else {
+                            stringResource(R.string.incident_use_current_gps_title)
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ToskaOnPrimaryContainer,
+                    )
+                    Text(
+                        text = stringResource(R.string.incident_use_current_gps_subtitle),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
@@ -716,41 +790,22 @@ fun CreateCulinarySheetContent(
     var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var useCurrentGpsLocation by remember { mutableStateOf(isLiveGpsActive) }
 
-    val gpsPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
-        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (granted) {
+    val requestCulinaryGps = rememberLocationPermissionWithDisclosure(
+        usageContext = LocationUsageContext.KULINER,
+        onPermissionGranted = {
             useCurrentGpsLocation = true
             onRequestGpsRefresh()
-        } else {
+        },
+        onPermissionDenied = {
             useCurrentGpsLocation = false
-        }
-    }
+        },
+    )
 
     val toggleUseCurrentGps: (Boolean) -> Unit = { checked ->
         if (!checked) {
             useCurrentGpsLocation = false
         } else {
-            val hasPerm = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-            ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-            ) == PackageManager.PERMISSION_GRANTED
-            if (hasPerm) {
-                useCurrentGpsLocation = true
-                onRequestGpsRefresh()
-            } else {
-                gpsPermissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION,
-                    ),
-                )
-            }
+            requestCulinaryGps()
         }
     }
 
@@ -1432,6 +1487,7 @@ fun ProfileAndPrivacySheetContent(
     val context = LocalContext.current
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showPermissionOverviewSheet by remember { mutableStateOf(false) }
     var showOwnAvatarZoom by remember { mutableStateOf(false) }
 
     val existingAvatarUrl = userAccount?.avatarUrl.orEmpty().ifBlank { nearbyProfile?.avatarUrl.orEmpty() }
@@ -2255,6 +2311,16 @@ fun ProfileAndPrivacySheetContent(
                     HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.5f))
 
                     SupportMenuRow(
+                        icon = Icons.Filled.MyLocation,
+                        title = "Izin Akses Lokasi & Notifikasi",
+                        subtitle = "Penjelasan kegunaan GPS & status izin perangkat",
+                        testTag = "btn_menu_permission_disclosure",
+                        onClick = { showPermissionOverviewSheet = true },
+                    )
+
+                    HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.5f))
+
+                    SupportMenuRow(
                         icon = Icons.Filled.Security,
                         title = "Kebijakan Privasi (Privacy Policy)",
                         subtitle = "Perlindungan data warga & filter AI",
@@ -2309,6 +2375,12 @@ fun ProfileAndPrivacySheetContent(
     }
     if (showPrivacyDialog) {
         PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false })
+    }
+    if (showPermissionOverviewSheet) {
+        PermissionDisclosureBottomSheet(
+            mode = PermissionSheetMode.Overview,
+            onDismiss = { showPermissionOverviewSheet = false },
+        )
     }
 }
 

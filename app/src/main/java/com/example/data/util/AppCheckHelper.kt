@@ -37,7 +37,7 @@ fun configureAppCheck(context: Context, intent: Intent?) {
                 val options = FirebaseOptions.Builder()
                     .setApplicationId(context.packageName)
                     .setProjectId(projectId)
-                    .setApiKey("AIzaSyArekSurabayaFallbackKeyForInit001")
+                    .setApiKey("arek-surabaya-local-fallback-init")
                     .build()
                 FirebaseApp.initializeApp(context, options)
             }

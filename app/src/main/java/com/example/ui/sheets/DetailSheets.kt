@@ -3196,6 +3196,50 @@ fun NotificationsSheetContent(
             }
         }
 
+        val notifContext = LocalContext.current
+        var isSystemNotifGranted by remember { mutableStateOf(hasNotificationPermission(notifContext)) }
+        val requestSystemNotif = rememberNotificationPermissionWithDisclosure(
+            onPermissionGranted = { isSystemNotifGranted = true },
+        )
+
+        if (!isSystemNotifGranted) {
+            Surface(
+                onClick = requestSystemNotif,
+                shape = RoundedCornerShape(14.dp),
+                color = com.example.ui.theme.PendingAmberBg,
+                border = BorderStroke(1.dp, com.example.ui.theme.PendingAmberText.copy(alpha = 0.28f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("notif_sheet_enable_permission_banner"),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.NotificationsActive,
+                        contentDescription = null,
+                        tint = com.example.ui.theme.PendingAmberText,
+                        modifier = Modifier.size(19.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.notif_sheet_permission_banner_title),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = com.example.ui.theme.PendingAmberText,
+                        )
+                        Text(
+                            text = stringResource(R.string.notif_sheet_permission_banner_subtitle),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = com.example.ui.theme.PendingAmberText.copy(alpha = 0.9f),
+                        )
+                    }
+                }
+            }
+        }
+
         // --- Filter Chips ---
         Row(
             modifier = Modifier.fillMaxWidth(),
