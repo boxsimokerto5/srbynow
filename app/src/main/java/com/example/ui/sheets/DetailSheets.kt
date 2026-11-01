@@ -1739,6 +1739,7 @@ fun ChatConversationSheetContent(
     isSending: Boolean = false,
     onSendMessage: (String, Uri?) -> Unit,
     onBlockPeer: (() -> Unit)? = null,
+    onAdminDeleteGroup: (() -> Unit)? = null,
     onMarkMessagesRead: ((List<String>) -> Unit)? = null,
     onTyping: ((Boolean) -> Unit)? = null,
 ) {
@@ -1746,6 +1747,7 @@ fun ChatConversationSheetContent(
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var activeZoomPhotoUrl by remember { mutableStateOf<String?>(null) }
     var showBlockPeerDialog by remember(room.id) { mutableStateOf(false) }
+    var showDeleteGroupDialog by remember(room.id) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val displayTitle = room.displayTitleFor(currentUserId)
     val context = LocalContext.current
@@ -1787,6 +1789,31 @@ fun ChatConversationSheetContent(
             },
             dismissButton = {
                 TextButton(onClick = { showBlockPeerDialog = false }) {
+                    Text(stringResource(R.string.btn_cancel_action))
+                }
+            },
+        )
+    }
+
+    if (showDeleteGroupDialog && onAdminDeleteGroup != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteGroupDialog = false },
+            title = { Text(stringResource(R.string.dialog_delete_group_title, displayTitle)) },
+            text = { Text(stringResource(R.string.dialog_delete_group_body)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteGroupDialog = false
+                        onAdminDeleteGroup()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertCrimson),
+                    modifier = Modifier.testTag("confirm_delete_public_group_btn"),
+                ) {
+                    Text(stringResource(R.string.btn_delete_public_group))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteGroupDialog = false }) {
                     Text(stringResource(R.string.btn_cancel_action))
                 }
             },
@@ -1910,6 +1937,28 @@ fun ChatConversationSheetContent(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = stringResource(R.string.btn_block_chat_peer),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = AlertCrimson,
+                    )
+                }
+            } else if (room.roomType == "PUBLIC" && onAdminDeleteGroup != null) {
+                OutlinedButton(
+                    onClick = { showDeleteGroupDialog = true },
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("chat_admin_delete_group_btn"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteOutline,
+                        contentDescription = null,
+                        tint = AlertCrimson,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.btn_delete_public_group),
                         style = MaterialTheme.typography.labelMedium,
                         color = AlertCrimson,
                     )

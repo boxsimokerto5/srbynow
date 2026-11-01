@@ -4,15 +4,20 @@ import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
@@ -33,8 +38,11 @@ import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.model.NearbyProfile
 import com.example.data.model.CitizenPoll
+import com.example.data.model.ChatRoom
 import com.example.data.model.PollOption
 import com.example.data.model.PollComment
+import com.example.ui.screens.ChatScreen
+import com.example.ui.screens.CreatePublicGroupSheetContent
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.PollingScreen
@@ -982,7 +990,7 @@ class ExampleRobolectricTest {
 
     composeTestRule.waitForIdle()
 
-    // Verify distance badges and cards are rendered
+    // Verify distance badges and cards are rendered in nearest-first order
     composeTestRule.onNodeWithTag("sort_kuliner_distance").assertIsDisplayed()
     composeTestRule.onNodeWithTag("sort_kuliner_rating").assertIsDisplayed()
     composeTestRule.onNodeWithTag("kuliner_gps_status").assertIsDisplayed()
@@ -991,8 +999,186 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("kuliner_card_spot_medium").assertIsDisplayed()
     composeTestRule.onNodeWithTag("kuliner_distance_tag_spot_near").assertIsDisplayed()
     composeTestRule.onNodeWithTag("kuliner_distance_tag_spot_medium").assertIsDisplayed()
+
+    val nearTop = composeTestRule.onNodeWithTag("kuliner_card_spot_near").getUnclippedBoundsInRoot().top
+    val mediumTop = composeTestRule.onNodeWithTag("kuliner_card_spot_medium").getUnclippedBoundsInRoot().top
+    assertTrue("Expected nearest spot to appear above medium spot ($nearTop < $mediumTop)", nearTop < mediumTop)
+
+    // Switch to Rating sort -> highest rated spot_far (4.9) moves to top
+    composeTestRule.onNodeWithTag("sort_kuliner_rating").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("kuliner_card_spot_far").assertIsDisplayed()
+    val farTopWhenRating = composeTestRule.onNodeWithTag("kuliner_card_spot_far").getUnclippedBoundsInRoot().top
+    val mediumTopWhenRating = composeTestRule.onNodeWithTag("kuliner_card_spot_medium").getUnclippedBoundsInRoot().top
+    assertTrue("Expected highest-rated spot above medium spot ($farTopWhenRating < $mediumTopWhenRating)", farTopWhenRating < mediumTopWhenRating)
+
+    // Switch back to GPS Nearest sort -> spot_near returns to #1
+    composeTestRule.onNodeWithTag("sort_kuliner_distance").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("kuliner_card_spot_near").assertIsDisplayed()
+  }
+
+  @Test
+  fun `homeScreen prioritizes nearest culinary spots near top and orders carousel by GPS distance`() {
+    val userLat = -7.2575
+    val userLng = 112.7521
+
+    val spotFar = CulinarySpot(
+      id = "home_far",
+      name = "Soto Rungkut Jauh",
+      category = "RAWON_SOTO",
+      district = "Rungkut",
+      lat = -7.3200,
+      lng = 112.7700,
+      ratingAvg = 4.9,
+    )
+    val spotNear = CulinarySpot(
+      id = "home_near",
+      name = "Rawon Genteng Dekat",
+      category = "RAWON_SOTO",
+      district = "Genteng",
+      lat = -7.2580,
+      lng = 112.7525,
+      ratingAvg = 4.3,
+    )
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(892.dp)) {
+          HomeScreen(
+            userAccount = UserAccount(id = "usr_1", displayName = "Cak Budi"),
+            isAdmin = false,
+            currentDistrict = "Genteng",
+            userLat = userLat,
+            userLng = userLng,
+            isLiveGpsActive = true,
+            incidentsState = UiState.Success(emptyList()),
+            destinationsState = UiState.Success(emptyList()),
+            culinaryState = UiState.Success(listOf(spotFar, spotNear)),
+            momentsState = UiState.Success(emptyList()),
+            onNavigateTab = {},
+            onOpenIncidentDetail = {},
+            onOpenDestinationDetail = {},
+            onOpenMomentDetail = {},
+            onOpenBookmarks = {},
+            onOpenProfileAndAdmin = {},
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // Kuliner shortcut is right at the start of the menu
+    composeTestRule.onNodeWithTag("home_shortcut_kuliner", useUnmergedTree = true).assertIsDisplayed()
+
+    // Scroll slightly to the culinary carousel right below shortcuts
+    composeTestRule.onNodeWithTag("home_screen_content")
+      .performScrollToNode(hasTestTag("home_culinary_lazy_row"))
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("home_culinary_home_near").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Terdekat #1", useUnmergedTree = true).assertIsDisplayed()
+
+    val nearLeft = composeTestRule.onNodeWithTag("home_culinary_home_near").getUnclippedBoundsInRoot().left
+    val farLeft = composeTestRule.onNodeWithTag("home_culinary_home_far").getUnclippedBoundsInRoot().left
+    assertTrue("Expected nearest culinary card first on HomeScreen ($nearLeft < $farLeft)", nearLeft < farLeft)
+  }
+
+  @Test
+  fun `chatScreen hides create group button for regular citizens and shows it only for Admin`() {
+    val sampleGroup = ChatRoom(
+      id = "pub_warga_sby",
+      title = "Ruang Warga Surabaya",
+      subtitle = "Ngobrol santai kabar kota hari ini",
+      roomType = "PUBLIC",
+      lastMessage = "Halo rek!",
+    )
+
+    var isAdminState by androidx.compose.runtime.mutableStateOf(false)
+    var createGroupClicked = false
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(840.dp)) {
+          ChatScreen(
+            publicRooms = listOf(sampleGroup),
+            directRooms = emptyList(),
+            currentUserId = "user_1",
+            selectedSubTab = 0,
+            onSelectSubTab = {},
+            onStartNewDirectChat = {},
+            onOpenRoom = {},
+            isAdmin = isAdminState,
+            onCreatePublicGroup = { createGroupClicked = true },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Regular citizen: sees admin-managed notice + 1-on-1 Chat Warga button, NO Buat Grup controls
+    composeTestRule.onNodeWithTag("chat_group_admin_notice").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("chat_start_direct_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("chat_create_group_btn").assertDoesNotExist()
+    composeTestRule.onNodeWithTag("fab_create_public_group").assertDoesNotExist()
+
+    // 2. Switch to Admin: Buat Grup button, FAB, and Admin banner appear
+    isAdminState = true
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("chat_group_admin_banner").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("chat_create_group_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("fab_create_public_group").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("chat_group_admin_notice").assertDoesNotExist()
+
+    composeTestRule.onNodeWithTag("chat_create_group_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onCreatePublicGroup callback when Admin taps Buat Grup", createGroupClicked)
+  }
+
+  @Test
+  fun `createPublicGroupSheetContent validates inputs and submits group details for Admin`() {
+    var submittedTitle = ""
+    var submittedSubtitle = ""
+    var submittedWelcome = ""
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(840.dp)) {
+          CreatePublicGroupSheetContent(
+            isSubmitting = false,
+            onSubmit = { t, s, w ->
+              submittedTitle = t
+              submittedSubtitle = s
+              submittedWelcome = w
+            },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("create_public_group_sheet").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("submit_create_group_btn").assertIsNotEnabled()
+
+    composeTestRule.onNodeWithTag("form_group_title").performTextInput("Grup Kuliner Malam SBY")
+    composeTestRule.onNodeWithTag("form_group_subtitle").performTextInput("Berbagi info warung malam & kaki lima")
+    composeTestRule.onNodeWithTag("form_group_welcome").performTextInput("Monggo bagi rekomendasi kuliner malam favoritmu!")
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("submit_create_group_btn").assertIsEnabled()
+    composeTestRule.onNodeWithTag("submit_create_group_btn").performClick()
+    composeTestRule.waitForIdle()
+
+    assertEquals("Grup Kuliner Malam SBY", submittedTitle)
+    assertEquals("Berbagi info warung malam & kaki lima", submittedSubtitle)
+    assertEquals("Monggo bagi rekomendasi kuliner malam favoritmu!", submittedWelcome)
   }
 }
+
 
 
 

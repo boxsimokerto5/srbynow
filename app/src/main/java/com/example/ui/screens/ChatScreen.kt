@@ -20,14 +20,24 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,9 +55,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.R
 import com.example.data.model.ChatRoom
 import com.example.data.model.NearbyProfile
 import com.example.data.repository.SurabayaRepository
@@ -55,9 +67,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.example.data.util.formatRelativeTimestamp
 import com.example.ui.components.EmptyFeedPlaceholder
+import com.example.ui.components.GoogleMapsSheetHandleHeader
 import com.example.ui.components.InitialsAvatar
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.MintSoftGradient
+import com.example.ui.theme.OpenGreenBg
+import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaPrimaryDeep
 
@@ -70,6 +85,8 @@ fun ChatScreen(
     onSelectSubTab: (Int) -> Unit,
     onStartNewDirectChat: () -> Unit,
     onOpenRoom: (ChatRoom) -> Unit,
+    isAdmin: Boolean = false,
+    onCreatePublicGroup: () -> Unit = {},
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -89,118 +106,229 @@ fun ChatScreen(
         }
     }
 
-    LazyColumn(
-        contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag("chat_rooms_list"),
-    ) {
-        item(key = "chat_sub_tabs") {
-            Surface(
-                shape = CircleShape,
-                color = Color.White,
-                border = BorderStroke(1.dp, OutlineVariantLight),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    ChatModeTabPill(
-                        label = "Ruang Publik SBY (${publicRooms.size})",
-                        selected = selectedSubTab == 0,
-                        onClick = { onSelectSubTab(0) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("chat_tab_public"),
-                    )
-                    ChatModeTabPill(
-                        label = "Pesan Pribadi (${directRooms.size})",
-                        selected = selectedSubTab == 1,
-                        onClick = { onSelectSubTab(1) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("chat_tab_direct"),
-                    )
-                }
-            }
-        }
-
-        item(key = "chat_search_and_new_bar") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = {
-                        Text(
-                            text = "Cari teman, ruang, atau ID room…",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            contentPadding = PaddingValues(top = 10.dp, bottom = if (isAdmin && selectedSubTab == 0) 88.dp else 28.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("chat_rooms_list"),
+        ) {
+            item(key = "chat_sub_tabs") {
+                Surface(
                     shape = CircleShape,
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = Color.White,
-                        focusedContainerColor = Color.White,
-                        unfocusedBorderColor = OutlineVariantLight,
-                    ),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, OutlineVariantLight),
                     modifier = Modifier
-                        .weight(1f)
-                        .testTag("chat_search_input"),
-                )
-                FilledTonalButton(
-                    onClick = onStartNewDirectChat,
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-                    modifier = Modifier.testTag("chat_start_direct_btn"),
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.PersonAddAlt1,
-                        contentDescription = "Mulai Chat Warga",
-                        modifier = Modifier.size(17.dp),
+                    Row(
+                        modifier = Modifier.padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        ChatModeTabPill(
+                            label = "Ruang Publik SBY (${publicRooms.size})",
+                            selected = selectedSubTab == 0,
+                            onClick = { onSelectSubTab(0) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("chat_tab_public"),
+                        )
+                        ChatModeTabPill(
+                            label = "Pesan Pribadi (${directRooms.size})",
+                            selected = selectedSubTab == 1,
+                            onClick = { onSelectSubTab(1) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("chat_tab_direct"),
+                        )
+                    }
+                }
+            }
+
+            item(key = "chat_search_and_new_bar") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = {
+                            Text(
+                                text = "Cari teman, ruang, atau ID room…",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        shape = CircleShape,
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = Color.White,
+                            unfocusedBorderColor = OutlineVariantLight,
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("chat_search_input"),
                     )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text("Chat Warga", style = MaterialTheme.typography.labelLarge)
+                    if (selectedSubTab == 0 && isAdmin) {
+                        Button(
+                            onClick = onCreatePublicGroup,
+                            shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                            modifier = Modifier.testTag("chat_create_group_btn"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.GroupAdd,
+                                contentDescription = stringResource(R.string.btn_create_public_group),
+                                modifier = Modifier.size(17.dp),
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = stringResource(R.string.btn_create_public_group),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    } else {
+                        FilledTonalButton(
+                            onClick = onStartNewDirectChat,
+                            shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                            modifier = Modifier.testTag("chat_start_direct_btn"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PersonAddAlt1,
+                                contentDescription = "Mulai Chat Warga",
+                                modifier = Modifier.size(17.dp),
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Chat Warga", style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                }
+            }
+
+            if (selectedSubTab == 0) {
+                item(key = "chat_public_group_role_banner") {
+                    if (isAdmin) {
+                        Surface(
+                            color = ToskaPrimaryDeep,
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp)
+                                .testTag("chat_group_admin_banner"),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AdminPanelSettings,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(17.dp),
+                                )
+                                Text(
+                                    text = stringResource(R.string.admin_create_group_banner),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            color = ToskaPrimaryDeep.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp)
+                                .testTag("chat_group_admin_notice"),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Text(
+                                    text = stringResource(R.string.admin_only_create_group_notice),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ToskaPrimaryDeep,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (activeRooms.isEmpty()) {
+                item {
+                    EmptyFeedPlaceholder(
+                        icon = if (selectedSubTab == 0) Icons.Filled.Forum else Icons.AutoMirrored.Filled.Chat,
+                        title = if (selectedSubTab == 0) "Memuat Ruang Publik Surabaya" else "Belum ada obrolan pribadi",
+                        subtitle = if (selectedSubTab == 0) {
+                            "Ruang diskusi terbuka dua arah bagi seluruh warga Kota Pahlawan."
+                        } else {
+                            "Tekan tombol Chat Warga di atas atau tombol Sapa pada menu Sekitar untuk memulai percakapan dua arah!"
+                        },
+                    )
+                }
+            } else {
+                items(activeRooms, key = { it.id }) { room ->
+                    ChatRoomRowCard(
+                        room = room,
+                        currentUserId = currentUserId,
+                        onClick = { onOpenRoom(room) },
+                    )
                 }
             }
         }
 
-        if (activeRooms.isEmpty()) {
-            item {
-                EmptyFeedPlaceholder(
-                    icon = if (selectedSubTab == 0) Icons.Filled.Forum else Icons.AutoMirrored.Filled.Chat,
-                    title = if (selectedSubTab == 0) "Memuat Ruang Publik Surabaya" else "Belum ada obrolan pribadi",
-                    subtitle = if (selectedSubTab == 0) {
-                        "Ruang diskusi terbuka dua arah bagi seluruh warga Kota Pahlawan."
-                    } else {
-                        "Tekan tombol Chat Warga di atas atau tombol Sapa pada menu Sekitar untuk memulai percakapan dua arah!"
-                    },
-                )
-            }
-        } else {
-            items(activeRooms, key = { it.id }) { room ->
-                ChatRoomRowCard(
-                    room = room,
-                    currentUserId = currentUserId,
-                    onClick = { onOpenRoom(room) },
-                )
-            }
+        if (isAdmin && selectedSubTab == 0) {
+            ExtendedFloatingActionButton(
+                onClick = onCreatePublicGroup,
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.GroupAdd,
+                        contentDescription = null,
+                        modifier = Modifier.size(19.dp),
+                    )
+                },
+                text = {
+                    Text(
+                        text = stringResource(R.string.btn_create_public_group),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .testTag("fab_create_public_group"),
+            )
         }
     }
 }
@@ -468,5 +596,172 @@ fun StartDirectChatSheetContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun CreatePublicGroupSheetContent(
+    isSubmitting: Boolean = false,
+    onSubmit: (title: String, subtitle: String, welcomeMessage: String) -> Unit,
+) {
+    var title by remember { mutableStateOf("") }
+    var subtitle by remember { mutableStateOf("") }
+    var welcomeMessage by remember { mutableStateOf("") }
+    var selectedTopicPreset by remember { mutableStateOf("") }
+
+    val topicPresets = listOf(
+        "Komunitas Warga" to "Diskusi harian & silaturahmi warga Surabaya",
+        "Info Kecamatan" to "Kabar lingkungan, RT/RW & pelayanan wilayah",
+        "UMKM & Kuliner" to "Promosi usaha warga, bazar & rekomendasi kuliner",
+        "Olahraga & Hobi" to "Komunitas gowes, lari pagi, musik & hobi SBY",
+        "Lalin & Darurat" to "Pantauan lalu lintas cepat, cuaca & info darurat",
+    )
+
+    val isFormValid = title.trim().length >= 3 && subtitle.trim().length >= 4
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 18.dp, vertical = 6.dp)
+            .testTag("create_public_group_sheet"),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        GoogleMapsSheetHandleHeader(
+            title = stringResource(R.string.create_group_sheet_title),
+            subtitle = stringResource(R.string.create_group_sheet_subtitle),
+        )
+
+        Surface(
+            shape = CircleShape,
+            color = OpenGreenBg,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AdminPanelSettings,
+                    contentDescription = null,
+                    tint = OpenGreenText,
+                    modifier = Modifier.size(15.dp),
+                )
+                Text(
+                    text = stringResource(R.string.admin_only_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = OpenGreenText,
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            topicPresets.forEach { (presetLabel, presetSubtitle) ->
+                FilterChip(
+                    selected = selectedTopicPreset == presetLabel,
+                    onClick = {
+                        if (!isSubmitting) {
+                            selectedTopicPreset = presetLabel
+                            if (subtitle.isBlank() || topicPresets.any { it.second == subtitle }) {
+                                subtitle = presetSubtitle
+                            }
+                        }
+                    },
+                    label = { Text(presetLabel, style = MaterialTheme.typography.labelSmall) },
+                    shape = CircleShape,
+                )
+            }
+        }
+
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            enabled = !isSubmitting,
+            label = { Text(stringResource(R.string.create_group_name_label)) },
+            placeholder = { Text("Contoh: Grup Warga Gubeng & Sekitarnya") },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Groups,
+                    contentDescription = null,
+                    tint = ToskaPrimaryDeep,
+                    modifier = Modifier.size(20.dp),
+                )
+            },
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_group_title"),
+        )
+
+        OutlinedTextField(
+            value = subtitle,
+            onValueChange = { subtitle = it },
+            enabled = !isSubmitting,
+            label = { Text(stringResource(R.string.create_group_subtitle_label)) },
+            placeholder = { Text("Contoh: Info kegiatan, kuliner & pantauan wilayah") },
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_group_subtitle"),
+        )
+
+        OutlinedTextField(
+            value = welcomeMessage,
+            onValueChange = { welcomeMessage = it },
+            enabled = !isSubmitting,
+            label = { Text(stringResource(R.string.create_group_welcome_label)) },
+            placeholder = { Text("Opsional • Pesan sapaan pertama dari Admin di dalam grup…") },
+            shape = RoundedCornerShape(16.dp),
+            minLines = 2,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_group_welcome"),
+        )
+
+        Button(
+            onClick = {
+                onSubmit(
+                    title.trim(),
+                    subtitle.trim(),
+                    welcomeMessage.trim(),
+                )
+            },
+            enabled = isFormValid && !isSubmitting,
+            shape = CircleShape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .testTag("submit_create_group_btn"),
+        ) {
+            if (isSubmitting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.submitting_upload_label))
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.GroupAdd,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.btn_submit_create_group))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
     }
 }

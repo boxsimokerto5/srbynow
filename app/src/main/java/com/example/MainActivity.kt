@@ -99,6 +99,7 @@ import com.example.ui.auth.OAuthRedirectBus
 import com.example.ui.auth.performSignOut
 import com.example.ui.components.SurabayaCompactTopBar
 import com.example.ui.screens.ChatScreen
+import com.example.ui.screens.CreatePublicGroupSheetContent
 import com.example.ui.screens.DestinasiScreen
 import com.example.ui.screens.EventScreen
 import com.example.ui.screens.HomeScreen
@@ -498,6 +499,8 @@ fun SurabayaMainHub(
                                 currentDistrict = currentDistrict,
                                 userLat = userLat,
                                 userLng = userLng,
+                                isLiveGpsActive = isLiveGps,
+                                onRefreshGps = { viewModel.refreshGpsLocation() },
                                 incidentsState = incidentsState,
                                 destinationsState = destinationsState,
                                 culinaryState = culinaryState,
@@ -611,6 +614,8 @@ fun SurabayaMainHub(
                                 onSelectSubTab = { viewModel.selectChatSubTab(it) },
                                 onStartNewDirectChat = { viewModel.openSheet(ActiveBottomSheet.StartDirectChat) },
                                 onOpenRoom = { viewModel.openSheet(ActiveBottomSheet.ChatConversation(it)) },
+                                isAdmin = isAdmin,
+                                onCreatePublicGroup = { viewModel.openCreatePublicGroup() },
                             )
                             MainTab.JASA -> JasaWargaScreen(
                                 servicesState = servicesState,
@@ -850,7 +855,9 @@ fun SurabayaMainHub(
                         defaultDistrict = currentDistrict,
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
-                        onSubmit = { name, cat, desc, dist, addr, price, openH, closeH, mapsUrl, gofoodUrl, grabfoodUrl, shopeefoodUrl, photoUris ->
+                        isLiveGpsActive = isLiveGps,
+                        onRequestGpsRefresh = { viewModel.refreshGpsLocation() },
+                        onSubmitWithGps = { name, cat, desc, dist, addr, price, openH, closeH, mapsUrl, gofoodUrl, grabfoodUrl, shopeefoodUrl, photoUris, useCurrentGps ->
                             viewModel.submitCulinarySpot(
                                 name = name,
                                 category = cat,
@@ -865,6 +872,7 @@ fun SurabayaMainHub(
                                 grabfoodUrl = grabfoodUrl,
                                 shopeefoodUrl = shopeefoodUrl,
                                 photoUris = photoUris,
+                                useCurrentGpsLocation = useCurrentGps,
                                 context = context,
                             )
                         },
@@ -1090,6 +1098,18 @@ fun SurabayaMainHub(
                         onSelectCitizen = { peer -> viewModel.greetNearbyPeer(peer) },
                     )
                 }
+                ActiveBottomSheet.CreatePublicGroup -> {
+                    CreatePublicGroupSheetContent(
+                        isSubmitting = isSubmitting,
+                        onSubmit = { title, subtitle, welcomeMsg ->
+                            viewModel.submitPublicGroupRoom(
+                                title = title,
+                                subtitle = subtitle,
+                                welcomeMessage = welcomeMsg,
+                            )
+                        },
+                    )
+                }
                 is ActiveBottomSheet.ChatConversation -> {
                     val liveRoom = (publicChatRooms + directChatRooms)
                         .firstOrNull { it.id == sheetTarget.room.id } ?: sheetTarget.room
@@ -1105,6 +1125,11 @@ fun SurabayaMainHub(
                         },
                         onBlockPeer = if (peerUid != null) {
                             { viewModel.blockCitizen(peerUid, liveRoom.displayTitleFor(currentUserId)) }
+                        } else {
+                            null
+                        },
+                        onAdminDeleteGroup = if (isAdmin && liveRoom.roomType == "PUBLIC") {
+                            { viewModel.adminDeletePublicGroup(liveRoom) }
                         } else {
                             null
                         },

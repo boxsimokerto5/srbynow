@@ -122,7 +122,14 @@
     <string name="home_shortcuts_title">Menu &amp; Layanan Cepat</string>
     <string name="home_highlights_title">Kabar Terhangat Hari Ini</string>
     <string name="home_destinations_title">Destinasi Ikonik Surabaya</string>
-    <string name="home_culinary_title">Kuliner Legendaris Surabaya</string>
+    <string name="home_culinary_title">Kuliner Terdekat di Sekitarmu</string>
+    <string name="home_culinary_subtitle_gps">Diurutkan otomatis dari lokasi GPS terdekat Anda</string>
+    <string name="kuliner_gps_active_pill">GPS Aktif</string>
+    <string name="kuliner_gps_enable_pill">Aktifkan GPS</string>
+    <string name="kuliner_gps_banner_inactive">Diurutkan dari titik terdekat • Ketuk Aktifkan GPS untuk akurasi posisi Anda</string>
+    <string name="kuliner_nearest_rank_badge">Terdekat #%1$d</string>
+    <string name="kuliner_use_current_gps_title">Gunakan Titik GPS Lokasi Saya Saat Ini</string>
+    <string name="kuliner_use_current_gps_subtitle">Aktifkan bila Anda sedang berada langsung di warung agar jarak GPS akurat</string>
     <string name="home_events_title">Agenda &amp; Event Surabaya</string>
     <string name="home_moments_title">Momen Warga Terkini</string>
     <string name="btn_add_moment">Posting Momen</string>
@@ -196,4 +203,16 @@
     <string name="nav_transit">Rute Bis &amp; Feeder</string>
     <string name="transit_page_title">Rute Bis &amp; Feeder Surabaya</string>
     <string name="transit_page_subtitle">WiraWiri • Suroboyo Bus • Trans Semanggi</string>
+    <string name="btn_create_public_group">Buat Grup</string>
+    <string name="admin_only_create_group_notice">Grup publik dikelola resmi oleh Admin Arek Surabaya agar diskusi warga tetap tertib &amp; aman.</string>
+    <string name="admin_create_group_banner">Mode Admin Aktif • Anda dapat membuat grup publik baru untuk seluruh warga.</string>
+    <string name="create_group_sheet_title">Buat Grup Publik Baru</string>
+    <string name="create_group_sheet_subtitle">Khusus Admin • Grup otomatis tampil di Ruang Publik SBY untuk seluruh warga Surabaya.</string>
+    <string name="create_group_name_label">Nama Grup Publik</string>
+    <string name="create_group_subtitle_label">Topik / Deskripsi Singkat Grup</string>
+    <string name="create_group_welcome_label">Pesan Pembuka Grup</string>
+    <string name="btn_submit_create_group">Buat &amp; Tayangkan Grup</string>
+    <string name="btn_delete_public_group">Hapus Grup</string>
+    <string name="dialog_delete_group_title">Hapus Grup %1$s?</string>
+    <string name="dialog_delete_group_body">Grup publik ini akan dihapus dari daftar Ruang Publik SBY untuk seluruh pengguna.</string>
 </resources>

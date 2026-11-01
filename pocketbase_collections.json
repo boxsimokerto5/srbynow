@@ -1758,9 +1758,9 @@
     "indexes": [],
     "listRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
     "viewRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
-    "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id && (@request.data.room_type = 'PUBLIC' || @request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)",
+    "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id && ((@request.data.room_type = 'PUBLIC' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')) || (@request.data.room_type = 'DIRECT' && (@request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)))",
     "updateRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
-    "deleteRule": null,
+    "deleteRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {

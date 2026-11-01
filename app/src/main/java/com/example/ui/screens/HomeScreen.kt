@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,10 +38,11 @@ import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Emergency
 import com.example.data.model.TransitRoute
 import com.example.data.seed.SurabayaTransitSeed
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PhoneInTalk
@@ -65,6 +71,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,8 +91,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import java.util.Locale
 import com.example.R
 import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
@@ -135,6 +144,8 @@ fun HomeScreen(
     currentDistrict: String,
     userLat: Double = SurabayaDistricts.DEFAULT_LAT,
     userLng: Double = SurabayaDistricts.DEFAULT_LNG,
+    isLiveGpsActive: Boolean = false,
+    onRefreshGps: () -> Unit = {},
     incidentsState: UiState<List<IncidentReport>>,
     destinationsState: UiState<List<SurabayaDestination>>,
     culinaryState: UiState<List<CulinarySpot>> = UiState.Loading,
@@ -167,7 +178,60 @@ fun HomeScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
 
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            onRefreshGps()
+        }
+    }
+
+    val requestOrRefreshGps: () -> Unit = {
+        val hasPerm = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasPerm) {
+            onRefreshGps()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        }
+    }
+
+    LaunchedEffect(isLiveGpsActive) {
+        if (!isLiveGpsActive) {
+            val hasPerm = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPerm) {
+                onRefreshGps()
+            }
+        }
+    }
+
     val shortcuts = listOf(
+        HomeShortcutItem(
+            title = stringResource(R.string.nav_kuliner),
+            subtitle = "GPS Terdekat",
+            icon = Icons.Filled.Restaurant,
+            badge = "Terdekat",
+            testTag = "home_shortcut_kuliner",
+            onClick = { onNavigateTab(MainTab.KULINER) },
+        ),
         HomeShortcutItem(
             title = "Polling Warga",
             subtitle = "Suara Rakyat",
@@ -185,19 +249,19 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.MOMEN) },
         ),
         HomeShortcutItem(
-            title = stringResource(R.string.nav_kejadian),
-            subtitle = "Lapor & Pantau",
-            icon = Icons.Filled.WarningAmber,
-            testTag = "home_shortcut_kejadian",
-            onClick = { onNavigateTab(MainTab.KEJADIAN) },
-        ),
-        HomeShortcutItem(
             title = stringResource(R.string.radio_ss_title),
             subtitle = "Streaming Live",
             icon = Icons.Filled.Radio,
             badge = "LIVE",
             testTag = "home_shortcut_radio_ss",
             onClick = onOpenRadio,
+        ),
+        HomeShortcutItem(
+            title = stringResource(R.string.nav_kejadian),
+            subtitle = "Lapor & Pantau",
+            icon = Icons.Filled.WarningAmber,
+            testTag = "home_shortcut_kejadian",
+            onClick = { onNavigateTab(MainTab.KEJADIAN) },
         ),
         HomeShortcutItem(
             title = stringResource(R.string.nav_destinasi),
@@ -213,13 +277,6 @@ fun HomeScreen(
             icon = Icons.Filled.CalendarMonth,
             testTag = "home_shortcut_event",
             onClick = { onNavigateTab(MainTab.EVENT) },
-        ),
-        HomeShortcutItem(
-            title = stringResource(R.string.nav_kuliner),
-            subtitle = "Makan Enak",
-            icon = Icons.Filled.Restaurant,
-            testTag = "home_shortcut_kuliner",
-            onClick = { onNavigateTab(MainTab.KULINER) },
         ),
         HomeShortcutItem(
             title = stringResource(R.string.nav_sekitar),
@@ -510,9 +567,116 @@ fun HomeScreen(
             }
         }
 
+        // 3a. Kuliner Terdekat di Sekitarmu (Prioritized right at the top per GPS distance!)
+        item(key = "home_culinary_header") {
+            Spacer(modifier = Modifier.height(8.dp))
+            HomeSectionHeader(
+                title = stringResource(R.string.home_culinary_title),
+                subtitle = stringResource(R.string.home_culinary_subtitle_gps),
+                onSeeAllClick = { onNavigateTab(MainTab.KULINER) },
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Surface(
+                    onClick = requestOrRefreshGps,
+                    shape = CircleShape,
+                    color = if (isLiveGpsActive) OpenGreenBg else ToskaPrimary.copy(alpha = 0.12f),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isLiveGpsActive) OpenGreenText.copy(alpha = 0.35f) else ToskaPrimary.copy(alpha = 0.3f),
+                    ),
+                    modifier = Modifier.testTag("home_culinary_gps_chip"),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.NearMe,
+                            contentDescription = null,
+                            tint = if (isLiveGpsActive) OpenGreenText else ToskaPrimaryDeep,
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Text(
+                            text = if (isLiveGpsActive) {
+                                "GPS Aktif • Urut dari posisi Anda"
+                            } else {
+                                "Aktifkan GPS untuk akurasi terdekat"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isLiveGpsActive) OpenGreenText else ToskaPrimaryDeep,
+                        )
+                    }
+                }
+            }
+        }
+
+        item(key = "home_culinary_carousel") {
+            when (culinaryState) {
+                is UiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
+                    }
+                }
+                is UiState.Error -> {
+                    Text(
+                        text = "Gagal memuat kuliner",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+                is UiState.Success -> {
+                    val list = remember(culinaryState.data, userLat, userLng) {
+                        culinaryState.data.sortedWith(
+                            compareBy<CulinarySpot> { calculateDistanceKm(userLat, userLng, it.lat, it.lng) }
+                                .thenByDescending { it.ratingAvg }
+                        )
+                    }
+                    if (list.isEmpty()) {
+                        Text(
+                            text = "Belum ada kuliner terdaftar",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    } else {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("home_culinary_lazy_row"),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            itemsIndexed(list, key = { _, spot -> spot.id }) { index, spot ->
+                                val distanceKm = calculateDistanceKm(userLat, userLng, spot.lat, spot.lng)
+                                HomeCulinaryCard(
+                                    spot = spot,
+                                    distanceKm = distanceKm,
+                                    isNearestTopSpot = index == 0,
+                                    onClick = { onOpenCulinaryDetail(spot.id) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 3b. Ruang Promosi Jasa Warga (Featured Community Services Showcase)
         item(key = "home_services_section") {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             HomeSectionHeader(
                 title = "Ruang Promosi Jasa Warga",
                 subtitle = "AC, ledeng, servis & keahlian Arek Surabaya",
@@ -1048,66 +1212,6 @@ fun HomeScreen(
                                 destination = dest,
                                 onClick = { onOpenDestinationDetail(dest.id) },
                             )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 5b. Kuliner Legendaris Surabaya
-        item(key = "home_culinary_header") {
-            Spacer(modifier = Modifier.height(14.dp))
-            HomeSectionHeader(
-                title = stringResource(R.string.home_culinary_title),
-                subtitle = "Rekomendasi rawon, soto, penyetan & warkop favorit warga",
-                onSeeAllClick = { onNavigateTab(MainTab.KULINER) },
-            )
-        }
-
-        item(key = "home_culinary_carousel") {
-            when (culinaryState) {
-                is UiState.Loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
-                    }
-                }
-                is UiState.Error -> {
-                    Text(
-                        text = "Gagal memuat kuliner",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-                is UiState.Success -> {
-                    val list = remember(culinaryState.data, userLat, userLng) {
-                        culinaryState.data.sortedBy { calculateDistanceKm(userLat, userLng, it.lat, it.lng) }
-                    }
-                    if (list.isEmpty()) {
-                        Text(
-                            text = "Belum ada kuliner terdaftar",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    } else {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            items(list, key = { it.id }) { spot ->
-                                val distanceKm = calculateDistanceKm(userLat, userLng, spot.lat, spot.lng)
-                                HomeCulinaryCard(
-                                    spot = spot,
-                                    distanceKm = distanceKm,
-                                    onClick = { onOpenCulinaryDetail(spot.id) },
-                                )
-                            }
                         }
                     }
                 }
@@ -1743,13 +1847,17 @@ private fun HomeDestinationCard(
 private fun HomeCulinaryCard(
     spot: CulinarySpot,
     distanceKm: Double = 0.0,
+    isNearestTopSpot: Boolean = false,
     onClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
+        border = BorderStroke(
+            width = if (isNearestTopSpot) 1.5.dp else 1.dp,
+            color = if (isNearestTopSpot) ToskaPrimary.copy(alpha = 0.6f) else OutlineVariantLight.copy(alpha = 0.7f),
+        ),
         shadowElevation = 2.dp,
         modifier = Modifier
             .width(220.dp)
@@ -1773,15 +1881,19 @@ private fun HomeCulinaryCard(
                 )
                 Surface(
                     shape = RoundedCornerShape(bottomEnd = 10.dp),
-                    color = ToskaPrimaryDeep.copy(alpha = 0.9f),
+                    color = if (isNearestTopSpot) OpenGreenText.copy(alpha = 0.94f) else ToskaPrimaryDeep.copy(alpha = 0.9f),
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
-                    val catLabel = when (spot.category) {
-                        "RAWON_SOTO" -> "Rawon & Soto"
-                        "PENYETAN_SAMBAL" -> "Penyetan"
-                        "KOPI_NONGKRONG" -> "Kopi & Warkop"
-                        "JAJANAN_MALAM" -> "Jajanan Malam"
-                        else -> "Legendaris"
+                    val catLabel = if (isNearestTopSpot) {
+                        stringResource(R.string.kuliner_nearest_rank_badge, 1)
+                    } else {
+                        when (spot.category) {
+                            "RAWON_SOTO" -> "Rawon & Soto"
+                            "PENYETAN_SAMBAL" -> "Penyetan"
+                            "KOPI_NONGKRONG" -> "Kopi & Warkop"
+                            "JAJANAN_MALAM" -> "Jajanan Malam"
+                            else -> "Legendaris"
+                        }
                     }
                     Text(
                         text = catLabel,
@@ -1801,7 +1913,9 @@ private fun HomeCulinaryCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                        modifier = Modifier
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                            .testTag("home_culinary_distance_${spot.id}"),
                     )
                 }
                 Surface(
@@ -1823,7 +1937,7 @@ private fun HomeCulinaryCard(
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
-                            text = String.format("%.1f", spot.ratingAvg),
+                            text = String.format(Locale.US, "%.1f", spot.ratingAvg),
                             color = Color.White,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,

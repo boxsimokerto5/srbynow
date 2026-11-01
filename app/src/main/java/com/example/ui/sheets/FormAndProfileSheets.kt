@@ -1,5 +1,7 @@
 package com.example.ui.sheets
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -37,6 +39,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GppMaybe
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
@@ -46,6 +49,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.core.content.ContextCompat
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -105,6 +109,7 @@ import com.example.ui.components.SurabayaDistrictDropdown
 import com.example.ui.components.rateArekSurabayaOnPlayStore
 import com.example.ui.components.shareArekSurabayaApp
 import com.example.ui.theme.MintSoftGradient
+import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaOnPrimaryContainer
@@ -651,6 +656,8 @@ fun CreateCulinarySheetContent(
     defaultDistrict: String,
     isSubmitting: Boolean = false,
     isScanningPhoto: Boolean = false,
+    isLiveGpsActive: Boolean = false,
+    onRequestGpsRefresh: () -> Unit = {},
     onSubmit: (
         name: String,
         category: String,
@@ -665,8 +672,27 @@ fun CreateCulinarySheetContent(
         grabfoodUrl: String,
         shopeefoodUrl: String,
         photoUris: List<Uri>,
-    ) -> Unit,
+    ) -> Unit = { _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
+    onSubmitWithGps: (
+        (
+            name: String,
+            category: String,
+            desc: String,
+            district: String,
+            address: String,
+            priceRange: String,
+            openHour: Int,
+            closeHour: Int,
+            mapsUrl: String,
+            gofoodUrl: String,
+            grabfoodUrl: String,
+            shopeefoodUrl: String,
+            photoUris: List<Uri>,
+            useCurrentGpsLocation: Boolean,
+        ) -> Unit
+    )? = null,
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("LEGENDARIS") }
     var district by remember { mutableStateOf(defaultDistrict) }
@@ -681,6 +707,45 @@ fun CreateCulinarySheetContent(
     var shopeefoodUrl by remember { mutableStateOf("") }
     var showDeliveryInputs by remember { mutableStateOf(false) }
     var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var useCurrentGpsLocation by remember { mutableStateOf(isLiveGpsActive) }
+
+    val gpsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            useCurrentGpsLocation = true
+            onRequestGpsRefresh()
+        } else {
+            useCurrentGpsLocation = false
+        }
+    }
+
+    val toggleUseCurrentGps: (Boolean) -> Unit = { checked ->
+        if (!checked) {
+            useCurrentGpsLocation = false
+        } else {
+            val hasPerm = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPerm) {
+                useCurrentGpsLocation = true
+                onRequestGpsRefresh()
+            } else {
+                gpsPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                    ),
+                )
+            }
+        }
+    }
 
     val mapsValidation = remember(mapsUrl) {
         LinkSecurityValidator.validateOptionalLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
@@ -775,6 +840,53 @@ fun CreateCulinarySheetContent(
                 .fillMaxWidth()
                 .testTag("form_kuliner_address"),
         )
+
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = if (useCurrentGpsLocation) OpenGreenBg.copy(alpha = 0.65f) else Color(0xFFF6FBF8),
+            border = BorderStroke(
+                1.dp,
+                if (useCurrentGpsLocation) OpenGreenText.copy(alpha = 0.4f) else OutlineVariantLight,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("form_kuliner_use_gps_card"),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !isSubmitting) { toggleUseCurrentGps(!useCurrentGpsLocation) }
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MyLocation,
+                    contentDescription = null,
+                    tint = if (useCurrentGpsLocation) OpenGreenText else ToskaPrimaryDeep,
+                    modifier = Modifier.size(20.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.kuliner_use_current_gps_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ToskaOnPrimaryContainer,
+                    )
+                    Text(
+                        text = stringResource(R.string.kuliner_use_current_gps_subtitle),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = useCurrentGpsLocation,
+                    onCheckedChange = { if (!isSubmitting) toggleUseCurrentGps(it) },
+                    enabled = !isSubmitting,
+                    modifier = Modifier.testTag("form_kuliner_use_gps_switch"),
+                )
+            }
+        }
 
         OutlinedTextField(
             value = mapsUrl,
@@ -1115,21 +1227,42 @@ fun CreateCulinarySheetContent(
 
         Button(
             onClick = {
-                onSubmit(
-                    name,
-                    category,
-                    description,
-                    district,
-                    address,
-                    priceRange,
-                    openHourStr.toIntOrNull() ?: 8,
-                    closeHourStr.toIntOrNull() ?: 22,
-                    mapsUrl,
-                    gofoodUrl,
-                    grabfoodUrl,
-                    shopeefoodUrl,
-                    selectedPhotoUris,
-                )
+                val parsedOpenHour = openHourStr.toIntOrNull() ?: 8
+                val parsedCloseHour = closeHourStr.toIntOrNull() ?: 22
+                if (onSubmitWithGps != null) {
+                    onSubmitWithGps(
+                        name,
+                        category,
+                        description,
+                        district,
+                        address,
+                        priceRange,
+                        parsedOpenHour,
+                        parsedCloseHour,
+                        mapsUrl,
+                        gofoodUrl,
+                        grabfoodUrl,
+                        shopeefoodUrl,
+                        selectedPhotoUris,
+                        useCurrentGpsLocation,
+                    )
+                } else {
+                    onSubmit(
+                        name,
+                        category,
+                        description,
+                        district,
+                        address,
+                        priceRange,
+                        parsedOpenHour,
+                        parsedCloseHour,
+                        mapsUrl,
+                        gofoodUrl,
+                        grabfoodUrl,
+                        shopeefoodUrl,
+                        selectedPhotoUris,
+                    )
+                }
             },
             enabled = isFormValid && !isSubmitting,
             shape = CircleShape,

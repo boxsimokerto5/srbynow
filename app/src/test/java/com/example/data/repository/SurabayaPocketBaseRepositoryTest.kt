@@ -578,6 +578,66 @@ class SurabayaPocketBaseRepositoryTest {
         shadowOf(Looper.getMainLooper()).idle()
     }
 
+    @Test
+    fun `public group chat creation and deletion is strictly restricted to Admin`() = runBlocking {
+        val clientCitizen = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val clientAdmin = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+
+        val repoCitizen = SurabayaRepository(clientCitizen)
+        val repoAdmin = SurabayaRepository(clientAdmin)
+
+        clientCitizen.registerAndSignIn("Raka Warga", "raka.group@surabaya.id", "secret123", "Gubeng")
+        val sAdmin = clientAdmin.registerAndSignIn("Admin SBY", "nabilalailatus12@gmail.com", "secret123", "Genteng")
+
+        // 1. Non-admin citizen MUST be rejected when trying to create a public group
+        var citizenCreateRejected = false
+        try {
+            repoCitizen.createPublicGroupRoom(
+                title = "Grup Ilegal Warga",
+                subtitle = "Coba buat tanpa izin",
+                welcomeMessage = "Halo!",
+                adminDisplayName = "Raka Warga",
+            )
+        } catch (e: IllegalStateException) {
+            citizenCreateRejected = true
+        }
+        assertTrue("Non-admin citizen must not be allowed to create public group", citizenCreateRejected)
+
+        // 2. Admin creates an official public group room + initial welcome message
+        val createdGroup = repoAdmin.createPublicGroupRoom(
+            title = "Grup Warga Gubeng",
+            subtitle = "Info kegiatan & kuliner sekitar Gubeng",
+            welcomeMessage = "Selamat bergabung rek di Grup Warga Gubeng!",
+            adminDisplayName = sAdmin.displayName,
+        )
+        assertEquals("PUBLIC", createdGroup.roomType)
+        assertEquals("Grup Warga Gubeng", createdGroup.title)
+
+        val publicRooms = repoCitizen.observePublicChatRooms().first()
+        assertTrue("Created public group must be visible to citizens", publicRooms.any { it.id == createdGroup.id })
+
+        val groupMessages = repoCitizen.observeMessages(createdGroup, sAdmin.userId).first()
+        assertTrue(
+            "Welcome message must be posted in the new group",
+            groupMessages.any { it.text.contains("Selamat bergabung rek di Grup Warga Gubeng!") },
+        )
+
+        // 3. Non-admin citizen MUST be rejected when trying to delete the public group
+        var citizenDeleteRejected = false
+        try {
+            repoCitizen.adminDeletePublicGroupRoom(createdGroup.id)
+        } catch (e: IllegalStateException) {
+            citizenDeleteRejected = true
+        }
+        assertTrue("Non-admin citizen must not be allowed to delete public group", citizenDeleteRejected)
+
+        // 4. Admin deletes the public group cleanly
+        repoAdmin.adminDeletePublicGroupRoom(createdGroup.id)
+        val roomsAfterDelete = repoCitizen.observePublicChatRooms().first()
+        assertFalse("Deleted public group must be removed", roomsAfterDelete.any { it.id == createdGroup.id })
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
     // --- Minimal In-Memory PocketBase 0.22 HTTP Server Mock (JSON + multipart/form-data) ---
 
     private fun handleCollectionsEndpoint(ex: HttpExchange) {

@@ -94,6 +94,7 @@ sealed interface ActiveBottomSheet {
     data object ProfileAndAdmin : ActiveBottomSheet
     data class CitizenProfile(val userId: String, val initialDisplayName: String = "") : ActiveBottomSheet
     data object StartDirectChat : ActiveBottomSheet
+    data object CreatePublicGroup : ActiveBottomSheet
     data class ChatConversation(val room: ChatRoom) : ActiveBottomSheet
     data object RadioPlayer : ActiveBottomSheet
     data class ServiceDetail(val serviceId: String) : ActiveBottomSheet
@@ -261,16 +262,23 @@ class SurabayaViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
-    // 3. Kuliner Surabaya
+    // 3. Kuliner Surabaya (selalu diurutkan otomatis berdasarkan jarak GPS terdekat warga)
     val culinaryState: StateFlow<UiState<List<CulinarySpot>>> = combine(
         repository.observeCulinarySpots(),
         blockedUserIds,
         isAdmin,
-    ) { items, blockedSet, admin ->
-        val filtered = items.filter { item ->
-            item.createdBy !in blockedSet && (!item.isContentQuarantined || admin)
-        }
-        UiState.Success(filtered) as UiState<List<CulinarySpot>>
+        _userLat,
+        _userLng,
+    ) { items, blockedSet, admin, lat, lng ->
+        val filteredAndSorted = items
+            .filter { item ->
+                item.createdBy !in blockedSet && (!item.isContentQuarantined || admin)
+            }
+            .sortedWith(
+                compareBy<CulinarySpot> { calculateDistanceKm(lat, lng, it.lat, it.lng) }
+                    .thenByDescending { it.ratingAvg }
+            )
+        UiState.Success(filteredAndSorted) as UiState<List<CulinarySpot>>
     }
         .catch { e ->
             Log.w(TAG, "observeCulinarySpots error", e)
@@ -1139,6 +1147,7 @@ class SurabayaViewModel(
         grabfoodUrl: String = "",
         shopeefoodUrl: String = "",
         photoUris: List<Uri> = emptyList(),
+        useCurrentGpsLocation: Boolean = false,
         context: Context? = null,
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
@@ -1182,6 +1191,22 @@ class SurabayaViewModel(
                     return@launch
                 }
 
+                var customSpotLat: Double? = null
+                var customSpotLng: Double? = null
+                if (useCurrentGpsLocation) {
+                    val freshGps = locationHelper.fetchCurrentLocationOrDefault()
+                    if (freshGps.isLiveGps) {
+                        _userLat.value = freshGps.lat
+                        _userLng.value = freshGps.lng
+                        _isLiveGpsActive.value = true
+                        customSpotLat = freshGps.lat
+                        customSpotLng = freshGps.lng
+                    } else if (_isLiveGpsActive.value) {
+                        customSpotLat = _userLat.value
+                        customSpotLng = _userLng.value
+                    }
+                }
+
                 var photoSchemaMissing = false
                 var multiPhotoFallbackUsed = false
                 repository.createCulinarySpot(
@@ -1198,6 +1223,8 @@ class SurabayaViewModel(
                     gofoodUrl = gofoodUrl,
                     grabfoodUrl = grabfoodUrl,
                     shopeefoodUrl = shopeefoodUrl,
+                    customLat = customSpotLat,
+                    customLng = customSpotLng,
                     photos = preparedPhotos,
                     onPhotoSchemaMissing = { photoSchemaMissing = true },
                     onMultiPhotoFallbackUsed = { multiPhotoFallbackUsed = true },
@@ -1259,6 +1286,68 @@ class SurabayaViewModel(
                 _activeSheet.value = ActiveBottomSheet.ChatConversation(room)
             } catch (e: Exception) {
                 notifyMessage("Gagal membuka ruang chat: ${e.localizedMessage ?: ""}")
+            }
+        }
+    }
+
+    fun openCreatePublicGroup() {
+        if (!isAdmin.value) {
+            notifyMessage("Hanya Admin resmi Arek Surabaya yang dapat membuat grup publik baru.")
+            return
+        }
+        _activeSheet.value = ActiveBottomSheet.CreatePublicGroup
+    }
+
+    fun submitPublicGroupRoom(
+        title: String,
+        subtitle: String,
+        welcomeMessage: String,
+    ) {
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+        if (!isAdmin.value) {
+            notifyMessage("Hanya Admin resmi Arek Surabaya yang dapat membuat grup publik baru.")
+            return
+        }
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val createdRoom = repository.createPublicGroupRoom(
+                    title = title,
+                    subtitle = subtitle,
+                    welcomeMessage = welcomeMessage,
+                    adminDisplayName = currentDisplayName(),
+                )
+                _chatSubTab.value = 0
+                _selectedTab.value = MainTab.CHAT
+                _activeSheet.value = ActiveBottomSheet.ChatConversation(createdRoom)
+                notifyMessage("Grup publik \"${createdRoom.title}\" berhasil dibuat!")
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                notifyMessage("Gagal membuat grup publik: ${e.localizedMessage ?: "Periksa koneksi internet"}")
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun adminDeletePublicGroup(room: ChatRoom) {
+        if (!isAdmin.value || room.roomType != "PUBLIC") {
+            notifyMessage("Hanya Admin yang dapat menghapus grup publik.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.adminDeletePublicGroupRoom(room.id)
+                val currentSheet = _activeSheet.value
+                if (currentSheet is ActiveBottomSheet.ChatConversation && currentSheet.room.id == room.id) {
+                    dismissSheet()
+                }
+                notifyMessage("Grup publik \"${room.title}\" telah dihapus.")
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                notifyMessage("Gagal menghapus grup: ${e.localizedMessage ?: ""}")
             }
         }
     }

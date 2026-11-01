@@ -38,6 +38,7 @@ import com.example.data.util.SpamCheckResult
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.SurabayaSpamProtector
 import com.example.data.util.defaultCulinaryImageKey
+import com.example.data.util.extractLatLngFromMapsUrl
 import com.example.data.util.defaultEventImageKey
 import com.example.data.util.defaultIncidentImageKey
 import com.example.data.util.logBackendError
@@ -304,12 +305,11 @@ class SurabayaRepository(
 
             if (canSeedApprovedEvents) {
                 seedApprovedEventsIfEmpty(uid)
-            }
-
-            val publicRooms = pb.getList("chat_rooms", filter = "room_type = 'PUBLIC'", perPage = 1)
-            if (publicRooms.isEmpty()) {
-                for (item in SurabayaCuratedSeed.starterPublicRooms(uid)) {
-                    createOrIgnoreExisting("chat_rooms", item)
+                val publicRooms = pb.getList("chat_rooms", filter = "room_type = 'PUBLIC'", perPage = 1)
+                if (publicRooms.isEmpty()) {
+                    for (item in SurabayaCuratedSeed.starterPublicRooms(uid)) {
+                        createOrIgnoreExisting("chat_rooms", item)
+                    }
                 }
             }
 
@@ -1230,6 +1230,8 @@ class SurabayaRepository(
         gofoodUrl: String = "",
         grabfoodUrl: String = "",
         shopeefoodUrl: String = "",
+        customLat: Double? = null,
+        customLng: Double? = null,
         imageKey: String = defaultCulinaryImageKey(category),
         photos: List<PreparedPhoto> = emptyList(),
         onPhotoSchemaMissing: (() -> Unit)? = null,
@@ -1248,14 +1250,19 @@ class SurabayaRepository(
         }
 
         val recordId = PocketBaseClient.deterministicPbId("kul_${UUID.randomUUID()}")
-        val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+        val (lat, lng) = when {
+            customLat != null && customLng != null && (customLat != 0.0 || customLng != 0.0) -> {
+                customLat to customLng
+            }
+            else -> extractLatLngFromMapsUrl(cleanMapsUrl) ?: SurabayaDistricts.coordinateFor(district)
+        }
         val cleanAuthor = authorName.trim().take(80).ifEmpty { "Warga Surabaya" }
         val cleanName = name.trim().take(100)
         val cleanDesc = description.trim().take(1000)
         val cleanDistrict = district.trim().take(60)
         val cleanAddress = address.trim().take(180)
         val cleanPrice = priceRange.trim().take(60).ifEmpty { "Rp 15.000 - Rp 30.000" }
-        val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
         val cleanGofoodUrl = requireSafeOptionalUrl(gofoodUrl, SafeLinkCategory.GOFOOD)
         val cleanGrabfoodUrl = requireSafeOptionalUrl(grabfoodUrl, SafeLinkCategory.GRABFOOD)
         val cleanShopeefoodUrl = requireSafeOptionalUrl(shopeefoodUrl, SafeLinkCategory.SHOPEEFOOD)
@@ -1842,6 +1849,107 @@ class SurabayaRepository(
         }
     }
 
+    private suspend fun isCurrentSessionAdmin(uid: String): Boolean {
+        val userRec = pb.getOneOrNull("users", uid)
+        val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
+        return email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true) ||
+            userRec?.optBoolean("is_admin", false) == true ||
+            (pb.currentSession?.isAdmin == true)
+    }
+
+    suspend fun createPublicGroupRoom(
+        title: String,
+        subtitle: String,
+        welcomeMessage: String = "",
+        adminDisplayName: String = "Admin Surabaya",
+    ): ChatRoom {
+        val uid = requireUserId()
+        if (!isCurrentSessionAdmin(uid)) {
+            throw IllegalStateException("Hanya akun Admin resmi Surabaya yang dapat membuat grup publik baru.")
+        }
+
+        val cleanTitle = title.trim().take(100)
+        if (cleanTitle.length < 3) {
+            throw IllegalArgumentException("Nama grup publik minimal 3 karakter.")
+        }
+        val cleanSubtitle = subtitle.trim().take(140).ifEmpty { "Ruang diskusi publik resmi warga Surabaya" }
+        val cleanWelcome = welcomeMessage.trim().take(300)
+            .ifEmpty { "Sugeng rawuh di grup $cleanTitle! Mari berdiskusi dengan santun & saling membantu sesama warga Surabaya." }
+        val cleanAdminName = adminDisplayName.trim().take(80).ifEmpty { "Admin Surabaya" }
+
+        val slug = cleanTitle
+            .lowercase()
+            .replace(Regex("[^a-z0-9]+"), "_")
+            .trim('_')
+            .take(36)
+            .ifEmpty { "grup" }
+        val uniqueSuffix = UUID.randomUUID().toString().replace("-", "").take(6)
+        val roomKey = "public_${slug}_$uniqueSuffix"
+        val roomId = PocketBaseClient.deterministicPbId(roomKey)
+
+        return try {
+            val payload = JSONObject().apply {
+                put("id", roomId)
+                put("room_key", roomKey)
+                put("room_type", "PUBLIC")
+                put("title", cleanTitle)
+                put("subtitle", cleanSubtitle)
+                put("participant_uid_1", "")
+                put("participant_uid_2", "")
+                put("participant_names", "")
+                put("last_message", cleanWelcome)
+                put("last_sender_name", cleanAdminName)
+                put("created_by", uid)
+            }
+            val createdJson = pb.createRecord("chat_rooms", payload)
+            val createdRoom = mapChatRoom(createdJson)
+
+            // Post initial welcome message in the newly created public group
+            val welcomeMsgId = PocketBaseClient.deterministicPbId("msg_welcome_$roomKey")
+            val welcomeMsgPayload = JSONObject().apply {
+                put("id", welcomeMsgId)
+                put("room_id", createdRoom.id)
+                put("room_key", createdRoom.roomKey)
+                put("room_type", "PUBLIC")
+                put("participant_uid_1", "")
+                put("participant_uid_2", "")
+                put("sender_id", uid)
+                put("sender_name", cleanAdminName)
+                put("text", cleanWelcome)
+            }
+            runCatching { pb.createRecord("chat_messages", welcomeMsgPayload) }
+            localMutationTick.value = System.currentTimeMillis()
+            createdRoom
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.CREATE, "chat_rooms/$roomId")
+            throw e
+        }
+    }
+
+    suspend fun adminDeletePublicGroupRoom(roomId: String) {
+        val uid = requireUserId()
+        if (!isCurrentSessionAdmin(uid)) {
+            throw IllegalStateException("Hanya akun Admin resmi Surabaya yang dapat menghapus grup publik.")
+        }
+        val cleanRoomId = roomId.trim()
+        if (cleanRoomId.isEmpty()) return
+        try {
+            val existing = pb.getOneOrNull("chat_rooms", cleanRoomId)
+            if (existing != null && existing.optString("room_type") != "PUBLIC") {
+                throw IllegalArgumentException("Hanya ruang grup publik yang dapat dihapus melalui menu ini.")
+            }
+            pb.deleteRecord("chat_rooms", cleanRoomId)
+            localMutationTick.value = System.currentTimeMillis()
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            logBackendError(e, OperationType.DELETE, "chat_rooms/$cleanRoomId")
+            throw e
+        }
+    }
+
     fun observeMessages(
         room: ChatRoom,
         currentUserId: String,
@@ -2180,6 +2288,18 @@ class SurabayaRepository(
             else -> (serverContentUids + overlay.uids).distinct()
         }
 
+        val districtName = j.optString("district", "Genteng").ifBlank { "Genteng" }
+        val sanitizedMapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS)
+        val rawLat = j.optDouble("lat", Double.NaN)
+        val rawLng = j.optDouble("lng", Double.NaN)
+        val hasValidStoredLatLng = !rawLat.isNaN() && !rawLng.isNaN() && (rawLat != 0.0 || rawLng != 0.0)
+        val (resolvedLat, resolvedLng) = extractLatLngFromMapsUrl(sanitizedMapsUrl)
+            ?: if (hasValidStoredLatLng) {
+                rawLat to rawLng
+            } else {
+                SurabayaDistricts.coordinateFor(districtName)
+            }
+
         return CulinarySpot(
             id = id,
             createdBy = j.optString("created_by"),
@@ -2187,17 +2307,17 @@ class SurabayaRepository(
             name = j.optString("name"),
             category = cat,
             description = j.optString("description"),
-            district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+            district = districtName,
             address = j.optString("address"),
             priceRange = j.optString("price_range").ifBlank { "Rp 20.000 - Rp 35.000" },
             openHour = j.optInt("open_hour", 8),
             closeHour = j.optInt("close_hour", 22),
-            lat = j.optDouble("lat", SurabayaDistricts.DEFAULT_LAT),
-            lng = j.optDouble("lng", SurabayaDistricts.DEFAULT_LNG),
+            lat = resolvedLat,
+            lng = resolvedLng,
             imageKey = j.optString("image_key").ifBlank { defaultCulinaryImageKey(cat) },
             photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
             photoUrls = resolvedPhotoUrls,
-            mapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS),
+            mapsUrl = sanitizedMapsUrl,
             gofoodUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("gofood_url"), SafeLinkCategory.GOFOOD),
             grabfoodUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("grabfood_url"), SafeLinkCategory.GRABFOOD),
             shopeefoodUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("shopeefood_url"), SafeLinkCategory.SHOPEEFOOD),

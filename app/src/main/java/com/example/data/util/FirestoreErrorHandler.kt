@@ -129,14 +129,33 @@ fun calculateDistanceKm(
         cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLng / 2).pow(2.0)
     val c = 2 * atan2(sqrt(a), sqrt(1 - a))
     val raw = earthRadiusKm * c
-    return (raw * 10.0).roundToInt() / 10.0
+    return (raw * 1000.0).roundToInt() / 1000.0
 }
 
 fun formatDistanceLabel(km: Double): String {
     return when {
-        km < 0.2 -> "< 200 m"
+        km < 0.05 -> "< 50 m"
         km < 1.0 -> "${(km * 1000).roundToInt()} m"
         else -> String.format(Locale.forLanguageTag("id-ID"), "%.1f km", km)
+    }
+}
+
+private val MAPS_AT_COORD_REGEX = Regex("""@(-?\d+\.\d+),\s*(-?\d+\.\d+)""")
+private val MAPS_QUERY_COORD_REGEX = Regex("""[?&](?:q|ll|query)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)""", RegexOption.IGNORE_CASE)
+private val MAPS_PLACE_COORD_REGEX = Regex("""!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)""")
+
+fun extractLatLngFromMapsUrl(mapsUrl: String): Pair<Double, Double>? {
+    if (mapsUrl.isBlank()) return null
+    val match = MAPS_PLACE_COORD_REGEX.find(mapsUrl)
+        ?: MAPS_AT_COORD_REGEX.find(mapsUrl)
+        ?: MAPS_QUERY_COORD_REGEX.find(mapsUrl)
+        ?: return null
+    val lat = match.groupValues.getOrNull(1)?.toDoubleOrNull() ?: return null
+    val lng = match.groupValues.getOrNull(2)?.toDoubleOrNull() ?: return null
+    return if (lat in -90.0..90.0 && lng in -180.0..180.0 && (lat != 0.0 || lng != 0.0)) {
+        lat to lng
+    } else {
+        null
     }
 }
 
