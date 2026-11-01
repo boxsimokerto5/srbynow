@@ -308,5 +308,16 @@
     <string name="barkas_comments_title">Komentar &amp; Tanya Jawab (%1$d)</string>
     <string name="barkas_comments_empty">Belum ada komentar. Tanyakan kondisi, kelengkapan, atau tawar sopan di sini!</string>
     <string name="barkas_comment_hint">Tanyakan kelengkapan, lokasi COD, atau tawar harga…</string>
+    <string name="kos_page_title">Info Kos &amp; Kontrak</string>
+    <string name="kos_page_subtitle">Cari &amp; pasang info kos atau kontrakan nyaman di Surabaya</string>
+    <string name="kos_btn_post">Pasang Info</string>
+    <string name="kos_safety_notice">Tips Aman Survei Kos &amp; Kontrakan: Selalu cek kondisi kamar/bangunan secara langsung di lokasi sebelum membayar. Jangan pernah mentransfer uang booking / DP kepada pihak yang belum ditemui langsung.</string>
+    <string name="kos_available_badge">TERSEDIA</string>
+    <string name="kos_full_badge">PENUH / TERSEWA</string>
+    <string name="kos_mark_full_btn">Tandai Penuh / Tersewa</string>
+    <string name="kos_reopen_btn">Buka Kembali</string>
+    <string name="kos_comments_title">Tanya Jawab &amp; Komentar (%1$d)</string>
+    <string name="kos_comments_empty">Belum ada pertanyaan. Tanyakan sisa kamar, daya listrik, akses jalan mobil, atau jadwal survei di sini!</string>
+    <string name="kos_comment_hint">Tanyakan sisa kamar, parkir, listrik, atau jadwal survei…</string>
 </resources>
 

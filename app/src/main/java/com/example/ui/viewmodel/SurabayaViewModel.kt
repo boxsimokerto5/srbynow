@@ -23,6 +23,8 @@ import com.example.data.model.CulinarySpot
 import com.example.data.model.DestinationReview
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
+import com.example.data.model.KosComment
+import com.example.data.model.KosKontrakItem
 import com.example.data.model.MomentComment
 import com.example.data.model.NearbyProfile
 import com.example.data.model.PollComment
@@ -82,6 +84,7 @@ enum class MainTab {
     TAMBAL_BAN,
     TRANSIT,
     BARKAS,
+    KOS_KONTRAK,
     ADMIN_DASHBOARD,
 }
 
@@ -114,6 +117,8 @@ sealed interface ActiveBottomSheet {
     data object CreateTambalBan : ActiveBottomSheet
     data class BarkasDetail(val barkasId: String) : ActiveBottomSheet
     data object CreateBarkas : ActiveBottomSheet
+    data class KosDetail(val kosId: String) : ActiveBottomSheet
+    data object CreateKos : ActiveBottomSheet
 }
 
 data class NearbyPeerItem(
@@ -619,6 +624,43 @@ class SurabayaViewModel(
                 flowOf(emptyList())
             } else {
                 repository.observeBarkasComments(barkasId).catch { emit(emptyList()) }
+            }
+        },
+        blockedUserIds,
+    ) { comments, blockedSet ->
+        comments.filter { it.authorId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    // --- INFO KOS & KONTRAK STATEFLOWS ---
+
+    val kosListingsState: StateFlow<UiState<List<KosKontrakItem>>> = combine(
+        repository.observeKosListings(),
+        blockedUserIds,
+        isAdmin,
+    ) { items, blockedSet, admin ->
+        val filtered = items.filter { item ->
+            item.ownerId !in blockedSet && (!item.isContentQuarantined || admin)
+        }
+        UiState.Success(filtered) as UiState<List<KosKontrakItem>>
+    }.catch { emit(UiState.Error(it.localizedMessage ?: "Gagal memuat daftar kos & kontrakan")) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
+
+    private val selectedKosIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.KosDetail)?.kosId }
+
+    val activeSelectedKos: StateFlow<KosKontrakItem?> = selectedKosIdFlow.flatMapLatest { kosId ->
+        if (kosId.isNullOrBlank()) {
+            flowOf(null)
+        } else {
+            repository.observeKosById(kosId).catch { emit(null) }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
+
+    val activeKosComments: StateFlow<List<KosComment>> = combine(
+        selectedKosIdFlow.flatMapLatest { kosId ->
+            if (kosId.isNullOrBlank()) {
+                flowOf(emptyList())
+            } else {
+                repository.observeKosComments(kosId).catch { emit(emptyList()) }
             }
         },
         blockedUserIds,
@@ -2570,6 +2612,189 @@ class SurabayaViewModel(
             district = item.district.ifBlank { "Surabaya" },
         )
         greetNearbyPeer(sellerProfile)
+    }
+
+    // --- INFO KOS & KONTRAK (KOS BULANAN & KONTRAKAN TAHUNAN) OPERATIONS ---
+
+    fun openKosDetail(kosId: String) {
+        _activeSheet.value = ActiveBottomSheet.KosDetail(kosId)
+    }
+
+    fun openCreateKos() {
+        if (isCurrentUserFrozen()) return
+        _activeSheet.value = ActiveBottomSheet.CreateKos
+    }
+
+    fun submitKosListing(
+        title: String,
+        propertyType: String,
+        billingPeriod: String,
+        price: Long,
+        availableRooms: Int,
+        facilities: List<String>,
+        district: String,
+        address: String,
+        mapsUrl: String = "",
+        whatsappNumber: String = "",
+        description: String,
+        photoUris: List<Uri> = emptyList(),
+        context: Context? = null,
+        onComplete: (Boolean) -> Unit = {},
+    ) {
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val rateCheck = SurabayaSpamProtector.checkRateLimit(
+                    userId = currentUserId,
+                    category = "kos_listings",
+                    cooldownMs = SurabayaSpamProtector.COOLDOWN_SERVICES_MS,
+                )
+                if (rateCheck is SpamCheckResult.Blocked) {
+                    notifyMessage("⚠️ ${rateCheck.reason}")
+                    onComplete(false)
+                    return@launch
+                }
+
+                val preparedPhotos = if (photoUris.isNotEmpty() && appCtx != null) {
+                    photoUris.take(4).mapNotNull { uri ->
+                        ImageUploadHelper.preparePhotoFromUri(
+                            context = appCtx,
+                            uri = uri,
+                            prefix = "kos",
+                            maxDimensionPx = 1080,
+                            initialJpegQuality = 82,
+                        )
+                    }
+                } else {
+                    emptyList()
+                }
+
+                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                    notifyMessage("Foto kos/kontrakan gagal diproses, silakan coba lagi.")
+                    onComplete(false)
+                    return@launch
+                }
+
+                if (preparedPhotos.isNotEmpty() && !verifyPhotosAreSafe(preparedPhotos)) {
+                    onComplete(false)
+                    return@launch
+                }
+
+                repository.createKosListing(
+                    ownerName = currentDisplayName(),
+                    title = title,
+                    propertyType = propertyType,
+                    billingPeriod = billingPeriod,
+                    price = price,
+                    availableRooms = availableRooms,
+                    facilities = facilities,
+                    district = district,
+                    address = address,
+                    mapsUrl = mapsUrl,
+                    whatsappNumber = whatsappNumber,
+                    description = description,
+                    photos = preparedPhotos,
+                )
+                SurabayaSpamProtector.recordSubmission(currentUserId, "kos_listings")
+                dismissSheet()
+                notifyMessage("✅ Info kos/kontrakan berhasil dipasang untuk warga Surabaya!")
+                onComplete(true)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: DuplicateContentException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+                onComplete(false)
+            } catch (e: SpamRateLimitException) {
+                notifyMessage("⚠️ ${e.userFriendlyMessage}")
+                onComplete(false)
+            } catch (e: Exception) {
+                notifyMessage("Gagal memasang info kos/kontrakan: ${e.message}")
+                onComplete(false)
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun toggleKosFull(kosId: String, explicitFull: Boolean? = null) {
+        viewModelScope.launch {
+            try {
+                val nowFull = repository.toggleKosFullStatus(
+                    kosId = kosId,
+                    requesterUid = currentUserId,
+                    isAdmin = isAdmin.value,
+                    explicitFull = explicitFull,
+                )
+                notifyMessage(
+                    if (nowFull) "✅ Status berhasil diubah menjadi PENUH / TERSEWA."
+                    else "Status dibuka kembali dan berstatus TERSEDIA.",
+                )
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengubah status ketersediaan: ${e.message}")
+            }
+        }
+    }
+
+    fun submitKosComment(kosId: String, text: String, onComplete: (Boolean) -> Unit = {}) {
+        if (isCurrentUserFrozen()) return
+        viewModelScope.launch {
+            try {
+                repository.addKosComment(kosId, text)
+                notifyMessage("Pertanyaan/komentar berhasil dikirim.")
+                onComplete(true)
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim komentar: ${e.message}")
+                onComplete(false)
+            }
+        }
+    }
+
+    fun reportKosContent(item: KosKontrakItem) {
+        viewModelScope.launch {
+            try {
+                repository.reportKosContent(item.id, currentUserId)
+                notifyMessage("Terima kasih. Laporan info kos/kontrakan telah diteruskan ke Pusat Kendali Admin.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim laporan: ${e.message}")
+            }
+        }
+    }
+
+    fun reportKosLink(item: KosKontrakItem) {
+        viewModelScope.launch {
+            try {
+                repository.reportKosLink(item.id, currentUserId)
+                notifyMessage("Laporan tautan peta mencurigakan telah dikirim ke sistem keamanan Admin.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal melaporkan tautan: ${e.message}")
+            }
+        }
+    }
+
+    fun deleteKosListing(kosId: String) {
+        viewModelScope.launch {
+            try {
+                repository.deleteKosListing(kosId, currentUserId, isAdmin.value)
+                dismissSheet()
+                notifyMessage("Info kos/kontrakan berhasil dihapus.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menghapus info kos/kontrakan: ${e.message}")
+            }
+        }
+    }
+
+    fun chatWithKosOwner(item: KosKontrakItem) {
+        if (item.ownerId.isBlank() || item.ownerId == currentUserId) return
+        val ownerProfile = NearbyProfile(
+            id = item.ownerId,
+            userId = item.ownerId,
+            displayName = item.ownerName.ifBlank { "Pemilik Kos Surabaya" },
+            district = item.district.ifBlank { "Surabaya" },
+        )
+        greetNearbyPeer(ownerProfile)
     }
 
     private companion object {

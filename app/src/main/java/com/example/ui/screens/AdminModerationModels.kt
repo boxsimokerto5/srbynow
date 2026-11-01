@@ -4,6 +4,7 @@ import com.example.data.model.BarkasItem
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinarySpot
 import com.example.data.model.IncidentReport
+import com.example.data.model.KosKontrakItem
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UserMoment
@@ -44,6 +45,7 @@ fun collectAdminFlaggedItems(
     destinations: List<SurabayaDestination>,
     services: List<CitizenService>,
     barkasItems: List<BarkasItem> = emptyList(),
+    kosListings: List<KosKontrakItem> = emptyList(),
 ): List<AdminFlaggedItem> {
     val aggregated = mutableListOf<AdminFlaggedItem>()
 
@@ -165,6 +167,23 @@ fun collectAdminFlaggedItems(
             linkReportCount = 0,
             hasExternalLink = false,
             createdAt = brk.createdAt,
+        )
+    }
+
+    kosListings.filter { it.contentReportCount > 0 || it.linkReportCount > 0 }.forEach { kos ->
+        aggregated += AdminFlaggedItem(
+            id = kos.id,
+            collection = "kos_listings",
+            sourceLabel = "Info Kos & Kontrak",
+            title = kos.title,
+            snippet = "${kos.priceWithPeriod} • Kec. ${kos.district} (${kos.address})",
+            district = kos.district,
+            authorId = kos.ownerId,
+            authorName = kos.ownerName.ifBlank { "Pemilik Kos" },
+            contentReportCount = kos.contentReportCount,
+            linkReportCount = kos.linkReportCount,
+            hasExternalLink = kos.hasAnyExternalLink,
+            createdAt = kos.createdAt,
         )
     }
 

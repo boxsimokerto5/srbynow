@@ -713,14 +713,14 @@ class SurabayaPocketBaseRepositoryTest {
         )
 
         val arr = JSONArray(assetJsonText)
-        assertEquals("Expected exactly 22 collections in PocketBase schema", 22, arr.length())
+        assertEquals("Expected exactly 24 collections in PocketBase schema", 24, arr.length())
 
         val expectedCollections = listOf(
             "users", "bookmarks", "nearby_profiles", "incidents", "incident_comments",
             "events", "culinary", "culinary_reviews", "chat_rooms", "chat_messages",
             "destinations", "destination_reviews", "moments", "moment_comments",
             "services", "tambal_ban", "tambal_ban_comments", "polls", "poll_comments", "notifications",
-            "barkas_items", "barkas_comments",
+            "barkas_items", "barkas_comments", "kos_listings", "kos_comments",
         )
         val seenColIds = mutableSetOf<String>()
         val seenColNames = mutableListOf<String>()
@@ -834,6 +834,39 @@ class SurabayaPocketBaseRepositoryTest {
         )
         assertTrue("Owner must be able to mark Barkas item as sold", nowSold)
         assertTrue(repoAdmin.observeBarkasItems().first().first { it.id == barkasId }.isSold)
+
+        // Info Kos & Kontrak round-trip: post monthly/yearly kos with optional Google Maps link, Q&A comment, owner marks full
+        val kosId = repoCitizen.createKosListing(
+            ownerName = "Dimas",
+            title = "Kos Putra Nyaman Dekat Kampus ITS Sukolilo",
+            propertyType = "KOS_PUTRA",
+            billingPeriod = "BULANAN",
+            price = 950000L,
+            availableRooms = 2,
+            facilities = listOf("KM Dalam", "AC", "WiFi", "Parkir Motor"),
+            district = "Sukolilo",
+            address = "Jl. Gebang Lor Gg. 2, Sukolilo",
+            mapsUrl = "https://maps.google.com/?q=-7.2819,112.7915",
+            whatsappNumber = "081234567890",
+            description = "Kamar bersih, WiFi kencang, akses kunci pagar 24 jam.",
+        )
+        assertEquals(15, kosId.length)
+        val createdKos = repoAdmin.observeKosListings().first().firstOrNull { it.id == kosId }
+        assertTrue("Created kos listing must be visible and available", createdKos != null && !createdKos.isFull)
+        assertEquals("https://maps.google.com/?q=-7.2819,112.7915", createdKos?.safeMapsUrl)
+
+        repoAdmin.addKosComment(kosId, "Mas Dimas, besok pagi boleh survei lihat kamar kosnya?")
+        val kosComments = repoCitizen.observeKosComments(kosId).first()
+        assertEquals(1, kosComments.size)
+        assertEquals("Mas Dimas, besok pagi boleh survei lihat kamar kosnya?", kosComments.first().text)
+
+        val nowFull = repoCitizen.toggleKosFullStatus(
+            kosId = kosId,
+            requesterUid = sCitizen.userId,
+            isAdmin = false,
+        )
+        assertTrue("Owner must be able to mark Kos listing as PENUH / TERSEWA", nowFull)
+        assertTrue(repoAdmin.observeKosListings().first().first { it.id == kosId }.isFull)
 
         shadowOf(Looper.getMainLooper()).idle()
     }

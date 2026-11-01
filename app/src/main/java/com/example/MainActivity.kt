@@ -108,6 +108,7 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.collectAdminFlaggedItems
 import com.example.ui.screens.JasaWargaScreen
 import com.example.ui.screens.BarkasScreen
+import com.example.ui.screens.KosKontrakScreen
 import com.example.ui.screens.KejadianScreen
 import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.MomenScreen
@@ -138,6 +139,7 @@ import com.example.ui.sheets.CreateBarkasSheetContent
 import com.example.ui.sheets.CreateCulinarySheetContent
 import com.example.ui.sheets.CreateDestinationSheetContent
 import com.example.ui.sheets.CreateIncidentSheetContent
+import com.example.ui.sheets.CreateKosSheetContent
 import com.example.ui.sheets.CreateMomentSheetContent
 import com.example.ui.sheets.CreatePollSheetContent
 import com.example.ui.sheets.CreateServiceSheetContent
@@ -146,6 +148,7 @@ import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.DestinationDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
+import com.example.ui.sheets.KosDetailSheetContent
 import com.example.ui.sheets.MomentDetailSheetContent
 import com.example.ui.sheets.NotificationsSheetContent
 import com.example.ui.sheets.PermissionDisclosureBottomSheet
@@ -323,6 +326,9 @@ fun SurabayaMainHub(
     val barkasItemsState by viewModel.barkasItemsState.collectAsStateWithLifecycle()
     val activeSelectedBarkas by viewModel.activeSelectedBarkas.collectAsStateWithLifecycle()
     val activeBarkasComments by viewModel.activeBarkasComments.collectAsStateWithLifecycle()
+    val kosListingsState by viewModel.kosListingsState.collectAsStateWithLifecycle()
+    val activeSelectedKos by viewModel.activeSelectedKos.collectAsStateWithLifecycle()
+    val activeKosComments by viewModel.activeKosComments.collectAsStateWithLifecycle()
     val bannedProfiles by viewModel.bannedProfiles.collectAsStateWithLifecycle()
 
     val pendingPollsList = (pendingPollsState as? UiState.Success)?.data.orEmpty()
@@ -335,6 +341,7 @@ fun SurabayaMainHub(
         destinationsState,
         servicesState,
         barkasItemsState,
+        kosListingsState,
     ) {
         collectAdminFlaggedItems(
             incidents = (incidentsState as? UiState.Success)?.data.orEmpty(),
@@ -345,6 +352,7 @@ fun SurabayaMainHub(
             destinations = (destinationsState as? UiState.Success)?.data.orEmpty(),
             services = (servicesState as? UiState.Success)?.data.orEmpty(),
             barkasItems = (barkasItemsState as? UiState.Success)?.data.orEmpty(),
+            kosListings = (kosListingsState as? UiState.Success)?.data.orEmpty(),
         )
     }
     val adminAttentionCount = pendingEvents.size + pendingPollsList.size + flaggedItems.size
@@ -749,6 +757,25 @@ fun SurabayaMainHub(
                                 },
                                 onBackToHome = { viewModel.selectTab(MainTab.HOME) },
                             )
+                            MainTab.KOS_KONTRAK -> KosKontrakScreen(
+                                kosState = kosListingsState,
+                                bookmarks = bookmarks,
+                                currentUserId = currentUserId,
+                                isAdmin = isAdmin,
+                                onOpenKosDetail = { viewModel.openKosDetail(it) },
+                                onOpenCreateKos = { viewModel.openCreateKos() },
+                                onToggleFull = { item -> viewModel.toggleKosFull(item.id) },
+                                onToggleBookmark = { item ->
+                                    viewModel.toggleBookmark(
+                                        targetId = item.id,
+                                        targetType = "KOS_KONTRAK",
+                                        title = item.title,
+                                        subtitle = "${item.priceWithPeriod} • Kec. ${item.district}",
+                                        district = item.district,
+                                    )
+                                },
+                                onBackToHome = { viewModel.selectTab(MainTab.HOME) },
+                            )
                             MainTab.ADMIN_DASHBOARD -> AdminDashboardScreen(
                                 adminEmail = email,
                                 currentAdminUid = currentUserId,
@@ -781,6 +808,7 @@ fun SurabayaMainHub(
                                         "destinations" -> viewModel.openSheet(ActiveBottomSheet.DestinationDetail(flagged.id))
                                         "services" -> viewModel.openSheet(ActiveBottomSheet.ServiceDetail(flagged.id))
                                         "barkas_items" -> viewModel.openBarkasDetail(flagged.id)
+                                        "kos_listings" -> viewModel.openKosDetail(flagged.id)
                                     }
                                 },
                                 onRestoreFlaggedItem = { col, id -> viewModel.adminRestoreContent(col, id) },
@@ -1131,6 +1159,10 @@ fun SurabayaMainHub(
                                 "BARKAS" -> {
                                     viewModel.selectTab(MainTab.BARKAS)
                                     viewModel.openBarkasDetail(bm.targetId)
+                                }
+                                "KOS_KONTRAK" -> {
+                                    viewModel.selectTab(MainTab.KOS_KONTRAK)
+                                    viewModel.openKosDetail(bm.targetId)
                                 }
                             }
                         },
@@ -1503,6 +1535,65 @@ fun SurabayaMainHub(
                                 codLocation = codLoc,
                                 description = desc,
                                 whatsappNumber = wa,
+                                photoUris = photos,
+                                context = context,
+                            )
+                        },
+                        onClose = { viewModel.dismissSheet() },
+                    )
+                }
+                is ActiveBottomSheet.KosDetail -> {
+                    val found = activeSelectedKos
+                        ?: (kosListingsState as? UiState.Success)?.data?.firstOrNull { it.id == sheetTarget.kosId }
+                    if (found != null) {
+                        val isSaved = bookmarks.any { it.targetId == found.id && it.targetType == "KOS_KONTRAK" }
+                        KosDetailSheetContent(
+                            item = found,
+                            comments = activeKosComments,
+                            isSaved = isSaved,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
+                            onToggleFull = { viewModel.toggleKosFull(found.id) },
+                            onChatOwner = { viewModel.chatWithKosOwner(found) },
+                            onToggleBookmark = {
+                                viewModel.toggleBookmark(
+                                    targetId = found.id,
+                                    targetType = "KOS_KONTRAK",
+                                    title = found.title,
+                                    subtitle = "${found.priceWithPeriod} • Kec. ${found.district}",
+                                    district = found.district,
+                                )
+                            },
+                            onSendComment = { text -> viewModel.submitKosComment(found.id, text) },
+                            onReportContent = { viewModel.reportKosContent(found) },
+                            onReportLink = { viewModel.reportKosLink(found) },
+                            onDelete = if (found.isOwnedBy(currentUserId) || isAdmin) {
+                                { viewModel.deleteKosListing(found.id) }
+                            } else {
+                                null
+                            },
+                            onClose = { viewModel.dismissSheet() },
+                        )
+                    }
+                }
+                ActiveBottomSheet.CreateKos -> {
+                    CreateKosSheetContent(
+                        defaultDistrict = currentDistrict,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { title, propType, billing, price, rooms, facs, dist, addr, mapsUrl, wa, desc, photos ->
+                            viewModel.submitKosListing(
+                                title = title,
+                                propertyType = propType,
+                                billingPeriod = billing,
+                                price = price,
+                                availableRooms = rooms,
+                                facilities = facs,
+                                district = dist,
+                                address = addr,
+                                mapsUrl = mapsUrl,
+                                whatsappNumber = wa,
+                                description = desc,
                                 photoUris = photos,
                                 context = context,
                             )

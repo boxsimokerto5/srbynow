@@ -9,7 +9,10 @@ import com.example.data.model.BarkasItem
 import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
+import com.example.data.model.KosComment
+import com.example.data.model.KosKontrakItem
 import com.example.data.model.SurabayaBarkasSeed
+import com.example.data.model.SurabayaKosSeed
 import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
@@ -104,6 +107,8 @@ class SurabayaRepository(
     private val inMemoryTambalBanComments = ConcurrentHashMap<String, CopyOnWriteArrayList<TambalBanComment>>()
     private val inMemoryBarkas = ConcurrentHashMap<String, BarkasItem>()
     private val inMemoryBarkasComments = ConcurrentHashMap<String, CopyOnWriteArrayList<BarkasComment>>()
+    private val inMemoryKos = ConcurrentHashMap<String, KosKontrakItem>()
+    private val inMemoryKosComments = ConcurrentHashMap<String, CopyOnWriteArrayList<KosComment>>()
     private val cachedIncidents = ConcurrentHashMap<String, IncidentReport>()
     private val cachedEvents = ConcurrentHashMap<String, SurabayaEvent>()
     private val cachedCulinary = ConcurrentHashMap<String, CulinarySpot>()
@@ -193,6 +198,13 @@ class SurabayaRepository(
         }
         for ((barkasId, comments) in SurabayaBarkasSeed.starterComments()) {
             inMemoryBarkasComments[barkasId] = CopyOnWriteArrayList(comments)
+        }
+        // Initialize rich starter Info Kos & Kontrak listings & Q&A comments
+        for (kos in SurabayaKosSeed.starterListings("system_seed")) {
+            inMemoryKos[kos.id] = kos
+        }
+        for ((kosId, comments) in SurabayaKosSeed.starterComments()) {
+            inMemoryKosComments[kosId] = CopyOnWriteArrayList(comments)
         }
     }
 
@@ -1648,6 +1660,16 @@ class SurabayaRepository(
         recordId: String,
     ) {
         requireUserId()
+        if (collection == "kos_listings") {
+            inMemoryKos[recordId]?.let { item ->
+                inMemoryKos[recordId] = item.copy(
+                    mapsUrl = "",
+                    linkReportCount = 0,
+                    linkReportedByUids = emptyList(),
+                )
+                bumpMutationTick()
+            }
+        }
         try {
             val patch = JSONObject().apply {
                 put("maps_url", "")
@@ -1730,6 +1752,10 @@ class SurabayaRepository(
             inMemoryBarkas[recordId]?.let { item ->
                 inMemoryBarkas[recordId] = item.copy(contentReportCount = 0, contentReportedByUids = emptyList())
             }
+        } else if (collection == "kos_listings") {
+            inMemoryKos[recordId]?.let { item ->
+                inMemoryKos[recordId] = item.copy(contentReportCount = 0, contentReportedByUids = emptyList())
+            }
         } else if (collection == "services") {
             inMemoryServices[recordId]?.let { svc ->
                 inMemoryServices[recordId] = svc.copy(contentReportCount = 0, contentReportedByUids = emptyList())
@@ -1764,6 +1790,9 @@ class SurabayaRepository(
         if (collection == "barkas_items") {
             inMemoryBarkas.remove(recordId)
             inMemoryBarkasComments.remove(recordId)
+        } else if (collection == "kos_listings") {
+            inMemoryKos.remove(recordId)
+            inMemoryKosComments.remove(recordId)
         } else if (collection == "services") {
             inMemoryServices.remove(recordId)
         }
@@ -4926,6 +4955,485 @@ class SurabayaRepository(
             localDeletedRecords.add("barkas_items:$barkasId")
             bumpMutationTick()
             runCatching { pb.deleteRecord("barkas_items", barkasId) }
+        }
+    }
+
+    // --- INFO KOS & KONTRAK (KOS BULANAN & KONTRAKAN TAHUNAN SURABAYA) OPERATIONS ---
+
+    private fun mapKosListing(j: JSONObject): KosKontrakItem {
+        val id = j.optString("id")
+        val photoFiles = extractFileNames(j, "photos")
+        val resolvedPhotos = when {
+            photoFiles.isNotEmpty() -> photoFiles.map { pb.buildFileUrl("kos_listings", id, it) }
+            else -> j.optString("photo_url")
+                .split("|")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+        }
+        val overlay = localContentReports["kos_listings:$id"]
+        val serverContentCount = j.optInt("content_report_count", 0)
+        val serverContentUids = decodeUidList(j.optString("content_reported_uids"))
+        val effectiveContentCount = when {
+            overlay == null -> serverContentCount
+            overlay.forceOverride -> overlay.count
+            else -> serverContentCount + overlay.count
+        }
+        val effectiveContentUids = when {
+            overlay == null -> serverContentUids
+            overlay.forceOverride -> overlay.uids
+            else -> (serverContentUids + overlay.uids).distinct()
+        }
+        val parsedFacilities = j.optString("facilities")
+            .split("|", ",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+
+        return KosKontrakItem(
+            id = id,
+            ownerId = j.optString("owner_id"),
+            ownerName = j.optString("owner_name", "Pemilik Kos").ifBlank { "Pemilik Kos" },
+            title = j.optString("title"),
+            propertyType = j.optString("property_type", "KOS_PUTRA").ifBlank { "KOS_PUTRA" },
+            billingPeriod = j.optString("billing_period", "BULANAN").ifBlank { "BULANAN" },
+            price = j.optLong("price", 0L).coerceAtLeast(0L),
+            availableRooms = j.optInt("available_rooms", 1).coerceAtLeast(0),
+            facilities = parsedFacilities,
+            district = j.optString("district", "Gubeng").ifBlank { "Gubeng" },
+            address = j.optString("address"),
+            mapsUrl = j.optString("maps_url"),
+            whatsappNumber = j.optString("whatsapp_number"),
+            description = j.optString("description"),
+            photoUrl = resolvedPhotos.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotos,
+            isFull = j.optBoolean("is_full", false),
+            commentCount = j.optInt("comment_count", 0),
+            contentReportCount = effectiveContentCount,
+            contentReportedByUids = effectiveContentUids,
+            linkReportCount = j.optInt("link_report_count", 0),
+            linkReportedByUids = decodeUidList(j.optString("link_reported_uids")),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    private fun mapKosComment(j: JSONObject): KosComment = KosComment(
+        id = j.optString("id"),
+        kosId = j.optString("kos_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya").ifBlank { "Warga Surabaya" },
+        authorDistrict = j.optString("author_district", "Genteng").ifBlank { "Genteng" },
+        text = j.optString("text"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
+    fun observeKosListings(): Flow<List<KosKontrakItem>> {
+        return combine(
+            pb.observeCollection("kos_listings", pollIntervalMs = 6_500L) {
+                try {
+                    pb.getList(collection = "kos_listings", sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val combinedMap = inMemoryKos.toMutableMap()
+            for (json in remoteList) {
+                val mapped = mapKosListing(json)
+                combinedMap[mapped.id] = mapped
+                inMemoryKos[mapped.id] = mapped
+            }
+            combinedMap.values
+                .filter { "kos_listings:${it.id}" !in localDeletedRecords && it.ownerId !in localBannedUids }
+                .sortedWith(
+                    compareBy<KosKontrakItem> { it.isFull }
+                        .thenByDescending { it.createdAt ?: 0L },
+                )
+        }.catch {
+            emit(
+                inMemoryKos.values
+                    .filter { "kos_listings:${it.id}" !in localDeletedRecords }
+                    .sortedWith(
+                        compareBy<KosKontrakItem> { it.isFull }
+                            .thenByDescending { it.createdAt ?: 0L },
+                    ),
+            )
+        }
+    }
+
+    fun observeKosById(kosId: String): Flow<KosKontrakItem?> {
+        return combine(
+            pb.observeCollection("kos_listings", pollIntervalMs = 5_500L) {
+                try {
+                    pb.getOneOrNull("kos_listings", kosId)
+                } catch (_: Exception) {
+                    null
+                }
+            },
+            localMutationTick,
+        ) { remoteJson, _ ->
+            if ("kos_listings:$kosId" in localDeletedRecords) {
+                null
+            } else if (remoteJson != null) {
+                val mapped = mapKosListing(remoteJson)
+                inMemoryKos[kosId] = mapped
+                mapped
+            } else {
+                inMemoryKos[kosId]
+            }
+        }.catch {
+            emit(inMemoryKos[kosId]?.takeIf { "kos_listings:${it.id}" !in localDeletedRecords })
+        }
+    }
+
+    fun observeKosComments(kosId: String): Flow<List<KosComment>> {
+        val safeKosId = escapePbValue(kosId)
+        return combine(
+            pb.observeCollection("kos_comments", pollIntervalMs = 4_500L) {
+                try {
+                    pb.getList(
+                        collection = "kos_comments",
+                        filter = "kos_id = '$safeKosId'",
+                        sort = "created",
+                    )
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remote = remoteList.map(::mapKosComment)
+            val localList = inMemoryKosComments[kosId]?.toList() ?: emptyList()
+            (remote + localList).distinctBy { it.id }.sortedBy { it.createdAt ?: 0L }
+        }.catch {
+            emit(inMemoryKosComments[kosId]?.toList()?.sortedBy { it.createdAt ?: 0L } ?: emptyList())
+        }
+    }
+
+    suspend fun createKosListing(
+        ownerName: String,
+        title: String,
+        propertyType: String,
+        billingPeriod: String,
+        price: Long,
+        availableRooms: Int,
+        facilities: List<String>,
+        district: String,
+        address: String,
+        mapsUrl: String = "",
+        whatsappNumber: String = "",
+        description: String,
+        photos: List<PreparedPhoto> = emptyList(),
+    ): String {
+        val uid = requireUserId()
+        val cleanTitle = title.trim().take(160)
+        if (cleanTitle.length < 4) {
+            throw IllegalArgumentException("Nama kos atau kontrakan minimal 4 karakter.")
+        }
+        val cleanAddress = address.trim().take(240)
+        if (cleanAddress.length < 4) {
+            throw IllegalArgumentException("Alamat atau patokan jalan minimal 4 karakter.")
+        }
+        val cleanDescription = description.trim().take(2000)
+        if (cleanDescription.length < 5) {
+            throw IllegalArgumentException("Deskripsi fasilitas & aturan kos minimal 5 karakter.")
+        }
+
+        val validatedMapsUrl = when (val res = LinkSecurityValidator.validateOptionalLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)) {
+            is LinkValidationResult.Valid -> res.normalizedUrl
+            is LinkValidationResult.Invalid -> throw IllegalArgumentException(res.errorMessage)
+        }
+
+        val cleanWa = whatsappNumber
+            .trim()
+            .replace(Regex("[^0-9]"), "")
+            .let { if (it.startsWith("0")) "62" + it.drop(1) else it }
+            .take(28)
+
+        val recordId = PocketBaseClient.deterministicPbId("kos_${UUID.randomUUID()}")
+        val boundedPhotos = photos.take(4)
+        val cleanOwnerName = ownerName.trim().take(80).ifEmpty {
+            pb.currentSession?.displayName?.ifBlank { "Pemilik Kos Surabaya" } ?: "Pemilik Kos Surabaya"
+        }
+        val cleanType = propertyType.trim().uppercase().ifEmpty { "KOS_PUTRA" }.take(40)
+        val cleanBilling = when (billingPeriod.trim().uppercase()) {
+            "TAHUNAN" -> "TAHUNAN"
+            else -> "BULANAN"
+        }
+        val safePrice = price.coerceAtLeast(0L)
+        val safeRooms = availableRooms.coerceIn(0, 100)
+        val cleanFacilities = facilities.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        val encodedFacilities = cleanFacilities.joinToString("|").take(800)
+        val cleanDistrict = district.trim().ifEmpty { "Gubeng" }.take(60)
+        val now = System.currentTimeMillis()
+
+        var resolvedPhotoUrls = boundedPhotos.map { it.dataUri }
+
+        try {
+            if (boundedPhotos.isNotEmpty()) {
+                val fields = mapOf(
+                    "id" to recordId,
+                    "owner_id" to uid,
+                    "owner_name" to cleanOwnerName,
+                    "title" to cleanTitle,
+                    "property_type" to cleanType,
+                    "billing_period" to cleanBilling,
+                    "price" to safePrice.toString(),
+                    "available_rooms" to safeRooms.toString(),
+                    "facilities" to encodedFacilities,
+                    "district" to cleanDistrict,
+                    "address" to cleanAddress,
+                    "maps_url" to validatedMapsUrl,
+                    "whatsapp_number" to cleanWa,
+                    "description" to cleanDescription,
+                    "is_full" to "false",
+                    "comment_count" to "0",
+                    "content_report_count" to "0",
+                    "content_reported_uids" to "",
+                    "link_report_count" to "0",
+                    "link_reported_uids" to "",
+                )
+                val fileParts = boundedPhotos.mapIndexed { idx, p ->
+                    MultipartFilePart(
+                        fieldName = "photos",
+                        fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                        mimeType = p.mimeType,
+                        bytes = p.bytes,
+                    )
+                }
+                val created = pb.createRecordMultipartFiles("kos_listings", fields, fileParts)
+                val serverId = created.optString("id").ifBlank { recordId }
+                val storedFiles = extractFileNames(created, "photos")
+                if (storedFiles.isNotEmpty()) {
+                    resolvedPhotoUrls = storedFiles.map { pb.buildFileUrl("kos_listings", serverId, it) }
+                }
+            } else {
+                val payload = JSONObject().apply {
+                    put("id", recordId)
+                    put("owner_id", uid)
+                    put("owner_name", cleanOwnerName)
+                    put("title", cleanTitle)
+                    put("property_type", cleanType)
+                    put("billing_period", cleanBilling)
+                    put("price", safePrice)
+                    put("available_rooms", safeRooms)
+                    put("facilities", encodedFacilities)
+                    put("district", cleanDistrict)
+                    put("address", cleanAddress)
+                    put("maps_url", validatedMapsUrl)
+                    put("whatsapp_number", cleanWa)
+                    put("description", cleanDescription)
+                    put("is_full", false)
+                    put("comment_count", 0)
+                    put("content_report_count", 0)
+                    put("content_reported_uids", "")
+                    put("link_report_count", 0)
+                    put("link_reported_uids", "")
+                }
+                pb.createRecord("kos_listings", payload)
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "createKosListing PB sync fallback: ${e.message}")
+        }
+
+        val newItem = KosKontrakItem(
+            id = recordId,
+            ownerId = uid,
+            ownerName = cleanOwnerName,
+            title = cleanTitle,
+            propertyType = cleanType,
+            billingPeriod = cleanBilling,
+            price = safePrice,
+            availableRooms = safeRooms,
+            facilities = cleanFacilities,
+            district = cleanDistrict,
+            address = cleanAddress,
+            mapsUrl = validatedMapsUrl,
+            whatsappNumber = cleanWa,
+            description = cleanDescription,
+            photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
+            photoUrls = resolvedPhotoUrls,
+            isFull = false,
+            commentCount = 0,
+            createdAt = now,
+            updatedAt = now,
+        )
+
+        inMemoryKos[recordId] = newItem
+        SurabayaSpamProtector.recordSubmission(uid, "kos_listings")
+        bumpMutationTick()
+        return recordId
+    }
+
+    suspend fun toggleKosFullStatus(
+        kosId: String,
+        requesterUid: String = requireUserId(),
+        isAdmin: Boolean = false,
+        explicitFull: Boolean? = null,
+    ): Boolean {
+        val uid = requesterUid.ifBlank { requireUserId() }
+        val current = inMemoryKos[kosId]
+            ?: runCatching { pb.getOneOrNull("kos_listings", kosId)?.let(::mapKosListing) }.getOrNull()
+            ?: throw IllegalArgumentException("Info kos/kontrakan tidak ditemukan.")
+
+        if (current.ownerId != uid && !isAdmin && !isCurrentSessionAdmin(uid)) {
+            throw IllegalStateException("Hanya pemilik kos/kontrakan yang dapat mengubah status ketersediaan.")
+        }
+
+        val nextFull = explicitFull ?: !current.isFull
+        val nextRooms = when {
+            nextFull -> 0
+            current.availableRooms <= 0 -> 1
+            else -> current.availableRooms
+        }
+        val updated = current.copy(
+            isFull = nextFull,
+            availableRooms = nextRooms,
+            updatedAt = System.currentTimeMillis(),
+        )
+        inMemoryKos[kosId] = updated
+        bumpMutationTick()
+
+        try {
+            pb.updateRecord(
+                "kos_listings",
+                kosId,
+                JSONObject().apply {
+                    put("is_full", nextFull)
+                    put("available_rooms", nextRooms)
+                },
+            )
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "toggleKosFullStatus PB sync fallback: ${e.message}")
+        }
+
+        return nextFull
+    }
+
+    suspend fun addKosComment(kosId: String, text: String): String {
+        val uid = requireUserId()
+        val cleanText = text.trim().take(600)
+        if (cleanText.length < 2) {
+            throw IllegalArgumentException("Pertanyaan atau komentar minimal 2 karakter.")
+        }
+
+        val account = runCatching { pb.getOneOrNull("users", uid) }.getOrNull()
+        val authorName = account?.optString("name")?.takeIf { it.isNotBlank() }
+            ?: pb.currentSession?.displayName?.takeIf { it.isNotBlank() }
+            ?: "Warga Surabaya"
+        val authorDistrict = account?.optString("district")?.takeIf { it.isNotBlank() }
+            ?: pb.currentSession?.district?.takeIf { it.isNotBlank() }
+            ?: "Genteng"
+
+        val commentId = PocketBaseClient.deterministicPbId("kcm_${UUID.randomUUID()}")
+        val now = System.currentTimeMillis()
+        val newComment = KosComment(
+            id = commentId,
+            kosId = kosId,
+            authorId = uid,
+            authorName = authorName,
+            authorDistrict = authorDistrict,
+            text = cleanText,
+            createdAt = now,
+        )
+
+        val list = inMemoryKosComments.computeIfAbsent(kosId) { CopyOnWriteArrayList() }
+        list.add(newComment)
+
+        val currentItem = inMemoryKos[kosId]
+            ?: runCatching { pb.getOneOrNull("kos_listings", kosId)?.let(::mapKosListing) }.getOrNull()
+        val nextCount = maxOf((currentItem?.commentCount ?: 0) + 1, list.size)
+        if (currentItem != null) {
+            inMemoryKos[kosId] = currentItem.copy(
+                commentCount = nextCount,
+                updatedAt = now,
+            )
+        }
+        bumpMutationTick()
+
+        try {
+            val payload = JSONObject().apply {
+                put("id", commentId)
+                put("kos_id", kosId)
+                put("author_id", uid)
+                put("author_name", authorName.take(80))
+                put("author_district", authorDistrict.take(60))
+                put("text", cleanText)
+            }
+            pb.createRecord("kos_comments", payload)
+            runCatching {
+                pb.updateRecord(
+                    "kos_listings",
+                    kosId,
+                    JSONObject().apply {
+                        put("comment_count", nextCount)
+                    },
+                )
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "addKosComment PB sync fallback: ${e.message}")
+        }
+
+        return commentId
+    }
+
+    suspend fun reportKosContent(kosId: String, reporterUid: String) {
+        val current = inMemoryKos[kosId]
+        val currentCount = current?.contentReportCount ?: 0
+        val currentUids = current?.contentReportedByUids ?: emptyList()
+        reportInappropriateContent(
+            collection = "kos_listings",
+            recordId = kosId,
+            currentCount = currentCount,
+            currentReportedUids = currentUids,
+        )
+        if (current != null && reporterUid !in current.contentReportedByUids) {
+            inMemoryKos[kosId] = current.copy(
+                contentReportCount = current.contentReportCount + 1,
+                contentReportedByUids = (current.contentReportedByUids + reporterUid).distinct(),
+            )
+            bumpMutationTick()
+        }
+    }
+
+    suspend fun reportKosLink(kosId: String, reporterUid: String) {
+        val current = inMemoryKos[kosId]
+        val currentCount = current?.linkReportCount ?: 0
+        val currentUids = current?.linkReportedByUids ?: emptyList()
+        runCatching {
+            reportSuspiciousLink(
+                collection = "kos_listings",
+                recordId = kosId,
+                currentCount = currentCount,
+                currentReportedUids = currentUids,
+            )
+        }
+        if (current != null && reporterUid !in current.linkReportedByUids) {
+            val nextCount = current.linkReportCount + 1
+            val shouldWipe = nextCount >= 3
+            inMemoryKos[kosId] = current.copy(
+                mapsUrl = if (shouldWipe) "" else current.mapsUrl,
+                linkReportCount = nextCount,
+                linkReportedByUids = (current.linkReportedByUids + reporterUid).distinct(),
+            )
+            bumpMutationTick()
+        }
+    }
+
+    suspend fun deleteKosListing(kosId: String, requesterUid: String, isAdmin: Boolean) {
+        val current = inMemoryKos[kosId]
+        if (current == null || current.ownerId == requesterUid || isAdmin || isCurrentSessionAdmin(requesterUid)) {
+            inMemoryKos.remove(kosId)
+            inMemoryKosComments.remove(kosId)
+            localDeletedRecords.add("kos_listings:$kosId")
+            bumpMutationTick()
+            runCatching { pb.deleteRecord("kos_listings", kosId) }
         }
     }
 

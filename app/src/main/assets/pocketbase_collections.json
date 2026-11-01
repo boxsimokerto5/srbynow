@@ -604,6 +604,62 @@
     "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
     "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
+  },
+  {
+    "id": "sbycolkoslst001",
+    "name": "kos_listings",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "system": false, "id": "sbyks001", "name": "owner_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyks002", "name": "owner_name", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbyks003", "name": "title", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 3, "max": 140, "pattern": "" } },
+      { "system": false, "id": "sbyks004", "name": "property_type", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 40, "pattern": "" } },
+      { "system": false, "id": "sbyks005", "name": "billing_period", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 24, "pattern": "" } },
+      { "system": false, "id": "sbyks006", "name": "price", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 9999999999, "noDecimal": true } },
+      { "system": false, "id": "sbyks007", "name": "available_rooms", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 999, "noDecimal": true } },
+      { "system": false, "id": "sbyks008", "name": "facilities", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 600, "pattern": "" } },
+      { "system": false, "id": "sbyks009", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyks010", "name": "address", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 220, "pattern": "" } },
+      { "system": false, "id": "sbyks011", "name": "maps_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbyks012", "name": "whatsapp_number", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 32, "pattern": "" } },
+      { "system": false, "id": "sbyks013", "name": "description", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 1600, "pattern": "" } },
+      { "system": false, "id": "sbyks014", "name": "photos", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x400"], "maxSelect": 4, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbyks015", "name": "photo_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyks016", "name": "is_full", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbyks017", "name": "comment_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyks018", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyks019", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyks020", "name": "link_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyks021", "name": "link_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.owner_id = @request.auth.id",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != '' && (owner_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolkoscmnt01",
+    "name": "kos_comments",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "system": false, "id": "sbykc001", "name": "kos_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbykc002", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbykc003", "name": "author_name", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbykc004", "name": "author_district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbykc005", "name": "text", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 600, "pattern": "" } }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
   }
 ]
 

@@ -42,6 +42,7 @@ import com.example.data.model.TransitRoute
 import com.example.data.seed.SurabayaTransitSeed
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.HomeWork
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NearMe
@@ -287,6 +288,14 @@ fun HomeScreen(
             badge = "COD SBY",
             testTag = "home_shortcut_barkas",
             onClick = { onNavigateTab(MainTab.BARKAS) },
+        ),
+        HomeShortcutItem(
+            title = "Info Kos & Kontrak",
+            subtitle = "Bulanan & Tahunan",
+            icon = Icons.Filled.HomeWork,
+            badge = "Surabaya",
+            testTag = "home_shortcut_kos",
+            onClick = { onNavigateTab(MainTab.KOS_KONTRAK) },
         ),
         HomeShortcutItem(
             title = "Tambal Ban",
