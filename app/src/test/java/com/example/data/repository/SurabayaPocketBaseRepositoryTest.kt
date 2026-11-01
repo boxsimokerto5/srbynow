@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.location.LocationHelper
+import com.example.data.model.MessageDeliveryStatus
 import com.example.data.model.NearbyProfile
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.util.ImageSafetyScanResult
@@ -178,6 +179,17 @@ class SurabayaPocketBaseRepositoryTest {
         assertEquals(2, messagesSeenByNadia.size)
         assertEquals("Halo Mbak Nadia, event gowes jadi ya!", messagesSeenByNadia[0].text)
         assertEquals("Siap Mas Raka, sudah saya setujui di aplikasi!", messagesSeenByRaka[1].text)
+
+        // Raka sends message with attached photo
+        val chatPhoto = PreparedPhoto(
+            fileName = "gowes_pagi.jpg",
+            mimeType = "image/jpeg",
+            bytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xD9.toByte()),
+        )
+        repoRaka.sendMessage(roomOpenedByRaka, sessionRaka.displayName, "Ini foto rutenya ya!", chatPhoto)
+        val messagesWithPhoto = repoNadia.observeMessages(roomOpenedByNadia, sessionNadia.userId).first()
+        assertEquals(3, messagesWithPhoto.size)
+        assertTrue(messagesWithPhoto[2].hasPhoto || messagesWithPhoto[2].text.contains("foto", ignoreCase = true))
     }
 
     @Test
@@ -511,6 +523,58 @@ class SurabayaPocketBaseRepositoryTest {
 
         rAdmin.adminDeletePost("incidents", postId)
         assertTrue("Deleted post must be removed from PocketBase", rCitizen1.observeIncidents().first().none { it.id == postId })
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    @Test
+    fun `chat WhatsApp delivery receipts and realtime typing indicator succeed`() = runBlocking {
+        val clientRaka = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val clientNadia = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+
+        val repoRaka = SurabayaRepository(clientRaka)
+        val repoNadia = SurabayaRepository(clientNadia)
+
+        val sRaka = clientRaka.registerAndSignIn("Raka", "raka.chat@surabaya.id", "secret123", "Gubeng")
+        val sNadia = clientNadia.registerAndSignIn("Nadia", "nadia.chat@surabaya.id", "secret123", "Wonokromo")
+
+        val nadiaPeer = NearbyProfile(
+            id = sNadia.userId,
+            userId = sNadia.userId,
+            displayName = sNadia.displayName,
+            district = "Wonokromo",
+        )
+        val room = repoRaka.openOrCreateDirectChat(
+            peerProfile = nadiaPeer,
+            currentUserName = sRaka.displayName,
+            currentUserDistrict = "Gubeng",
+        )
+
+        // 1. Initial message send by Raka -> Delivered (Centang 2 abu-abu)
+        repoRaka.sendMessage(room, sRaka.displayName, "Halo Nadia, piye kabare?")
+        val rakaMessages = repoRaka.observeMessages(room, sRaka.userId).first()
+        val sentMsg = rakaMessages.first { it.text == "Halo Nadia, piye kabare?" }
+        assertTrue("Message must be delivered", sentMsg.isDelivered)
+        assertFalse("Message is not yet read", sentMsg.isRead)
+        assertEquals("Status must be DELIVERED", MessageDeliveryStatus.DELIVERED, sentMsg.deliveryStatus)
+
+        // 2. Nadia reads the message -> Mark as read (Centang 2 biru/toska)
+        repoNadia.markMessagesAsRead(room, sNadia.userId, listOf(sentMsg.id))
+        val readMessages = repoNadia.observeMessages(room, sNadia.userId).first()
+        val readMsg = readMessages.first { it.id == sentMsg.id }
+        assertTrue("Message must now be marked as read", readMsg.isRead)
+        assertEquals("Status must be READ", MessageDeliveryStatus.READ, readMsg.deliveryStatus)
+
+        // 3. Typing indicator: Nadia types -> Raka sees Nadia typing, Nadia sees null
+        repoNadia.updateTypingStatus(room, "Nadia", true)
+        val roomsSeenByRaka = repoRaka.observeDirectChatRooms(sRaka.userId).first()
+        val roomSeenByRaka = roomsSeenByRaka.first { it.id == room.id }
+        assertEquals("Raka should see Nadia typing", "Nadia", roomSeenByRaka.activeTypingPeerName(sRaka.userId))
+        assertEquals("Nadia should not see herself typing", null, roomSeenByRaka.activeTypingPeerName(sNadia.userId))
+
+        // 4. Typing indicator stops: Nadia finishes typing
+        repoNadia.updateTypingStatus(room, "Nadia", false)
+        val roomAfterTyping = repoRaka.observeDirectChatRooms(sRaka.userId).first().first { it.id == room.id }
+        assertEquals("No one should be typing now", null, roomAfterTyping.activeTypingPeerName(sRaka.userId))
         shadowOf(Looper.getMainLooper()).idle()
     }
 

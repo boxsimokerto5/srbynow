@@ -34,6 +34,11 @@
     <string name="empty_bookmarks">Belum ada tempat atau info yang disimpan.</string>
     <string name="search_culinary_hint">Cari rawon, penyetan, kopi, daerah…</string>
     <string name="chat_input_hint">Tulis pesan untuk warga…</string>
+    <string name="chat_attach_photo_desc">Lampirkan Foto</string>
+    <string name="chat_photo_preview_title">Foto siap dikirim</string>
+    <string name="chat_photo_preview_hint">Tekan tombol kirim atau tambahkan pesan teks di bawah</string>
+    <string name="chat_cancel_photo">Batal lampirkan foto</string>
+    <string name="chat_photo_placeholder_hint">Tulis keterangan foto (opsional)…</string>
     <string name="incident_comments_title">Pantauan &amp; Komentar Warga (%1$d)</string>
     <string name="incident_comments_scroll_hint">Geser komentar ↕</string>
     <string name="incident_comments_empty">Belum ada komentar tambahan. Bagikan pantauan terkini Anda di lokasi ini.</string>

@@ -245,6 +245,12 @@ data class CulinaryReview(
     val createdAt: Long? = null,
 )
 
+enum class MessageDeliveryStatus {
+    SENT,       // Centang 1 abu-abu
+    DELIVERED,  // Centang 2 abu-abu
+    READ,       // Centang 2 toska/biru terang
+}
+
 data class ChatRoom(
     val id: String = "",
     val roomKey: String = "",
@@ -255,6 +261,7 @@ data class ChatRoom(
     val participantNames: String = "",
     val lastMessage: String = "",
     val lastSenderName: String = "",
+    val typingStatus: String = "",
     val createdBy: String = "",
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
@@ -278,6 +285,20 @@ data class ChatRoom(
         if (roomType != "DIRECT") return null
         return participantUids.firstOrNull { it.isNotBlank() && it != currentUserId }
     }
+
+    fun activeTypingPeerName(currentUserId: String, timeoutMs: Long = 4000L): String? {
+        if (typingStatus.isBlank()) return null
+        val parts = typingStatus.split(":")
+        if (parts.size >= 3) {
+            val uid = parts[0]
+            val name = parts[1]
+            val timestamp = parts[2].toLongOrNull() ?: 0L
+            if (uid != currentUserId && (System.currentTimeMillis() - timestamp < timeoutMs)) {
+                return name.ifBlank { "Lawan bicara" }
+            }
+        }
+        return null
+    }
 }
 
 data class ChatMessage(
@@ -289,8 +310,21 @@ data class ChatMessage(
     val senderId: String = "",
     val senderName: String = "",
     val text: String = "",
+    val photoUrl: String = "",
+    val isDelivered: Boolean = true,
+    val isRead: Boolean = false,
     val createdAt: Long? = null,
-)
+) {
+    val hasPhoto: Boolean
+        get() = photoUrl.isNotBlank()
+
+    val deliveryStatus: MessageDeliveryStatus
+        get() = when {
+            isRead -> MessageDeliveryStatus.READ
+            isDelivered -> MessageDeliveryStatus.DELIVERED
+            else -> MessageDeliveryStatus.SENT
+        }
+}
 
 data class UserMoment(
     val id: String = "",

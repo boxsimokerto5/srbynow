@@ -292,6 +292,7 @@ fun SurabayaMainHub(
     val publicChatRooms by viewModel.publicChatRooms.collectAsStateWithLifecycle()
     val directChatRooms by viewModel.directChatRooms.collectAsStateWithLifecycle()
     val activeChatMessages by viewModel.activeChatMessages.collectAsStateWithLifecycle()
+    val isSendingChatMessage by viewModel.isSendingChatMessage.collectAsStateWithLifecycle()
     val servicesState by viewModel.servicesState.collectAsStateWithLifecycle()
     val approvedPollsState by viewModel.approvedPollsState.collectAsStateWithLifecycle()
     val pendingPollsState by viewModel.pendingPollsState.collectAsStateWithLifecycle()
@@ -1054,15 +1055,25 @@ fun SurabayaMainHub(
                     val liveRoom = (publicChatRooms + directChatRooms)
                         .firstOrNull { it.id == sheetTarget.room.id } ?: sheetTarget.room
                     val peerUid = liveRoom.otherParticipantIdFor(currentUserId)
+                    val context = androidx.compose.ui.platform.LocalContext.current
                     ChatConversationSheetContent(
                         room = liveRoom,
                         messages = activeChatMessages,
                         currentUserId = currentUserId,
-                        onSendMessage = { txt -> viewModel.sendChatMessage(liveRoom, txt) },
+                        isSending = isSendingChatMessage || isScanningPhoto,
+                        onSendMessage = { txt, photoUri ->
+                            viewModel.sendChatMessage(liveRoom, txt, photoUri, context)
+                        },
                         onBlockPeer = if (peerUid != null) {
                             { viewModel.blockCitizen(peerUid, liveRoom.displayTitleFor(currentUserId)) }
                         } else {
                             null
+                        },
+                        onMarkMessagesRead = { ids ->
+                            viewModel.markMessagesAsRead(liveRoom, ids)
+                        },
+                        onTyping = { isTyping ->
+                            viewModel.setTyping(liveRoom, isTyping)
                         },
                     )
                 }

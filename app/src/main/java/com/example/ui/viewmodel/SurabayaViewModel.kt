@@ -147,6 +147,9 @@ class SurabayaViewModel(
     private val _isScanningPhoto = MutableStateFlow(false)
     val isScanningPhoto: StateFlow<Boolean> = _isScanningPhoto.asStateFlow()
 
+    private val _isSendingChatMessage = MutableStateFlow(false)
+    val isSendingChatMessage: StateFlow<Boolean> = _isSendingChatMessage.asStateFlow()
+
     private val activeInterestJobs = ConcurrentHashMap<String, Job>()
     private val _pendingEventInterests = MutableStateFlow<Set<String>>(emptySet())
     val pendingEventInterests: StateFlow<Set<String>> = _pendingEventInterests.asStateFlow()
@@ -1255,13 +1258,61 @@ class SurabayaViewModel(
         }
     }
 
-    fun sendChatMessage(room: ChatRoom, text: String) {
-        if (text.isBlank() || isCurrentUserFrozen()) return
+    fun sendChatMessage(
+        room: ChatRoom,
+        text: String,
+        photoUri: Uri? = null,
+        context: Context? = null,
+    ) {
+        if ((text.isBlank() && photoUri == null) || isCurrentUserFrozen()) return
         viewModelScope.launch {
+            _isSendingChatMessage.value = true
             try {
-                repository.sendMessage(room, currentDisplayName(), text)
+                var preparedPhoto: PreparedPhoto? = null
+                if (photoUri != null && context != null) {
+                    val prepared = ImageUploadHelper.preparePhotoFromUri(
+                        context = context,
+                        uri = photoUri,
+                        prefix = "chat",
+                        maxDimensionPx = 1280,
+                    )
+                    if (prepared != null) {
+                        val isSafe = verifyPhotosAreSafe(listOf(prepared))
+                        if (!isSafe) return@launch
+                        preparedPhoto = prepared
+                    }
+                }
+                repository.sendMessage(room, currentDisplayName(), text, preparedPhoto)
+                setTyping(room, false)
             } catch (e: Exception) {
-                notifyMessage("Gagal mengirim pesan")
+                notifyMessage("Gagal mengirim pesan: ${e.localizedMessage ?: ""}")
+            } finally {
+                _isSendingChatMessage.value = false
+            }
+        }
+    }
+
+    fun markMessagesAsRead(room: ChatRoom, messageIds: List<String>) {
+        repository.markMessagesAsRead(room, currentUserId, messageIds)
+    }
+
+    private var lastTypingReportTime = 0L
+
+    fun setTyping(room: ChatRoom, isTyping: Boolean) {
+        val now = System.currentTimeMillis()
+        if (isTyping) {
+            if (now - lastTypingReportTime > 2500L) {
+                lastTypingReportTime = now
+                viewModelScope.launch {
+                    repository.updateTypingStatus(room, currentDisplayName(), true)
+                }
+            }
+        } else {
+            if (lastTypingReportTime != 0L) {
+                lastTypingReportTime = 0L
+                viewModelScope.launch {
+                    repository.updateTypingStatus(room, currentDisplayName(), false)
+                }
             }
         }
     }

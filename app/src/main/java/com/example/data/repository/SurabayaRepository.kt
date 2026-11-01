@@ -47,11 +47,14 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class SurabayaRepository(
@@ -70,6 +73,8 @@ class SurabayaRepository(
     private val localBlockedUids = ConcurrentHashMap<String, List<String>>()
     private val localBannedUids = CopyOnWriteArraySet<String>()
     private val localMutationTick = MutableStateFlow(0L)
+    private val localReadMsgIds = ConcurrentHashMap.newKeySet<String>()
+    private val localTypingStatuses = ConcurrentHashMap<String, String>() // roomId -> "uid:name:timestamp"
 
     private fun escapePbValue(value: String): String = value.replace("'", "\\'")
 
@@ -1848,13 +1853,18 @@ class SurabayaRepository(
         } else {
             "room_id = '$safeRoomId' && room_type = 'PUBLIC'"
         }
-        return pb.observeCollection("chat_messages", pollIntervalMs = 2_500L) {
-            pb.getList(
-                collection = "chat_messages",
-                filter = filterQuery,
-                sort = "+created",
-                perPage = 150,
-            ).map(::mapChatMessage)
+        return combine(
+            pb.observeCollection("chat_messages", pollIntervalMs = 2_500L) {
+                pb.getList(
+                    collection = "chat_messages",
+                    filter = filterQuery,
+                    sort = "+created",
+                    perPage = 150,
+                )
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            remoteList.map(::mapChatMessage)
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "chat_messages/${room.id}")
             throw e
@@ -1865,31 +1875,63 @@ class SurabayaRepository(
         room: ChatRoom,
         senderName: String,
         text: String,
+        photo: PreparedPhoto? = null,
     ) {
         val uid = requireUserId()
         val cleanText = text.trim().take(1000)
-        if (cleanText.isEmpty()) return
+        if (cleanText.isEmpty() && photo == null) return
         val cleanSender = senderName.trim().take(80).ifEmpty { "Warga Surabaya" }
         val msgId = PocketBaseClient.deterministicPbId("msg_${UUID.randomUUID()}")
         val uid1 = if (room.roomType == "DIRECT") room.participantUids.getOrNull(0).orEmpty() else ""
         val uid2 = if (room.roomType == "DIRECT") room.participantUids.getOrNull(1).orEmpty() else ""
+        val effectiveText = cleanText.ifEmpty { if (photo != null) "📷 Foto" else "" }
 
         try {
-            val msgPayload = JSONObject().apply {
-                put("id", msgId)
-                put("room_id", room.id)
-                put("room_key", room.roomKey.ifBlank { room.id })
-                put("room_type", room.roomType)
-                put("participant_uid_1", uid1)
-                put("participant_uid_2", uid2)
-                put("sender_id", uid)
-                put("sender_name", cleanSender)
-                put("text", cleanText)
+            if (photo != null) {
+                val fields = mapOf(
+                    "id" to msgId,
+                    "room_id" to room.id,
+                    "room_key" to room.roomKey.ifBlank { room.id },
+                    "room_type" to room.roomType,
+                    "participant_uid_1" to uid1,
+                    "participant_uid_2" to uid2,
+                    "sender_id" to uid,
+                    "sender_name" to cleanSender,
+                    "text" to effectiveText,
+                )
+                val filePart = MultipartFilePart(
+                    fieldName = "photo",
+                    fileName = photo.fileName,
+                    mimeType = photo.mimeType,
+                    bytes = photo.bytes,
+                )
+                try {
+                    pb.createRecordMultipartFiles("chat_messages", fields, listOf(filePart))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Multipart upload for chat photo failed, falling back to JSON: ${e.message}")
+                    val fallbackPayload = JSONObject().apply {
+                        fields.forEach { (k, v) -> put(k, v) }
+                        put("text", if (cleanText.isNotBlank()) "$cleanText (📷 Foto terlampir)" else "📷 Foto terlampir")
+                    }
+                    pb.createRecord("chat_messages", fallbackPayload)
+                }
+            } else {
+                val msgPayload = JSONObject().apply {
+                    put("id", msgId)
+                    put("room_id", room.id)
+                    put("room_key", room.roomKey.ifBlank { room.id })
+                    put("room_type", room.roomType)
+                    put("participant_uid_1", uid1)
+                    put("participant_uid_2", uid2)
+                    put("sender_id", uid)
+                    put("sender_name", cleanSender)
+                    put("text", effectiveText)
+                }
+                pb.createRecord("chat_messages", msgPayload)
             }
-            pb.createRecord("chat_messages", msgPayload)
 
             val roomPatch = JSONObject().apply {
-                put("last_message", cleanText.take(300))
+                put("last_message", (if (photo != null && cleanText.isBlank()) "📷 Foto" else effectiveText).take(300))
                 put("last_sender_name", cleanSender)
             }
             pb.updateRecord("chat_rooms", room.id, roomPatch)
@@ -1898,6 +1940,50 @@ class SurabayaRepository(
         } catch (e: Exception) {
             logBackendError(e, OperationType.CREATE, "chat_messages/$msgId")
             throw e
+        }
+    }
+
+    fun markMessagesAsRead(room: ChatRoom, currentUserId: String, messageIds: List<String>) {
+        if (messageIds.isEmpty()) return
+        var newlyMarked = false
+        for (id in messageIds) {
+            if (localReadMsgIds.add(id)) {
+                newlyMarked = true
+            }
+        }
+        if (newlyMarked) {
+            bumpMutationTick()
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            for (id in messageIds) {
+                try {
+                    pb.updateRecord("chat_messages", id, JSONObject().apply {
+                        put("is_read", true)
+                    })
+                } catch (e: Exception) {
+                    // Handled gracefully if schema update is pending
+                }
+            }
+        }
+    }
+
+    suspend fun updateTypingStatus(room: ChatRoom, userName: String, isTyping: Boolean) {
+        val uid = pb.currentSession?.userId?.takeIf { it.isNotBlank() } ?: return
+        val now = System.currentTimeMillis()
+        val typingPayload = if (isTyping) "$uid:$userName:$now" else ""
+        if (isTyping) {
+            localTypingStatuses[room.id] = typingPayload
+        } else {
+            localTypingStatuses.remove(room.id)
+        }
+        bumpMutationTick()
+
+        try {
+            pb.updateRecord("chat_rooms", room.id, JSONObject().apply {
+                put("typing_status", typingPayload)
+            })
+        } catch (e: Exception) {
+            // Handled gracefully if typing_status column is not yet migrated
         }
     }
 
@@ -2165,8 +2251,12 @@ class SurabayaRepository(
         val uid1 = j.optString("participant_uid_1")
         val uid2 = j.optString("participant_uid_2")
         val participants = listOf(uid1, uid2).filter { it.isNotBlank() }
+        val id = j.optString("id")
+        val remoteTyping = j.optString("typing_status")
+        val localTyping = localTypingStatuses[id].orEmpty()
+        val effectiveTyping = localTyping.ifBlank { remoteTyping }
         return ChatRoom(
-            id = j.optString("id"),
+            id = id,
             roomKey = j.optString("room_key"),
             roomType = j.optString("room_type", "PUBLIC"),
             title = j.optString("title"),
@@ -2175,6 +2265,7 @@ class SurabayaRepository(
             participantNames = j.optString("participant_names"),
             lastMessage = j.optString("last_message"),
             lastSenderName = j.optString("last_sender_name"),
+            typingStatus = effectiveTyping,
             createdBy = j.optString("created_by"),
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
             updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
@@ -2185,8 +2276,15 @@ class SurabayaRepository(
         val uid1 = j.optString("participant_uid_1")
         val uid2 = j.optString("participant_uid_2")
         val participants = listOf(uid1, uid2).filter { it.isNotBlank() }
+        val id = j.optString("id")
+        val photoFileNames = extractFileNames(j, "photo")
+        val resolvedPhotoUrl = photoFileNames.firstOrNull()?.let { pb.buildFileUrl("chat_messages", id, it) }
+            ?: j.optString("photo_url").ifBlank { j.optString("image_url") }
+        val isReadRemote = j.optBoolean("is_read", false)
+        val isReadLocal = localReadMsgIds.contains(id)
+        val isRead = isReadRemote || isReadLocal
         return ChatMessage(
-            id = j.optString("id"),
+            id = id,
             roomId = j.optString("room_id"),
             roomKey = j.optString("room_key"),
             roomType = j.optString("room_type", "PUBLIC"),
@@ -2194,6 +2292,9 @@ class SurabayaRepository(
             senderId = j.optString("sender_id"),
             senderName = j.optString("sender_name", "Warga Surabaya"),
             text = j.optString("text"),
+            photoUrl = resolvedPhotoUrl,
+            isDelivered = true,
+            isRead = isRead,
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
         )
     }

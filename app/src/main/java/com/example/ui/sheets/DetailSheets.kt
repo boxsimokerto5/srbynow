@@ -1,6 +1,11 @@
 package com.example.ui.sheets
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,24 +28,32 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Directions
@@ -58,6 +71,7 @@ import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -72,6 +86,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -83,6 +98,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -94,8 +110,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import kotlinx.coroutines.delay
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
@@ -106,6 +124,7 @@ import com.example.data.model.AppNotification
 import com.example.data.model.AppNotificationType
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
+import com.example.data.model.MessageDeliveryStatus
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
 import com.example.data.model.DestinationReview
@@ -136,6 +155,8 @@ import com.example.ui.components.openIncidentMapsDirection
 import com.example.ui.screens.formatCulinaryCategoryLabel
 import com.example.ui.screens.formatEventCategoryLabel
 import com.example.ui.screens.formatIncidentCategoryLabel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.OpenGreenBg
@@ -147,6 +168,7 @@ import com.example.ui.theme.SoftChatBubbleGradient
 import com.example.ui.theme.StarGold
 import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimaryDeep
+import com.example.ui.theme.ToskaPrimaryLight
 import java.util.Locale
 
 @Composable
@@ -1581,17 +1603,153 @@ fun CulinaryDetailSheetContent(
 }
 
 @Composable
+fun BouncingDotsIndicator(
+    modifier: Modifier = Modifier,
+    color: Color = ToskaPrimaryDeep,
+    dotSize: Dp = 4.dp,
+) {
+    val transition = rememberInfiniteTransition(label = "dots")
+    val dot1Offset by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = -3.5f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 900
+                0f at 0
+                -3.5f at 200
+                0f at 400
+                0f at 900
+            },
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "dot1",
+    )
+    val dot2Offset by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = -3.5f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 900
+                0f at 150
+                -3.5f at 350
+                0f at 550
+                0f at 900
+            },
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "dot2",
+    )
+    val dot3Offset by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = -3.5f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 900
+                0f at 300
+                -3.5f at 500
+                0f at 700
+                0f at 900
+            },
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "dot3",
+    )
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(y = dot1Offset.dp)
+                .size(dotSize)
+                .background(color, CircleShape),
+        )
+        Box(
+            modifier = Modifier
+                .offset(y = dot2Offset.dp)
+                .size(dotSize)
+                .background(color, CircleShape),
+        )
+        Box(
+            modifier = Modifier
+                .offset(y = dot3Offset.dp)
+                .size(dotSize)
+                .background(color, CircleShape),
+        )
+    }
+}
+
+@Composable
+fun MessageDeliveryStatusIcon(
+    status: MessageDeliveryStatus,
+    modifier: Modifier = Modifier,
+) {
+    when (status) {
+        MessageDeliveryStatus.SENT -> {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = "Terkirim (Centang 1)",
+                tint = Color(0xFF8696A0),
+                modifier = modifier.size(15.dp),
+            )
+        }
+        MessageDeliveryStatus.DELIVERED -> {
+            Icon(
+                imageVector = Icons.Filled.DoneAll,
+                contentDescription = "Tersampaikan (Centang 2)",
+                tint = Color(0xFF8696A0),
+                modifier = modifier.size(16.dp),
+            )
+        }
+        MessageDeliveryStatus.READ -> {
+            Icon(
+                imageVector = Icons.Filled.DoneAll,
+                contentDescription = "Dibaca (Centang 2 Biru)",
+                tint = Color(0xFF0288D1),
+                modifier = modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
 fun ChatConversationSheetContent(
     room: ChatRoom,
     messages: List<ChatMessage>,
     currentUserId: String,
-    onSendMessage: (String) -> Unit,
+    isSending: Boolean = false,
+    onSendMessage: (String, Uri?) -> Unit,
     onBlockPeer: (() -> Unit)? = null,
+    onMarkMessagesRead: ((List<String>) -> Unit)? = null,
+    onTyping: ((Boolean) -> Unit)? = null,
 ) {
     var inputText by remember { mutableStateOf("") }
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var activeZoomPhotoUrl by remember { mutableStateOf<String?>(null) }
     var showBlockPeerDialog by remember(room.id) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val displayTitle = room.displayTitleFor(currentUserId)
+    val context = LocalContext.current
+    val activeTypingPeerName = room.activeTypingPeerName(currentUserId)
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedPhotoUri = uri
+        }
+    }
+
+    if (activeZoomPhotoUrl != null) {
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrls = listOf(activeZoomPhotoUrl!!),
+            fallbackImageKey = "hero_surabaya",
+            title = "Foto Obrolan",
+            onDismiss = { activeZoomPhotoUrl = null },
+        )
+    }
 
     if (showBlockPeerDialog && onBlockPeer != null) {
         AlertDialog(
@@ -1624,6 +1782,35 @@ fun ChatConversationSheetContent(
         }
     }
 
+    LaunchedEffect(messages) {
+        if (onMarkMessagesRead != null && messages.isNotEmpty()) {
+            val unreadPeerMsgIds = messages
+                .filter { it.senderId != currentUserId && !it.isRead }
+                .map { it.id }
+            if (unreadPeerMsgIds.isNotEmpty()) {
+                onMarkMessagesRead(unreadPeerMsgIds)
+            }
+        }
+    }
+
+    LaunchedEffect(inputText) {
+        if (onTyping != null) {
+            if (inputText.isNotBlank()) {
+                onTyping(true)
+                delay(3000)
+                onTyping(false)
+            } else {
+                onTyping(false)
+            }
+        }
+    }
+
+    DisposableEffect(room.id) {
+        onDispose {
+            onTyping?.invoke(false)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1647,28 +1834,44 @@ fun ChatConversationSheetContent(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = OpenGreenBg,
+                if (activeTypingPeerName != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.testTag("chat_typing_indicator_header"),
                     ) {
+                        BouncingDotsIndicator(color = ToskaPrimaryDeep)
                         Text(
-                            text = "Sinkron 2 Arah",
+                            text = if (room.roomType == "DIRECT") "sedang mengetik…" else "$activeTypingPeerName sedang mengetik…",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = OpenGreenText,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            fontWeight = FontWeight.SemiBold,
+                            color = ToskaPrimaryDeep,
                         )
                     }
-                    Text(
-                        text = "Room ID: ${room.roomKey.ifBlank { room.id }}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.testTag("chat_sheet_room_id"),
-                    )
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = OpenGreenBg,
+                        ) {
+                            Text(
+                                text = "Sinkron 2 Arah",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = OpenGreenText,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
+                        Text(
+                            text = "Room ID: ${room.roomKey.ifBlank { room.id }}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("chat_sheet_room_id"),
+                        )
+                    }
                 }
             }
 
@@ -1749,21 +1952,51 @@ fun ChatConversationSheetContent(
                                 modifier = Modifier
                                     .clip(bubbleShape)
                                     .background(SoftChatBubbleGradient, bubbleShape)
-                                    .border(1.dp, OutlineVariantLight, bubbleShape),
+                                    .border(1.dp, OutlineVariantLight, bubbleShape)
+                                    .widthIn(max = 280.dp),
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
-                                    Text(
-                                        text = msg.text,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = ToskaOnPrimaryContainer,
-                                    )
-                                    Text(
-                                        text = formatRelativeTimestamp(msg.createdAt),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = ToskaPrimaryDeep,
-                                    )
+                                    if (msg.photoUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(msg.photoUrl)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "Foto terkirim",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(max = 200.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .clickable { activeZoomPhotoUrl = msg.photoUrl }
+                                                .testTag("chat_msg_photo_${msg.id}"),
+                                        )
+                                    }
+                                    if (msg.text.isNotBlank() && msg.text != "📷 Foto") {
+                                        Text(
+                                            text = msg.text,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = ToskaOnPrimaryContainer,
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier.align(Alignment.End),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Text(
+                                            text = formatRelativeTimestamp(msg.createdAt),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = ToskaPrimaryDeep,
+                                        )
+                                        MessageDeliveryStatusIcon(
+                                            status = msg.deliveryStatus,
+                                            modifier = Modifier.testTag("chat_msg_status_${msg.id}"),
+                                        )
+                                    }
                                 }
                             }
                         } else {
@@ -1771,23 +2004,126 @@ fun ChatConversationSheetContent(
                                 shape = bubbleShape,
                                 color = Color(0xFFF6FBF8),
                                 border = BorderStroke(1.dp, OutlineVariantLight),
+                                modifier = Modifier.widthIn(max = 280.dp),
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
-                                    Text(
-                                        text = msg.text,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
+                                    if (msg.photoUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(msg.photoUrl)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "Foto dari ${msg.senderName}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(max = 200.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .clickable { activeZoomPhotoUrl = msg.photoUrl }
+                                                .testTag("chat_msg_photo_${msg.id}"),
+                                        )
+                                    }
+                                    if (msg.text.isNotBlank() && msg.text != "📷 Foto") {
+                                        Text(
+                                            text = msg.text,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
                                     Text(
                                         text = formatRelativeTimestamp(msg.createdAt),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.align(Alignment.End),
                                     )
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        if (activeTypingPeerName != null) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFE8F5EE),
+                border = BorderStroke(0.5.dp, ToskaPrimaryLight),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("chat_typing_banner"),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    BouncingDotsIndicator(color = ToskaPrimaryDeep, dotSize = 5.dp)
+                    Text(
+                        text = if (room.roomType == "DIRECT") "Sedang mengetik…" else "$activeTypingPeerName sedang mengetik…",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ToskaPrimaryDeep,
+                        fontStyle = FontStyle.Italic,
+                    )
+                }
+            }
+        }
+
+        if (selectedPhotoUri != null) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFE8F5EE),
+                border = BorderStroke(1.dp, ToskaPrimaryLight),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("chat_selected_photo_preview"),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(selectedPhotoUri)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Pratinjau foto terpilih",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.chat_photo_preview_title),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = ToskaPrimaryDeep,
+                        )
+                        Text(
+                            text = stringResource(R.string.chat_photo_preview_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    IconButton(
+                        onClick = { selectedPhotoUri = null },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("chat_remove_selected_photo_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.chat_cancel_photo),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
                     }
                 }
             }
@@ -1798,12 +2134,32 @@ fun ChatConversationSheetContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            IconButton(
+                onClick = {
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    )
+                },
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFE8F5EE), CircleShape)
+                    .testTag("chat_attach_photo_button"),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AddPhotoAlternate,
+                    contentDescription = stringResource(R.string.chat_attach_photo_desc),
+                    tint = ToskaPrimaryDeep,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { inputText = it },
                 placeholder = {
                     Text(
-                        text = stringResource(R.string.chat_input_hint),
+                        text = if (selectedPhotoUri != null) stringResource(R.string.chat_photo_placeholder_hint) else stringResource(R.string.chat_input_hint),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 },
@@ -1815,22 +2171,39 @@ fun ChatConversationSheetContent(
             )
             IconButton(
                 onClick = {
-                    if (inputText.isNotBlank()) {
-                        onSendMessage(inputText)
+                    if (inputText.isNotBlank() || selectedPhotoUri != null) {
+                        onSendMessage(inputText, selectedPhotoUri)
                         inputText = ""
+                        selectedPhotoUri = null
                     }
                 },
+                enabled = !isSending && (inputText.isNotBlank() || selectedPhotoUri != null),
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(FreshGreenGradient, CircleShape)
+                    .background(
+                        if (!isSending && (inputText.isNotBlank() || selectedPhotoUri != null)) {
+                            FreshGreenGradient
+                        } else {
+                            Brush.linearGradient(listOf(Color(0xFFCCCCCC), Color(0xFFCCCCCC)))
+                        },
+                        CircleShape,
+                    )
                     .testTag("chat_message_send_button"),
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Kirim Pesan",
-                    tint = Color.White,
-                )
+                if (isSending) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Kirim Pesan",
+                        tint = Color.White,
+                    )
+                }
             }
         }
 
