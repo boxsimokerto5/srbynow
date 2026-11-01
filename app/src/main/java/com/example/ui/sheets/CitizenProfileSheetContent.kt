@@ -4,6 +4,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,64 +24,81 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Female
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Male
+import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.R
 import com.example.data.model.NearbyProfile
 import com.example.data.model.UserMoment
-import com.example.ui.components.EmptyFeedPlaceholder
+import com.example.data.util.formatEstimatedDistanceLabel
 import com.example.ui.components.GoogleMapsSheetHandleHeader
 import com.example.ui.components.InitialsAvatar
 import com.example.ui.components.SurabayaRemoteOrFallbackImage
 import com.example.ui.theme.AlertCrimson
-import com.example.ui.theme.MintSoftGradient
+import com.example.ui.theme.OpenGreenBg
+import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaPrimaryDeep
+import kotlin.math.roundToInt
 
 /**
  * Bottom Sheet ala profil Instagram untuk warga Surabaya.
@@ -90,6 +113,7 @@ fun CitizenProfileSheetContent(
     citizenMoments: List<UserMoment>,
     currentUserId: String,
     isAdmin: Boolean,
+    estimatedDistanceKm: Double? = null,
     onOpenMomentDetail: (String) -> Unit,
     onGreetCitizen: (NearbyProfile) -> Unit,
     onBlockCitizen: (uid: String, name: String) -> Unit,
@@ -107,11 +131,35 @@ fun CitizenProfileSheetContent(
         .split(",")
         .map { it.trim() }
         .filter { it.isNotBlank() }
+    val resolvedGenderLabel = citizenProfile?.genderLabel.orEmpty()
+    val resolvedAvatarUrl = citizenProfile?.avatarUrl.orEmpty()
+    val resolvedAvatarColorHex = citizenProfile?.avatarColorHex ?: "#006B5E"
+    val estimatedDistanceText = if (!isMyOwnProfile && estimatedDistanceKm != null) {
+        stringResource(R.string.nearby_estimated_distance_badge, formatEstimatedDistanceLabel(estimatedDistanceKm))
+    } else {
+        ""
+    }
 
     val totalMoments = citizenMoments.size
     val totalLikes = citizenMoments.sumOf { it.likesCount }
 
     var showBlockConfirmDialog by remember { mutableStateOf(false) }
+    var showAvatarZoomDialog by remember { mutableStateOf(false) }
+
+    if (showAvatarZoomDialog) {
+        val subtitleParts = buildList {
+            add("Kec. $resolvedDistrict")
+            if (resolvedGenderLabel.isNotBlank()) add(resolvedGenderLabel)
+            if (estimatedDistanceText.isNotBlank()) add(estimatedDistanceText)
+        }
+        CitizenAvatarZoomDialog(
+            name = resolvedName,
+            subtitle = subtitleParts.joinToString(" • "),
+            avatarUrl = resolvedAvatarUrl,
+            avatarColorHex = resolvedAvatarColorHex,
+            onDismiss = { showAvatarZoomDialog = false },
+        )
+    }
 
     if (showBlockConfirmDialog) {
         AlertDialog(
@@ -152,7 +200,12 @@ fun CitizenProfileSheetContent(
         item {
             GoogleMapsSheetHandleHeader(
                 title = if (isMyOwnProfile) "Profil Saya" else "Profil Warga",
-                subtitle = "Komunitas Arek Suroboyo • @$resolvedDistrict",
+                subtitle = buildString {
+                    append("Komunitas Arek Suroboyo • @$resolvedDistrict")
+                    if (estimatedDistanceText.isNotBlank()) {
+                        append(" • $estimatedDistanceText")
+                    }
+                },
             )
         }
 
@@ -163,11 +216,14 @@ fun CitizenProfileSheetContent(
                 district = resolvedDistrict,
                 bio = resolvedBio,
                 interests = resolvedInterests,
-                avatarUrl = citizenProfile?.avatarUrl.orEmpty(),
-                avatarColorHex = citizenProfile?.avatarColorHex ?: "#006B5E",
+                avatarUrl = resolvedAvatarUrl,
+                avatarColorHex = resolvedAvatarColorHex,
                 totalMoments = totalMoments,
                 totalLikes = totalLikes,
                 isMyOwnProfile = isMyOwnProfile,
+                genderLabel = resolvedGenderLabel,
+                estimatedDistanceText = estimatedDistanceText,
+                onAvatarClick = { showAvatarZoomDialog = true },
                 onGreet = {
                     val p = citizenProfile ?: NearbyProfile(
                         userId = citizenUserId,
@@ -328,6 +384,9 @@ fun InstagramProfileHeaderCard(
     onBlock: () -> Unit,
     onEditProfile: () -> Unit,
     modifier: Modifier = Modifier,
+    genderLabel: String = "",
+    estimatedDistanceText: String = "",
+    onAvatarClick: (() -> Unit)? = null,
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
@@ -348,39 +407,74 @@ fun InstagramProfileHeaderCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // Avatar with modern Toska-Green Instagram-like ring
+                // Avatar with modern Toska-Green Instagram-like ring (tap to open 2-finger zoom viewer)
                 Box(
                     modifier = Modifier
-                        .size(76.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.sweepGradient(
-                                listOf(
-                                    Color(0xFF006B5E),
-                                    Color(0xFF26A69A),
-                                    Color(0xFF80CBC4),
-                                    Color(0xFF006B5E),
-                                )
-                            ),
-                            CircleShape
-                        )
-                        .padding(3.dp),
+                        .size(78.dp)
+                        .then(
+                            if (onAvatarClick != null) {
+                                Modifier
+                                    .clip(CircleShape)
+                                    .clickable(onClick = onAvatarClick)
+                                    .testTag("citizen_profile_avatar_btn")
+                            } else {
+                                Modifier
+                            },
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .size(76.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
-                            .padding(2.dp),
+                            .background(
+                                Brush.sweepGradient(
+                                    listOf(
+                                        Color(0xFF006B5E),
+                                        Color(0xFF26A69A),
+                                        Color(0xFF80CBC4),
+                                        Color(0xFF006B5E),
+                                    )
+                                ),
+                                CircleShape
+                            )
+                            .padding(3.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        InitialsAvatar(
-                            name = name,
-                            colorHex = avatarColorHex,
-                            sizeDp = 66,
-                            avatarUrl = avatarUrl,
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .padding(2.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            InitialsAvatar(
+                                name = name,
+                                colorHex = avatarColorHex,
+                                sizeDp = 66,
+                                avatarUrl = avatarUrl,
+                            )
+                        }
+                    }
+
+                    if (onAvatarClick != null) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(ToskaPrimaryDeep)
+                                .border(2.dp, Color.White, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.ZoomIn,
+                                contentDescription = stringResource(R.string.profile_tap_photo_to_zoom),
+                                tint = Color.White,
+                                modifier = Modifier.size(13.dp),
+                            )
+                        }
                     }
                 }
 
@@ -408,8 +502,8 @@ fun InstagramProfileHeaderCard(
                 }
             }
 
-            // Row 2: Name & District Badge
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Row 2: Name, District, Estimated Distance & Gender Badges
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -426,24 +520,97 @@ fun InstagramProfileHeaderCard(
                         tint = ToskaPrimaryDeep,
                         modifier = Modifier.size(16.dp),
                     )
+                    if (onAvatarClick != null) {
+                        Text(
+                            text = "• ${stringResource(R.string.profile_tap_photo_to_zoom)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
 
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.LocationOn,
-                        contentDescription = null,
-                        tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Text(
-                        text = "Kec. $district, Surabaya",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = ToskaPrimaryDeep,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.LocationOn,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = "Kec. $district, Surabaya",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = ToskaPrimaryDeep,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+
+                    if (estimatedDistanceText.isNotBlank()) {
+                        Surface(
+                            shape = CircleShape,
+                            color = OpenGreenBg,
+                            border = BorderStroke(1.dp, OpenGreenText.copy(alpha = 0.35f)),
+                            modifier = Modifier.testTag("citizen_profile_distance_badge"),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.NearMe,
+                                    contentDescription = null,
+                                    tint = OpenGreenText,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                                Text(
+                                    text = estimatedDistanceText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OpenGreenText,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                    }
+
+                    if (genderLabel.isNotBlank()) {
+                        val isFemale = genderLabel.equals("Perempuan", ignoreCase = true)
+                        val badgeBg = if (isFemale) Color(0xFFFCE4EC) else Color(0xFFE3F2FD)
+                        val badgeFg = if (isFemale) Color(0xFFAD1457) else Color(0xFF1565C0)
+                        Surface(
+                            shape = CircleShape,
+                            color = badgeBg,
+                            modifier = Modifier.testTag("citizen_profile_gender_badge"),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            ) {
+                                Icon(
+                                    imageVector = if (isFemale) Icons.Filled.Female else Icons.Filled.Male,
+                                    contentDescription = null,
+                                    tint = badgeFg,
+                                    modifier = Modifier.size(13.dp),
+                                )
+                                Text(
+                                    text = genderLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = badgeFg,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -650,3 +817,278 @@ fun InstagramGridThumbnail(
         }
     }
 }
+
+/**
+ * Dialog layar penuh untuk melihat foto profil warga dengan dukungan
+ * cubit 2 jari (pinch-to-zoom 1x–5x), geser (pan), dan ketuk 2x (double-tap zoom).
+ */
+@Composable
+fun CitizenAvatarZoomDialog(
+    name: String,
+    subtitle: String = "",
+    avatarUrl: String,
+    avatarColorHex: String = "#006B5E",
+    onDismiss: () -> Unit,
+) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    var imageLoadError by remember(avatarUrl) { mutableStateOf(false) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xF5070B0E))
+                .testTag("citizen_photo_zoom_dialog"),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { containerSize = it }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                if (scale > 1.05f) {
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    scale = 2.5f
+                                    offset = Offset.Zero
+                                }
+                            },
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            do {
+                                val event = awaitPointerEvent()
+                                val pressedCount = event.changes.count { it.pressed }
+                                if (pressedCount >= 2) {
+                                    val zoomChange = event.calculateZoom()
+                                    val panChange = event.calculatePan()
+                                    val newScale = (scale * zoomChange).coerceIn(1f, 5f)
+                                    val maxX = ((containerSize.width * (newScale - 1f)) / 2f).coerceAtLeast(0f)
+                                    val maxY = ((containerSize.height * (newScale - 1f)) / 2f).coerceAtLeast(0f)
+                                    scale = newScale
+                                    offset = if (newScale <= 1.01f) {
+                                        Offset.Zero
+                                    } else {
+                                        Offset(
+                                            x = (offset.x + panChange.x).coerceIn(-maxX, maxX),
+                                            y = (offset.y + panChange.y).coerceIn(-maxY, maxY),
+                                        )
+                                    }
+                                    event.changes.forEach { change ->
+                                        if (change.positionChanged()) {
+                                            change.consume()
+                                        }
+                                    }
+                                } else if (pressedCount == 1 && scale > 1.02f) {
+                                    val panChange = event.calculatePan()
+                                    val maxX = ((containerSize.width * (scale - 1f)) / 2f).coerceAtLeast(0f)
+                                    val maxY = ((containerSize.height * (scale - 1f)) / 2f).coerceAtLeast(0f)
+                                    offset = Offset(
+                                        x = (offset.x + panChange.x).coerceIn(-maxX, maxX),
+                                        y = (offset.y + panChange.y).coerceIn(-maxY, maxY),
+                                    )
+                                    event.changes.forEach { change ->
+                                        if (change.positionChanged()) {
+                                            change.consume()
+                                        }
+                                    }
+                                }
+                            } while (event.changes.any { it.pressed })
+
+                            if (scale < 1.02f) {
+                                scale = 1f
+                                offset = Offset.Zero
+                            }
+                        }
+                    }
+                    .testTag("citizen_photo_zoom_canvas"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = offset.x
+                            translationY = offset.y
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (avatarUrl.isNotBlank() && !imageLoadError) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(avatarUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Foto Profil $name",
+                            contentScale = ContentScale.Fit,
+                            onError = { imageLoadError = true },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(20.dp)),
+                        )
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(236.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.sweepGradient(
+                                            listOf(
+                                                Color(0xFF006B5E),
+                                                Color(0xFF26A69A),
+                                                Color(0xFF80CBC4),
+                                                Color(0xFF006B5E),
+                                            ),
+                                        ),
+                                        CircleShape,
+                                    )
+                                    .padding(6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                InitialsAvatar(
+                                    name = name,
+                                    colorHex = avatarColorHex,
+                                    sizeDp = 224,
+                                    avatarUrl = "",
+                                )
+                            }
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Top Bar: Citizen Name + Zoom Level + Close Button
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .background(Color.Black.copy(alpha = 0.50f))
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (subtitle.isNotBlank()) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.82f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.16f),
+                        modifier = Modifier
+                            .then(
+                                if (scale > 1.05f) {
+                                    Modifier
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            scale = 1f
+                                            offset = Offset.Zero
+                                        }
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .testTag("citizen_photo_zoom_level_badge"),
+                    ) {
+                        Text(
+                            text = "${(scale * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.16f))
+                            .testTag("citizen_photo_zoom_close_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.photo_viewer_close_cd),
+                            tint = Color.White,
+                        )
+                    }
+                }
+            }
+
+            // Bottom Hint Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(Color.Black.copy(alpha = 0.50f))
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ZoomIn,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.profile_photo_zoom_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.85f),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+

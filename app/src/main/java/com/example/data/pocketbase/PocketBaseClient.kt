@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.example.R
 import com.example.data.model.PbOAuth2Provider
 import com.example.data.model.PbUserSession
+import com.example.data.model.normalizeCitizenGender
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -132,6 +133,7 @@ class PocketBaseClient(
                 email = prefs[KEY_EMAIL].orEmpty(),
                 displayName = prefs[KEY_DISPLAY_NAME].orEmpty().ifBlank { "Warga Surabaya" },
                 district = prefs[KEY_DISTRICT].orEmpty().ifBlank { "Genteng" },
+                gender = normalizeCitizenGender(prefs[KEY_GENDER].orEmpty()),
                 isAdmin = prefs[KEY_IS_ADMIN] ?: false,
             )
             _sessionFlow.value = restored
@@ -197,9 +199,11 @@ class PocketBaseClient(
         email: String,
         password: String,
         district: String = "Genteng",
+        gender: String = "",
     ): PbUserSession = withContext(Dispatchers.IO) {
         val cleanEmail = email.trim().lowercase()
         val cleanName = name.trim().ifBlank { cleanEmail.substringBefore("@") }.take(80)
+        val cleanGender = normalizeCitizenGender(gender)
         val isBootstrappedAdmin = cleanEmail.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true)
 
         val registerBody = JSONObject().apply {
@@ -209,13 +213,21 @@ class PocketBaseClient(
             put("passwordConfirm", password)
             put("name", cleanName)
             put("district", district)
+            if (cleanGender.isNotBlank()) put("gender", cleanGender)
             put("bio", "Warga aktif Arek Surabaya")
             put("search_radius_km", 10.0)
             put("is_discoverable", true)
             put("is_admin", isBootstrappedAdmin)
         }
         executeJson("POST", "/api/collections/users/records", registerBody, includeAuth = false)
-        signInWithPassword(cleanEmail, password)
+        val signedIn = signInWithPassword(cleanEmail, password)
+        if (cleanGender.isNotBlank() && signedIn.gender.isBlank()) {
+            val enriched = signedIn.copy(gender = cleanGender)
+            saveSession(enriched)
+            enriched
+        } else {
+            signedIn
+        }
     }
 
     suspend fun signInWithPassword(
@@ -334,6 +346,7 @@ class PocketBaseClient(
             prefs.remove(KEY_EMAIL)
             prefs.remove(KEY_DISPLAY_NAME)
             prefs.remove(KEY_DISTRICT)
+            prefs.remove(KEY_GENDER)
             prefs.remove(KEY_IS_ADMIN)
         }
     }
@@ -347,6 +360,7 @@ class PocketBaseClient(
             prefs[KEY_EMAIL] = session.email
             prefs[KEY_DISPLAY_NAME] = session.displayName
             prefs[KEY_DISTRICT] = session.district
+            prefs[KEY_GENDER] = session.gender
             prefs[KEY_IS_ADMIN] = session.isAdmin
         }
     }
@@ -359,6 +373,7 @@ class PocketBaseClient(
             record.optString("username").ifBlank { email.substringBefore("@").ifBlank { "Warga Surabaya" } }
         }
         val district = record.optString("district").ifBlank { "Genteng" }
+        val gender = normalizeCitizenGender(record.optString("gender"))
         val isAdminFlag = record.optBoolean("is_admin", false) ||
             email.equals(BOOTSTRAPPED_ADMIN_EMAIL, ignoreCase = true)
         return PbUserSession(
@@ -367,6 +382,7 @@ class PocketBaseClient(
             email = email,
             displayName = rawName,
             district = district,
+            gender = gender,
             isAdmin = isAdminFlag,
         )
     }
@@ -770,6 +786,7 @@ class PocketBaseClient(
         private val KEY_EMAIL = stringPreferencesKey("pb_user_email")
         private val KEY_DISPLAY_NAME = stringPreferencesKey("pb_display_name")
         private val KEY_DISTRICT = stringPreferencesKey("pb_district")
+        private val KEY_GENDER = stringPreferencesKey("pb_gender")
         private val KEY_IS_ADMIN = booleanPreferencesKey("pb_is_admin")
         private val KEY_OAUTH_PROVIDER = stringPreferencesKey("pb_oauth_provider")
         private val KEY_OAUTH_VERIFIER = stringPreferencesKey("pb_oauth_verifier")

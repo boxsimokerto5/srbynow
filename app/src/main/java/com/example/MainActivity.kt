@@ -93,6 +93,7 @@ import com.example.data.model.UiState
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.repository.SurabayaRepository
 import com.example.data.util.GeminiExplicitImageScanner
+import com.example.data.util.calculateDistanceKm
 import com.example.data.util.configureAppCheck
 import com.example.ui.auth.AuthScreen
 import com.example.ui.auth.OAuthRedirectBus
@@ -893,6 +894,9 @@ fun SurabayaMainHub(
                         onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
                             viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context)
                         },
+                        onSaveProfileWithGender = { name, gender, dist, bio, ints, rad, disc, avatarUri ->
+                            viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context, gender)
+                        },
                         onSignOut = {},
                     )
                 }
@@ -914,6 +918,9 @@ fun SurabayaMainHub(
                         onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
                             viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context)
                         },
+                        onSaveProfileWithGender = { name, gender, dist, bio, ints, rad, disc, avatarUri ->
+                            viewModel.saveProfileAndPrivacy(name, dist, bio, ints, rad, disc, avatarUri, context, gender)
+                        },
                         onSignOut = {
                             viewModel.dismissSheet()
                             performSignOut(
@@ -926,7 +933,18 @@ fun SurabayaMainHub(
                 }
                 is ActiveBottomSheet.CitizenProfile -> {
                     val targetUid = sheetTarget.userId
-                    val foundProfile = allDiscoverableCitizens.firstOrNull { it.userId == targetUid || it.id == targetUid }
+                    val peerItems = (nearbyPeersState as? UiState.Success)?.data.orEmpty()
+                    val matchedPeerItem = peerItems.firstOrNull {
+                        it.profile.userId == targetUid || it.profile.id == targetUid
+                    }
+                    val foundProfile = matchedPeerItem?.profile
+                        ?: allDiscoverableCitizens.firstOrNull { it.userId == targetUid || it.id == targetUid }
+                    val estimatedDistKm = when {
+                        targetUid == currentUserId -> null
+                        matchedPeerItem != null -> matchedPeerItem.distanceKm
+                        foundProfile != null -> calculateDistanceKm(userLat, userLng, foundProfile.lat, foundProfile.lng)
+                        else -> null
+                    }
                     val citizenMoments = (momentsState as? UiState.Success)?.data?.filter { it.authorId == targetUid }.orEmpty()
                     CitizenProfileSheetContent(
                         citizenUserId = targetUid,
@@ -935,6 +953,7 @@ fun SurabayaMainHub(
                         citizenMoments = citizenMoments,
                         currentUserId = currentUserId,
                         isAdmin = isAdmin,
+                        estimatedDistanceKm = estimatedDistKm,
                         onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
                         onGreetCitizen = { profile -> viewModel.greetNearbyPeer(profile) },
                         onBlockCitizen = { uid, name -> viewModel.blockCitizen(uid, name) },

@@ -24,16 +24,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Female
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Male
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,11 +70,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import com.example.data.util.formatDistanceLabel
+import com.example.data.util.formatEstimatedDistanceLabel
 import com.example.ui.components.EmptyFeedPlaceholder
 import com.example.ui.components.InitialsAvatar
+import com.example.ui.sheets.CitizenAvatarZoomDialog
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.MintSoftGradient
+import com.example.ui.theme.OpenGreenBg
+import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimaryDeep
@@ -96,6 +107,38 @@ fun TemanSekitarScreen(
     val radiusKm = (userAccount?.searchRadiusKm ?: 10.0).toInt()
     val district = userAccount?.district ?: "Genteng"
     val discoverable = userAccount?.isDiscoverable ?: true
+
+    var selectedGenderFilter by rememberSaveable { mutableStateOf("ALL") }
+    var zoomPhotoPeerItem by remember { mutableStateOf<NearbyPeerItem?>(null) }
+
+    val activeZoomItem = zoomPhotoPeerItem
+    if (activeZoomItem != null) {
+        val zp = activeZoomItem.profile
+        val estText = stringResource(
+            R.string.nearby_estimated_distance_badge,
+            formatEstimatedDistanceLabel(activeZoomItem.distanceKm),
+        )
+        val subtitleParts = buildList {
+            add("Kec. ${zp.district}")
+            if (zp.genderLabel.isNotBlank()) add(zp.genderLabel)
+            add(estText)
+        }
+        CitizenAvatarZoomDialog(
+            name = zp.displayName.ifBlank { "Warga Surabaya" },
+            subtitle = subtitleParts.joinToString(" • "),
+            avatarUrl = zp.avatarUrl,
+            avatarColorHex = zp.avatarColorHex,
+            onDismiss = { zoomPhotoPeerItem = null },
+        )
+    }
+
+    val allSuccessPeers = (nearbyPeersState as? UiState.Success)?.data.orEmpty()
+    val femaleCount = remember(allSuccessPeers) {
+        allSuccessPeers.count { it.profile.normalizedGender == "PEREMPUAN" }
+    }
+    val maleCount = remember(allSuccessPeers) {
+        allSuccessPeers.count { it.profile.normalizedGender == "LAKI_LAKI" }
+    }
 
     LazyColumn(
         contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp),
@@ -223,6 +266,101 @@ fun TemanSekitarScreen(
             }
         }
 
+        // Gender Filter Chips Row (Semua, Perempuan saja, Laki-laki saja)
+        item(key = "gender_filter_bar") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp)
+                    .horizontalScroll(rememberScrollState())
+                    .testTag("teman_sekitar_gender_filter_row"),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val allLabel = if (nearbyPeersState is UiState.Success) {
+                    "${stringResource(R.string.nearby_filter_gender_all)} (${allSuccessPeers.size})"
+                } else {
+                    stringResource(R.string.nearby_filter_gender_all)
+                }
+                val femaleLabel = if (nearbyPeersState is UiState.Success) {
+                    "${stringResource(R.string.nearby_filter_gender_female)} ($femaleCount)"
+                } else {
+                    stringResource(R.string.nearby_filter_gender_female)
+                }
+                val maleLabel = if (nearbyPeersState is UiState.Success) {
+                    "${stringResource(R.string.nearby_filter_gender_male)} ($maleCount)"
+                } else {
+                    stringResource(R.string.nearby_filter_gender_male)
+                }
+
+                FilterChip(
+                    selected = selectedGenderFilter == "ALL",
+                    onClick = { selectedGenderFilter = "ALL" },
+                    label = { Text(allLabel, fontWeight = FontWeight.SemiBold) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Groups,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                        selectedLeadingIconColor = Color.White,
+                    ),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("filter_gender_all"),
+                )
+
+                FilterChip(
+                    selected = selectedGenderFilter == "PEREMPUAN",
+                    onClick = { selectedGenderFilter = "PEREMPUAN" },
+                    label = { Text(femaleLabel, fontWeight = FontWeight.SemiBold) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Female,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFAD1457),
+                        selectedLabelColor = Color.White,
+                        selectedLeadingIconColor = Color.White,
+                    ),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("filter_gender_female"),
+                )
+
+                FilterChip(
+                    selected = selectedGenderFilter == "LAKI_LAKI",
+                    onClick = { selectedGenderFilter = "LAKI_LAKI" },
+                    label = { Text(maleLabel, fontWeight = FontWeight.SemiBold) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Male,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF1565C0),
+                        selectedLabelColor = Color.White,
+                        selectedLeadingIconColor = Color.White,
+                    ),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("filter_gender_male"),
+                )
+            }
+        }
+
         when (nearbyPeersState) {
             is UiState.Loading -> {
                 item {
@@ -247,6 +385,11 @@ fun TemanSekitarScreen(
             }
             is UiState.Success -> {
                 val peers = nearbyPeersState.data
+                val filteredPeers = when (selectedGenderFilter) {
+                    "PEREMPUAN" -> peers.filter { it.profile.normalizedGender == "PEREMPUAN" }
+                    "LAKI_LAKI" -> peers.filter { it.profile.normalizedGender == "LAKI_LAKI" }
+                    else -> peers
+                }
                 if (peers.isEmpty()) {
                     item {
                         EmptyFeedPlaceholder(
@@ -255,13 +398,27 @@ fun TemanSekitarScreen(
                             subtitle = "Perbesar jangkauan kilometer di menu Radius & Privasi untuk menemukan lebih banyak teman Surabaya.",
                         )
                     }
+                } else if (filteredPeers.isEmpty()) {
+                    item {
+                        val emptyTitle = if (selectedGenderFilter == "PEREMPUAN") {
+                            stringResource(R.string.nearby_empty_female_title, radiusKm)
+                        } else {
+                            stringResource(R.string.nearby_empty_male_title, radiusKm)
+                        }
+                        EmptyFeedPlaceholder(
+                            icon = Icons.Outlined.Group,
+                            title = emptyTitle,
+                            subtitle = stringResource(R.string.nearby_empty_gender_subtitle),
+                        )
+                    }
                 } else {
-                    items(peers, key = { it.profile.id }) { item ->
+                    items(filteredPeers, key = { it.profile.id }) { item ->
                         NearbyPeerCard(
                             peerItem = item,
                             onGreet = { onGreetPeer(item.profile) },
                             onBlock = { onBlockPeer(item.profile) },
                             onOpenProfile = { onOpenCitizenProfile(item.profile) },
+                            onOpenPhotoZoom = { zoomPhotoPeerItem = item },
                         )
                     }
                 }
@@ -276,9 +433,15 @@ private fun NearbyPeerCard(
     onGreet: () -> Unit,
     onBlock: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    onOpenPhotoZoom: () -> Unit = {},
 ) {
     val peer = peerItem.profile
     val tags = peer.interests.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(3)
+    val estimatedDistanceBadge = stringResource(
+        R.string.nearby_estimated_distance_badge,
+        formatEstimatedDistanceLabel(peerItem.distanceKm),
+    )
+    val genderLabel = peer.genderLabel
     var showBlockDialog by remember(peer.id) { mutableStateOf(false) }
 
     if (showBlockDialog) {
@@ -307,6 +470,7 @@ private fun NearbyPeerCard(
     }
 
     Surface(
+        onClick = onOpenProfile,
         shape = RoundedCornerShape(20.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
@@ -330,41 +494,138 @@ private fun NearbyPeerCard(
                     horizontalArrangement = Arrangement.spacedBy(11.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onOpenProfile)
                         .padding(vertical = 2.dp)
                         .testTag("peer_profile_click_${peer.id}"),
                 ) {
-                    InitialsAvatar(
-                        name = peer.displayName,
-                        colorHex = peer.avatarColorHex,
-                        sizeDp = 46,
-                        avatarUrl = peer.avatarUrl,
-                    )
-                    Column {
-                        Text(
-                            text = peer.displayName,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    // Tapping the photo opens the 2-finger pinch-to-zoom dialog directly
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onOpenPhotoZoom)
+                            .testTag("peer_avatar_photo_${peer.id}"),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        InitialsAvatar(
+                            name = peer.displayName,
+                            colorHex = peer.avatarColorHex,
+                            sizeDp = 48,
+                            avatarUrl = peer.avatarUrl,
                         )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(ToskaPrimaryDeep)
+                                .border(1.5.dp, Color.White, CircleShape),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.LocationOn,
-                                contentDescription = null,
-                                tint = ToskaPrimaryDeep,
-                                modifier = Modifier.size(13.dp),
+                                imageVector = Icons.Filled.ZoomIn,
+                                contentDescription = stringResource(R.string.profile_tap_photo_to_zoom),
+                                tint = Color.White,
+                                modifier = Modifier.size(10.dp),
                             )
+                        }
+                    }
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
                             Text(
-                                text = "${peer.district} • ${formatDistanceLabel(peerItem.distanceKm)}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = ToskaPrimaryDeep,
-                                fontWeight = FontWeight.SemiBold,
+                                text = peer.displayName,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
                             )
+                            if (genderLabel.isNotBlank()) {
+                                val isFemale = peer.normalizedGender == "PEREMPUAN"
+                                val badgeBg = if (isFemale) Color(0xFFFCE4EC) else Color(0xFFE3F2FD)
+                                val badgeFg = if (isFemale) Color(0xFFAD1457) else Color(0xFF1565C0)
+                                Surface(
+                                    shape = CircleShape,
+                                    color = badgeBg,
+                                    modifier = Modifier.testTag("peer_gender_badge_${peer.id}"),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isFemale) Icons.Filled.Female else Icons.Filled.Male,
+                                            contentDescription = null,
+                                            tint = badgeFg,
+                                            modifier = Modifier.size(11.dp),
+                                        )
+                                        Text(
+                                            text = genderLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = badgeFg,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = OpenGreenBg,
+                                border = BorderStroke(1.dp, OpenGreenText.copy(alpha = 0.30f)),
+                                modifier = Modifier.testTag("peer_distance_badge_${peer.id}"),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.NearMe,
+                                        contentDescription = null,
+                                        tint = OpenGreenText,
+                                        modifier = Modifier.size(11.dp),
+                                    )
+                                    Text(
+                                        text = estimatedDistanceBadge,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = OpenGreenText,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.LocationOn,
+                                    contentDescription = null,
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                                Text(
+                                    text = peer.district,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ToskaPrimaryDeep,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }
@@ -445,3 +706,4 @@ private fun NearbyPeerCard(
         }
     }
 }
+

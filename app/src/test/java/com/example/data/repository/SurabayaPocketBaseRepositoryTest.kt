@@ -638,6 +638,174 @@ class SurabayaPocketBaseRepositoryTest {
         shadowOf(Looper.getMainLooper()).idle()
     }
 
+    @Test
+    fun `citizen gender persists across registration profile updates and nearby profiles`() = runBlocking {
+        val clientSari = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val clientBudi = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+
+        val repoSari = SurabayaRepository(clientSari)
+        val repoBudi = SurabayaRepository(clientBudi)
+
+        val sSari = clientSari.registerAndSignIn(
+            name = "Sari Ayu",
+            email = "sari.ayu@surabaya.id",
+            password = "password123",
+            district = "Genteng",
+            gender = "PEREMPUAN",
+        )
+        assertEquals("PEREMPUAN", sSari.gender)
+
+        repoSari.bootstrapCurrentUserAndSeedIfEmpty(
+            displayNameFallback = sSari.displayName,
+            district = "Genteng",
+        )
+
+        val sBudi = clientBudi.registerAndSignIn(
+            name = "Budi Santoso",
+            email = "budi.santoso@surabaya.id",
+            password = "password123",
+            district = "Gubeng",
+        )
+        repoBudi.bootstrapCurrentUserAndSeedIfEmpty(
+            displayNameFallback = sBudi.displayName,
+            district = "Gubeng",
+        )
+
+        // Update Budi's gender via updateProfileAndPrivacy -> LAKI_LAKI
+        repoBudi.updateProfileAndPrivacy(
+            displayName = "Budi Santoso",
+            district = "Gubeng",
+            bio = "Suka kuliner rawon & gowes pagi",
+            interests = "Kuliner, Gowes",
+            searchRadiusKm = 15.0,
+            isDiscoverable = true,
+            lat = -7.2738,
+            lng = 112.7563,
+            gender = "LAKI_LAKI",
+        )
+
+        val budiAccount = repoBudi.observeUserAccount(sBudi.userId).first()
+        assertEquals("LAKI_LAKI", budiAccount?.normalizedGender)
+        assertEquals("Laki-laki", budiAccount?.genderLabel)
+
+        val discoverablePeers = repoBudi.observeDiscoverableProfiles().first()
+        val sariPeer = discoverablePeers.firstOrNull { it.userId == sSari.userId }
+        val budiPeer = discoverablePeers.firstOrNull { it.userId == sBudi.userId }
+        assertEquals("PEREMPUAN", sariPeer?.normalizedGender)
+        assertEquals("Perempuan", sariPeer?.genderLabel)
+        assertEquals("LAKI_LAKI", budiPeer?.normalizedGender)
+        assertEquals("Laki-laki", budiPeer?.genderLabel)
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    @Test
+    fun `pocketbase collections json contains all 20 valid collections synced with assets and repository`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val assetJsonText = context.assets.open("pocketbase_collections.json").bufferedReader().use { it.readText() }
+        val rootSchemaFile = File("pocketbase_collections.json").let {
+            if (it.exists()) it else File("../pocketbase_collections.json")
+        }
+        assertTrue("Root pocketbase_collections.json must exist", rootSchemaFile.exists())
+        assertEquals(
+            "Root pocketbase_collections.json and assets/pocketbase_collections.json must match identically",
+            rootSchemaFile.readText().trim(),
+            assetJsonText.trim(),
+        )
+
+        val arr = JSONArray(assetJsonText)
+        assertEquals("Expected exactly 20 collections in PocketBase schema", 20, arr.length())
+
+        val expectedCollections = listOf(
+            "users", "bookmarks", "nearby_profiles", "incidents", "incident_comments",
+            "events", "culinary", "culinary_reviews", "chat_rooms", "chat_messages",
+            "destinations", "destination_reviews", "moments", "moment_comments",
+            "services", "tambal_ban", "tambal_ban_comments", "polls", "poll_comments", "notifications",
+        )
+        val seenColIds = mutableSetOf<String>()
+        val seenColNames = mutableListOf<String>()
+        val seenFieldIds = mutableSetOf<String>()
+
+        for (i in 0 until arr.length()) {
+            val col = arr.getJSONObject(i)
+            val colId = col.getString("id")
+            val colName = col.getString("name")
+            assertEquals("Collection id '$colId' for '$colName' must be 15 chars", 15, colId.length)
+            assertTrue("Collection id '$colId' must be lowercase alphanumeric/underscore", colId.matches(Regex("^[a-z0-9_]{15}$")))
+            assertTrue("Duplicate collection id '$colId'", seenColIds.add(colId))
+            seenColNames.add(colName)
+
+            for (ruleKey in listOf("listRule", "viewRule", "createRule", "updateRule", "deleteRule")) {
+                if (!col.isNull(ruleKey)) {
+                    val rule = col.getString(ruleKey)
+                    val quoteCount = rule.count { it == '\'' }
+                    assertEquals("Unbalanced single quotes in $colName.$ruleKey: $rule", 0, quoteCount % 2)
+                    assertFalse("Broken unquoted email in $colName.$ruleKey", rule.contains("= nabilalailatus12@gmail.com"))
+                }
+            }
+
+            val schema = col.getJSONArray("schema")
+            val seenFieldNamesInCol = mutableSetOf<String>()
+            for (j in 0 until schema.length()) {
+                val field = schema.getJSONObject(j)
+                val fid = field.getString("id")
+                val fname = field.getString("name")
+                assertTrue("Invalid field id '$fid' in $colName.$fname", fid == "users_name" || fid.matches(Regex("^[a-z0-9]{8}$")))
+                assertTrue("Duplicate field id '$fid'", seenFieldIds.add(fid))
+                assertTrue("Duplicate field name '$fname' in $colName", seenFieldNamesInCol.add(fname))
+            }
+        }
+        assertEquals(expectedCollections, seenColNames)
+
+        // Verify PocketBase repository round-trip for polls, poll_comments, tambal_ban, services, and notifications
+        val clientCitizen = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val clientAdmin = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val repoCitizen = SurabayaRepository(clientCitizen)
+        val repoAdmin = SurabayaRepository(clientAdmin)
+
+        val sCitizen = clientCitizen.registerAndSignIn("Dimas", "dimas.pb20@sby.id", "secret123", "Gubeng")
+        clientAdmin.registerAndSignIn("Admin SBY", "nabilalailatus12@gmail.com", "secret123", "Genteng")
+
+        val pollId = repoCitizen.proposePoll(
+            title = "Perluasan Koridor Suroboyo Bus Malam",
+            description = "Usulan operasional sampai pukul 23.00 WIB",
+            category = "TRANSPORTASI",
+            district = "Gubeng",
+            optionTexts = listOf("Setuju", "Cukup sampai 21.00"),
+        )
+        assertEquals(15, pollId.length)
+        assertEquals(1, repoAdmin.observePendingPolls().first().size)
+
+        repoAdmin.moderatePoll(pollId, approve = true, adminNote = "Disetujui untuk voting warga")
+        val approvedPolls = repoCitizen.observeApprovedPolls().first()
+        assertTrue(approvedPolls.any { it.id == pollId && it.status == "APPROVED" })
+
+        val opt0 = approvedPolls.first { it.id == pollId }.options.first().id
+        repoCitizen.votePoll(pollId, opt0)
+        assertEquals(1, repoAdmin.observeApprovedPolls().first().first { it.id == pollId }.totalVotes)
+
+        repoCitizen.addPollComment(pollId, "Setuju banget rek!")
+        assertEquals(1, repoAdmin.observePollComments(pollId).first().size)
+
+        val tbId = repoCitizen.addTambalBanSpot(
+            name = "Tambal Ban Cak To Gubeng",
+            description = "Buka malam tubeless motor & mobil",
+            district = "Gubeng",
+            address = "Jl. Gubeng Kertajaya",
+            is24Hours = true,
+            isTubeless = true,
+            forMotor = true,
+            forMobil = true,
+            canCallOut = true,
+            mapsUrl = "",
+            phoneNumber = "08123456789",
+            whatsappNumber = "628123456789",
+        )
+        assertTrue(repoAdmin.observeTambalBanSpots().first().any { it.id == tbId && it.is24Hours })
+        repoCitizen.addTambalBanComment(tbId, "Pelayanan cepat!")
+        assertEquals(1, repoAdmin.observeTambalBanComments(tbId).first().size)
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
     // --- Minimal In-Memory PocketBase 0.22 HTTP Server Mock (JSON + multipart/form-data) ---
 
     private fun handleCollectionsEndpoint(ex: HttpExchange) {

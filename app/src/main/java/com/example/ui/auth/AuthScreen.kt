@@ -31,7 +31,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Female
 import androidx.compose.material.icons.filled.LocationCity
+import androidx.compose.material.icons.filled.Male
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SettingsEthernet
 import androidx.compose.material.icons.filled.Visibility
@@ -41,6 +43,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +52,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -117,6 +121,7 @@ fun AuthScreen(
     var authTab by rememberSaveable { mutableIntStateOf(0) } // 0 = Masuk, 1 = Daftar Akun Baru
     var fullName by rememberSaveable { mutableStateOf("") }
     var selectedDistrict by rememberSaveable { mutableStateOf("Genteng") }
+    var selectedGender by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
@@ -420,6 +425,72 @@ fun AuthScreen(
                             label = "Kecamatan Domisili Surabaya (31 Kecamatan)",
                             testTag = "auth_district_dropdown",
                         )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = stringResource(R.string.profile_gender_label),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                FilterChip(
+                                    selected = selectedGender == "LAKI_LAKI",
+                                    onClick = {
+                                        if (!isLoading) {
+                                            selectedGender = if (selectedGender == "LAKI_LAKI") "" else "LAKI_LAKI"
+                                        }
+                                    },
+                                    label = { Text(stringResource(R.string.gender_option_male)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.Male,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF1565C0),
+                                        selectedLabelColor = Color.White,
+                                        selectedLeadingIconColor = Color.White,
+                                    ),
+                                    shape = CircleShape,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("auth_gender_male_chip"),
+                                )
+                                FilterChip(
+                                    selected = selectedGender == "PEREMPUAN",
+                                    onClick = {
+                                        if (!isLoading) {
+                                            selectedGender = if (selectedGender == "PEREMPUAN") "" else "PEREMPUAN"
+                                        }
+                                    },
+                                    label = { Text(stringResource(R.string.gender_option_female)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.Female,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFFAD1457),
+                                        selectedLabelColor = Color.White,
+                                        selectedLeadingIconColor = Color.White,
+                                    ),
+                                    shape = CircleShape,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("auth_gender_female_chip"),
+                                )
+                            }
+                        }
                     }
 
                     OutlinedTextField(
@@ -525,6 +596,7 @@ fun AuthScreen(
                                             email = email.trim(),
                                             password = password,
                                             district = selectedDistrict,
+                                            gender = selectedGender,
                                         )
                                     }
                                     isLoading = false

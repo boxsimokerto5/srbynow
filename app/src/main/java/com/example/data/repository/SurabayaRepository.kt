@@ -24,6 +24,7 @@ import com.example.data.model.TambalBanComment
 import com.example.data.model.TambalBanSpot
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
+import com.example.data.model.normalizeCitizenGender
 import com.example.data.pocketbase.MultipartFilePart
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.pocketbase.PocketBaseException
@@ -56,6 +57,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 
 class SurabayaRepository(
@@ -73,8 +75,10 @@ class SurabayaRepository(
     private val localDeletedRecords = CopyOnWriteArraySet<String>()
     private val localBlockedUids = ConcurrentHashMap<String, List<String>>()
     private val localBannedUids = CopyOnWriteArraySet<String>()
+    private val localGenderOverrides = ConcurrentHashMap<String, String>()
     private val localMutationTick = MutableStateFlow(0L)
     private val localReadMsgIds = ConcurrentHashMap.newKeySet<String>()
+    private val localReadNotifIds = ConcurrentHashMap.newKeySet<String>()
     private val localTypingStatuses = ConcurrentHashMap<String, String>() // roomId -> "uid:name:timestamp"
 
     private fun escapePbValue(value: String): String = value.replace("'", "\\'")
@@ -249,6 +253,10 @@ class SurabayaRepository(
         // Ensure current citizen has their own NearbyProfile record with id == uid
         try {
             val existingNearby = pb.getOneOrNull("nearby_profiles", uid)
+            val sessionGender = normalizeCitizenGender(session?.gender.orEmpty())
+            if (sessionGender.isNotBlank()) {
+                localGenderOverrides[uid] = sessionGender
+            }
             if (existingNearby == null) {
                 val colorPalette = listOf("#006B5E", "#00798C", "#C86D1F", "#2B6CB0", "#0F766E")
                 val pickedColor = colorPalette[(uid.hashCode() and Int.MAX_VALUE) % colorPalette.size]
@@ -256,6 +264,7 @@ class SurabayaRepository(
                     put("id", uid)
                     put("user_id", uid)
                     put("display_name", userName)
+                    if (sessionGender.isNotBlank()) put("gender", sessionGender)
                     put("avatar_color_hex", pickedColor)
                     put("bio", "Halo rek! Salam kenal dari $district.")
                     put("district", district)
@@ -377,22 +386,26 @@ class SurabayaRepository(
         isDiscoverable: Boolean,
         lat: Double,
         lng: Double,
+        gender: String = "",
         avatarPhoto: PreparedPhoto? = null,
         onPhotoSchemaMissing: (() -> Unit)? = null,
     ) {
         val uid = requireUserId()
         val cleanName = displayName.trim().take(80).ifEmpty { "Warga Surabaya" }
         val cleanDistrict = district.trim().take(60).ifEmpty { "Genteng" }
+        val cleanGender = normalizeCitizenGender(gender)
         val cleanBio = bio.trim().take(240)
         val cleanInterests = interests.trim().take(200)
         val clampedRadius = searchRadiusKm.coerceIn(1.0, 50.0)
         var userAvatarSaved = false
         var nearbyAvatarSaved = false
+        localGenderOverrides[uid] = cleanGender
 
         try {
             val userPatch = JSONObject().apply {
                 put("name", cleanName)
                 put("district", cleanDistrict)
+                put("gender", cleanGender)
                 put("bio", cleanBio)
                 put("search_radius_km", clampedRadius)
                 put("is_discoverable", isDiscoverable)
@@ -401,6 +414,7 @@ class SurabayaRepository(
                 val userFields = mapOf(
                     "name" to cleanName,
                     "district" to cleanDistrict,
+                    "gender" to cleanGender,
                     "bio" to cleanBio,
                     "search_radius_km" to clampedRadius.toString(),
                     "is_discoverable" to isDiscoverable.toString(),
@@ -428,10 +442,12 @@ class SurabayaRepository(
             val existingNearby = pb.getOneOrNull("nearby_profiles", uid)
                 ?: pb.getList("nearby_profiles", filter = "user_id = '$safeUid'", perPage = 1).firstOrNull()
             val nearbyRecordId = existingNearby?.optString("id")?.takeIf { it.isNotBlank() } ?: uid
+            localGenderOverrides[nearbyRecordId] = cleanGender
 
             if (existingNearby != null) {
                 val nearbyPatch = JSONObject().apply {
                     put("display_name", cleanName)
+                    put("gender", cleanGender)
                     put("bio", cleanBio)
                     put("district", cleanDistrict)
                     put("interests", cleanInterests)
@@ -442,6 +458,7 @@ class SurabayaRepository(
                 if (avatarPhoto != null) {
                     val nearbyFields = mapOf(
                         "display_name" to cleanName,
+                        "gender" to cleanGender,
                         "bio" to cleanBio,
                         "district" to cleanDistrict,
                         "interests" to cleanInterests,
@@ -472,6 +489,7 @@ class SurabayaRepository(
                     put("id", uid)
                     put("user_id", uid)
                     put("display_name", cleanName)
+                    put("gender", cleanGender)
                     put("avatar_color_hex", "#006B5E")
                     put("bio", cleanBio)
                     put("district", cleanDistrict)
@@ -485,6 +503,7 @@ class SurabayaRepository(
                         "id" to uid,
                         "user_id" to uid,
                         "display_name" to cleanName,
+                        "gender" to cleanGender,
                         "avatar_color_hex" to "#006B5E",
                         "bio" to cleanBio,
                         "district" to cleanDistrict,
@@ -577,42 +596,118 @@ class SurabayaRepository(
 
     // --- 2.1 PEMBERITAHUAN WARGA (NOTIFICATIONS) ---
 
+    private fun mapNotification(j: JSONObject): AppNotification {
+        val id = j.optString("id")
+        val rawType = j.optString("notif_type", "SYSTEM").uppercase()
+        val parsedType = runCatching { AppNotificationType.valueOf(rawType) }
+            .getOrDefault(AppNotificationType.SYSTEM)
+        val isRead = j.optBoolean("is_read", false) || id in localReadNotifIds
+        return AppNotification(
+            id = id,
+            userId = j.optString("user_id"),
+            type = parsedType,
+            title = j.optString("title"),
+            message = j.optString("message"),
+            targetId = j.optString("target_id"),
+            timestamp = parsePocketBaseTimestamp(j.optString("created")) ?: System.currentTimeMillis(),
+            isRead = isRead,
+        )
+    }
+
     fun observeNotifications(userId: String): Flow<List<AppNotification>> {
+        val safeUid = escapePbValue(userId)
         return combine(
+            pb.observeCollection("notifications", pollIntervalMs = 8_000L) {
+                try {
+                    val filter = if (safeUid.isNotBlank()) {
+                        "user_id = '' || user_id = '$safeUid'"
+                    } else {
+                        "user_id = ''"
+                    }
+                    pb.getList(collection = "notifications", filter = filter, sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
             localMutationTick,
             localNotificationsTick,
-        ) { _, _ ->
-            inMemoryNotifications.values
+        ) { remoteList, _, _ ->
+            val combinedMap = inMemoryNotifications.toMutableMap()
+            for (item in remoteList) {
+                val mapped = mapNotification(item)
+                combinedMap[mapped.id] = mapped
+            }
+            combinedMap.values
                 .filter { it.userId.isBlank() || it.userId == userId }
+                .map { if (it.id in localReadNotifIds) it.copy(isRead = true) else it }
                 .sortedByDescending { it.timestamp }
+        }.catch {
+            emit(
+                inMemoryNotifications.values
+                    .filter { it.userId.isBlank() || it.userId == userId }
+                    .sortedByDescending { it.timestamp },
+            )
         }
     }
 
     fun markNotificationAsRead(notificationId: String) {
+        localReadNotifIds.add(notificationId)
         val existing = inMemoryNotifications[notificationId]
         if (existing != null && !existing.isRead) {
             inMemoryNotifications[notificationId] = existing.copy(isRead = true)
-            localNotificationsTick.value = localNotificationsTick.value + 1L
+        }
+        localNotificationsTick.value = localNotificationsTick.value + 1L
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                pb.updateRecord("notifications", notificationId, JSONObject().apply {
+                    put("is_read", true)
+                })
+            }
         }
     }
 
     fun markAllNotificationsAsRead(userId: String) {
-        var updated = false
+        val markedIds = mutableListOf<String>()
         for ((key, notif) in inMemoryNotifications) {
             if ((notif.userId.isBlank() || notif.userId == userId) && !notif.isRead) {
                 inMemoryNotifications[key] = notif.copy(isRead = true)
-                updated = true
+                localReadNotifIds.add(key)
+                markedIds.add(key)
             }
         }
-        if (updated) {
-            localNotificationsTick.value = localNotificationsTick.value + 1L
+        localNotificationsTick.value = localNotificationsTick.value + 1L
+        if (markedIds.isNotEmpty()) {
+            CoroutineScope(Dispatchers.IO).launch {
+                for (id in markedIds) {
+                    runCatching {
+                        pb.updateRecord("notifications", id, JSONObject().apply {
+                            put("is_read", true)
+                        })
+                    }
+                }
+            }
         }
     }
 
     fun addNotification(notification: AppNotification) {
-        val notifId = notification.id.ifBlank { UUID.randomUUID().toString() }
+        val notifId = notification.id.takeIf { it.length == 15 }
+            ?: PocketBaseClient.deterministicPbId("ntf_${notification.id.ifBlank { UUID.randomUUID().toString() }}")
         inMemoryNotifications[notifId] = notification.copy(id = notifId)
         localNotificationsTick.value = localNotificationsTick.value + 1L
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                val payload = JSONObject().apply {
+                    put("id", notifId)
+                    put("user_id", notification.userId.take(64))
+                    put("notif_type", notification.type.name)
+                    put("title", notification.title.trim().take(160).ifBlank { "Info Surabaya" })
+                    put("message", notification.message.trim().take(800).ifBlank { "Pembaruan informasi warga." })
+                    put("target_id", notification.targetId.take(64))
+                    put("is_read", notification.isRead)
+                }
+                pb.createRecord("notifications", payload)
+            }
+        }
     }
 
     // --- 3. KEJADIAN SURABAYA (INCIDENTS) ---
@@ -2104,11 +2199,14 @@ class SurabayaRepository(
         val serverBlocked = decodeUidList(j.optString("blocked_uids"))
         val effectiveBlocked = localBlockedUids[id] ?: serverBlocked
         val effectiveBanned = j.optBoolean("is_banned", false) || id in localBannedUids
+        val resolvedGender = localGenderOverrides[id]
+            ?: normalizeCitizenGender(j.optString("gender"))
         return UserAccount(
             id = id,
             userId = id,
             displayName = name,
             district = j.optString("district").ifBlank { "Genteng" },
+            gender = resolvedGender,
             bio = j.optString("bio"),
             searchRadiusKm = j.optDouble("search_radius_km", 10.0).takeIf { !it.isNaN() && it > 0.0 } ?: 10.0,
             isDiscoverable = if (j.has("is_discoverable")) j.optBoolean("is_discoverable", true) else true,
@@ -2132,13 +2230,28 @@ class SurabayaRepository(
         createdAt = parsePocketBaseTimestamp(j.optString("created")),
     )
 
+    private fun seedPeerDefaultGender(recordId: String): String {
+        return when (recordId) {
+            PocketBaseClient.deterministicPbId("peer_bima_gubeng") -> "LAKI_LAKI"
+            PocketBaseClient.deterministicPbId("peer_reza_rungkut") -> "LAKI_LAKI"
+            PocketBaseClient.deterministicPbId("peer_nadia_wonokromo") -> "PEREMPUAN"
+            PocketBaseClient.deterministicPbId("peer_sari_genteng") -> "PEREMPUAN"
+            else -> ""
+        }
+    }
+
     private fun mapNearbyProfile(j: JSONObject): NearbyProfile {
         val id = j.optString("id")
         val uid = j.optString("user_id")
+        val serverGender = normalizeCitizenGender(j.optString("gender"))
+        val resolvedGender = localGenderOverrides[id]
+            ?: (if (id == uid) localGenderOverrides[uid] else null)
+            ?: serverGender.ifBlank { seedPeerDefaultGender(id) }
         return NearbyProfile(
             id = id,
             userId = uid,
             displayName = j.optString("display_name", "Warga Surabaya"),
+            gender = resolvedGender,
             avatarColorHex = j.optString("avatar_color_hex").ifBlank { "#006B5E" },
             avatarUrl = pb.buildFileUrl("nearby_profiles", id, j.optString("avatar")),
             bio = j.optString("bio"),
@@ -2400,6 +2513,7 @@ class SurabayaRepository(
         val photoFileNames = extractFileNames(j, "photo")
         val resolvedPhotoUrl = photoFileNames.firstOrNull()?.let { pb.buildFileUrl("chat_messages", id, it) }
             ?: j.optString("photo_url").ifBlank { j.optString("image_url") }
+        val isDeliveredRemote = if (j.has("is_delivered")) j.optBoolean("is_delivered", true) else true
         val isReadRemote = j.optBoolean("is_read", false)
         val isReadLocal = localReadMsgIds.contains(id)
         val isRead = isReadRemote || isReadLocal
@@ -2413,7 +2527,7 @@ class SurabayaRepository(
             senderName = j.optString("sender_name", "Warga Surabaya"),
             text = j.optString("text"),
             photoUrl = resolvedPhotoUrl,
-            isDelivered = true,
+            isDelivered = isDeliveredRemote,
             isRead = isRead,
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
         )
@@ -2602,6 +2716,9 @@ class SurabayaRepository(
         val authorName = userRec?.optString("name").orEmpty().ifBlank {
             pb.currentSession?.displayName.orEmpty().ifBlank { "Warga Surabaya" }
         }
+        val authorDistrict = userRec?.optString("district").orEmpty().ifBlank {
+            pb.currentSession?.district.orEmpty().ifBlank { "Genteng" }
+        }
         val cleanText = text.trim().take(500)
         if (cleanText.isBlank()) return ""
 
@@ -2611,11 +2728,20 @@ class SurabayaRepository(
             put("moment_id", momentId)
             put("author_id", uid)
             put("author_name", authorName)
+            put("author_district", authorDistrict)
             put("text", cleanText)
         }
 
+        val cur = inMemoryMoments[momentId]
+        val nextCommentCount = (cur?.commentCount ?: 0) + 1
+
         try {
             pb.createRecord("moment_comments", payload)
+            runCatching {
+                pb.updateRecord("moments", momentId, JSONObject().apply {
+                    put("comment_count", nextCommentCount)
+                })
+            }
         } catch (e: Exception) {
             Log.w(TAG, "addMomentComment PB: ${e.message}")
         }
@@ -2631,9 +2757,8 @@ class SurabayaRepository(
         val list = inMemoryMomentComments.getOrPut(momentId) { CopyOnWriteArrayList() }
         list.add(comment)
 
-        val cur = inMemoryMoments[momentId]
         if (cur != null) {
-            inMemoryMoments[momentId] = cur.copy(commentCount = cur.commentCount + 1)
+            inMemoryMoments[momentId] = cur.copy(commentCount = nextCommentCount)
         }
         bumpMutationTick()
         return commentId
@@ -2700,6 +2825,8 @@ class SurabayaRepository(
         val cleanBestTime = bestTime.trim().take(50).ifEmpty { "Sore hari" }
         val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
 
+        val (lat, lng) = extractLatLngFromMapsUrl(cleanMapsUrl) ?: SurabayaDistricts.coordinateFor(cleanDistrict)
+
         val payload = JSONObject().apply {
             put("id", recordId)
             put("created_by", uid)
@@ -2712,6 +2839,8 @@ class SurabayaRepository(
             put("ticket_price", cleanPrice)
             put("operational_hours", cleanHours)
             put("best_time", cleanBestTime)
+            put("lat", lat)
+            put("lng", lng)
             put("image_key", "hero_surabaya")
             put("maps_url", cleanMapsUrl)
             put("rating_avg", 5.0)
@@ -2730,6 +2859,8 @@ class SurabayaRepository(
             "ticket_price" to cleanPrice,
             "operational_hours" to cleanHours,
             "best_time" to cleanBestTime,
+            "lat" to lat.toString(),
+            "lng" to lng.toString(),
             "image_key" to "hero_surabaya",
             "maps_url" to cleanMapsUrl,
             "rating_avg" to "5.0",
@@ -2767,6 +2898,8 @@ class SurabayaRepository(
             ticketPrice = cleanPrice,
             operationalHours = cleanHours,
             bestTime = cleanBestTime,
+            lat = lat,
+            lng = lng,
             imageKey = "hero_surabaya",
             mapsUrl = cleanMapsUrl,
             ratingAvg = 5.0,
@@ -2818,8 +2951,22 @@ class SurabayaRepository(
             put("comment", cleanComment)
         }
 
+        val cur = inMemoryDestinations[destinationId]
+        val newCount = (cur?.reviewCount ?: 0) + 1
+        val newAvg = if (cur != null) {
+            (((cur.ratingAvg * cur.reviewCount) + clampedRating) / newCount * 10.0).toInt() / 10.0
+        } else {
+            clampedRating.toDouble()
+        }
+
         try {
             pb.createRecord("destination_reviews", payload)
+            runCatching {
+                pb.updateRecord("destinations", destinationId, JSONObject().apply {
+                    put("rating_avg", newAvg.coerceIn(0.0, 5.0))
+                    put("review_count", newCount)
+                })
+            }
         } catch (e: Exception) {
             Log.w(TAG, "addDestinationReview PB: ${e.message}")
         }
@@ -2836,12 +2983,9 @@ class SurabayaRepository(
         val list = inMemoryDestinationReviews.getOrPut(destinationId) { CopyOnWriteArrayList() }
         list.add(0, review)
 
-        val cur = inMemoryDestinations[destinationId]
         if (cur != null) {
-            val newCount = cur.reviewCount + 1
-            val newAvg = ((cur.ratingAvg * cur.reviewCount) + clampedRating) / newCount
             inMemoryDestinations[destinationId] = cur.copy(
-                ratingAvg = (newAvg * 10.0).toInt() / 10.0,
+                ratingAvg = newAvg,
                 reviewCount = newCount,
             )
         }
@@ -2921,6 +3065,18 @@ class SurabayaRepository(
             else -> (serverContentUids + overlay.uids).distinct()
         }
 
+        val districtName = j.optString("district", "Genteng").ifBlank { "Genteng" }
+        val sanitizedMapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS)
+        val rawLat = j.optDouble("lat", Double.NaN)
+        val rawLng = j.optDouble("lng", Double.NaN)
+        val hasValidStoredLatLng = !rawLat.isNaN() && !rawLng.isNaN() && (rawLat != 0.0 || rawLng != 0.0)
+        val (resolvedLat, resolvedLng) = extractLatLngFromMapsUrl(sanitizedMapsUrl)
+            ?: if (hasValidStoredLatLng) {
+                rawLat to rawLng
+            } else {
+                SurabayaDistricts.coordinateFor(districtName)
+            }
+
         return SurabayaDestination(
             id = id,
             createdBy = j.optString("created_by"),
@@ -2928,15 +3084,17 @@ class SurabayaRepository(
             title = j.optString("title"),
             category = j.optString("category", "WISATA_SEJARAH"),
             description = j.optString("description"),
-            district = j.optString("district", "Genteng"),
+            district = districtName,
             address = j.optString("address"),
             ticketPrice = j.optString("ticket_price", "Gratis"),
             operationalHours = j.optString("operational_hours", "24 Jam"),
             bestTime = j.optString("best_time", "Sore hari"),
+            lat = resolvedLat,
+            lng = resolvedLng,
             imageKey = j.optString("image_key", "hero_surabaya"),
             photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
             photoUrls = resolvedPhotoUrls,
-            mapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS),
+            mapsUrl = sanitizedMapsUrl,
             ratingAvg = j.optDouble("rating_avg", 4.8),
             reviewCount = j.optInt("review_count", 0),
             linkReportCount = j.optInt("link_report_count", 0),
@@ -2960,17 +3118,26 @@ class SurabayaRepository(
 
     private fun mapCitizenService(j: JSONObject): CitizenService {
         val id = j.optString("id")
-        val remotePhoto = j.optString("flyer_photo_url")
-        val rawPhotos = j.optJSONArray("flyer_photos")
-        val resolvedPhotoUrls = mutableListOf<String>()
-        if (rawPhotos != null) {
-            for (i in 0 until rawPhotos.length()) {
-                val p = rawPhotos.optString(i)
-                if (p.isNotBlank()) resolvedPhotoUrls.add(p)
+        val remotePhoto = j.optString("flyer_photo_url").trim()
+        val photoFileNames = extractFileNames(j, "flyer_photos")
+        val resolvedPhotoUrls = photoFileNames
+            .map { fileName ->
+                if (fileName.startsWith("http") || fileName.startsWith("data:")) {
+                    fileName
+                } else {
+                    pb.buildFileUrl("services", id, fileName)
+                }
             }
-        }
+            .filter { it.isNotBlank() }
+            .toMutableList()
         if (resolvedPhotoUrls.isEmpty() && remotePhoto.isNotBlank()) {
-            resolvedPhotoUrls.add(remotePhoto)
+            resolvedPhotoUrls.add(
+                if (remotePhoto.startsWith("http") || remotePhoto.startsWith("data:")) {
+                    remotePhoto
+                } else {
+                    pb.buildFileUrl("services", id, remotePhoto)
+                },
+            )
         }
 
         val overlay = localContentReports["services:$id"]
@@ -3141,8 +3308,8 @@ class SurabayaRepository(
             )
             val fileParts = boundedPhotos.mapIndexed { idx, p ->
                 MultipartFilePart(
-                    fieldName = if (idx == 0) "flyer_photo" else "flyer_photo_$idx",
-                    fileName = p.fileName,
+                    fieldName = "flyer_photos",
+                    fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
                     mimeType = p.mimeType,
                     bytes = p.bytes,
                 )
@@ -3201,33 +3368,216 @@ class SurabayaRepository(
 
     // --- 9. POLLING WARGA & SUARA RAKYAT ---
 
+    private fun encodePollOptions(options: List<PollOption>): String {
+        val arr = JSONArray()
+        for (opt in options) {
+            arr.put(
+                JSONObject().apply {
+                    put("id", opt.id)
+                    put("text", opt.text)
+                    put("voteCount", opt.voteCount)
+                },
+            )
+        }
+        return arr.toString()
+    }
+
+    private fun decodePollOptions(raw: String): List<PollOption> {
+        if (raw.isBlank()) return emptyList()
+        return try {
+            val arr = JSONArray(raw)
+            buildList(arr.length()) {
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    val id = obj.optString("id").ifBlank { "opt_${i + 1}" }
+                    val text = obj.optString("text")
+                    val voteCount = obj.optInt("voteCount", 0)
+                    if (text.isNotBlank()) {
+                        add(PollOption(id = id, text = text, voteCount = voteCount))
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun encodeVotesByUser(votes: Map<String, String>): String {
+        val obj = JSONObject()
+        for ((uid, optId) in votes) {
+            if (uid.isNotBlank() && optId.isNotBlank()) {
+                obj.put(uid, optId)
+            }
+        }
+        return obj.toString()
+    }
+
+    private fun decodeVotesByUser(raw: String): Map<String, String> {
+        if (raw.isBlank()) return emptyMap()
+        return try {
+            val obj = JSONObject(raw)
+            val result = mutableMapOf<String, String>()
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                val v = obj.optString(k)
+                if (k.isNotBlank() && v.isNotBlank()) {
+                    result[k] = v
+                }
+            }
+            result
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    private fun mapPoll(j: JSONObject): CitizenPoll {
+        val id = j.optString("id")
+        val options = decodePollOptions(j.optString("options_json"))
+        val votesMap = decodeVotesByUser(j.optString("votes_by_user_json"))
+        val voterUids = (decodeUidList(j.optString("voter_uids")) + votesMap.keys).distinct()
+        val computedTotal = options.sumOf { it.voteCount }
+        val storedTotal = j.optInt("total_votes", computedTotal)
+        return CitizenPoll(
+            id = id,
+            proposerId = j.optString("proposer_id"),
+            proposerName = j.optString("proposer_name", "Warga Surabaya"),
+            title = j.optString("title"),
+            description = j.optString("description"),
+            category = j.optString("category", "UMUM").ifBlank { "UMUM" },
+            district = j.optString("district", "Genteng").ifBlank { "Genteng" },
+            status = j.optString("status", "PENDING").ifBlank { "PENDING" },
+            adminNote = j.optString("admin_note"),
+            options = options,
+            totalVotes = maxOf(storedTotal, computedTotal),
+            voterUids = voterUids,
+            votesByUser = votesMap,
+            commentCount = j.optInt("comment_count", 0),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    private fun mapPollComment(j: JSONObject): PollComment = PollComment(
+        id = j.optString("id"),
+        pollId = j.optString("poll_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        authorDistrict = j.optString("author_district", "Genteng").ifBlank { "Genteng" },
+        text = j.optString("text"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
     fun observeApprovedPolls(): Flow<List<CitizenPoll>> {
-        return localMutationTick.map {
-            inMemoryPolls.values
+        return combine(
+            pb.observeCollection("polls", pollIntervalMs = 6_000L) {
+                try {
+                    pb.getList(collection = "polls", filter = "status = 'APPROVED'", sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val combinedMap = inMemoryPolls.toMutableMap()
+            for (item in remoteList) {
+                val p = mapPoll(item)
+                combinedMap[p.id] = p
+                inMemoryPolls[p.id] = p
+            }
+            combinedMap.values
                 .filter { it.status == "APPROVED" && "polls:${it.id}" !in localDeletedRecords }
                 .sortedByDescending { it.createdAt ?: 0L }
+        }.catch {
+            emit(
+                inMemoryPolls.values
+                    .filter { it.status == "APPROVED" && "polls:${it.id}" !in localDeletedRecords }
+                    .sortedByDescending { it.createdAt ?: 0L },
+            )
         }
     }
 
     fun observePendingPolls(): Flow<List<CitizenPoll>> {
-        return localMutationTick.map {
-            inMemoryPolls.values
+        return combine(
+            pb.observeCollection("polls", pollIntervalMs = 6_000L) {
+                try {
+                    pb.getList(collection = "polls", filter = "status = 'PENDING'", sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val combinedMap = inMemoryPolls.toMutableMap()
+            for (item in remoteList) {
+                val p = mapPoll(item)
+                combinedMap[p.id] = p
+                inMemoryPolls[p.id] = p
+            }
+            combinedMap.values
                 .filter { it.status == "PENDING" && "polls:${it.id}" !in localDeletedRecords }
                 .sortedByDescending { it.createdAt ?: 0L }
+        }.catch {
+            emit(
+                inMemoryPolls.values
+                    .filter { it.status == "PENDING" && "polls:${it.id}" !in localDeletedRecords }
+                    .sortedByDescending { it.createdAt ?: 0L },
+            )
         }
     }
 
     fun observeMyProposedPolls(userId: String): Flow<List<CitizenPoll>> {
-        return localMutationTick.map {
-            inMemoryPolls.values
+        val safeUid = escapePbValue(userId)
+        return combine(
+            pb.observeCollection("polls", pollIntervalMs = 6_000L) {
+                try {
+                    pb.getList(collection = "polls", filter = "proposer_id = '$safeUid'", sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val combinedMap = inMemoryPolls.toMutableMap()
+            for (item in remoteList) {
+                val p = mapPoll(item)
+                combinedMap[p.id] = p
+                inMemoryPolls[p.id] = p
+            }
+            combinedMap.values
                 .filter { it.proposerId == userId && "polls:${it.id}" !in localDeletedRecords }
                 .sortedByDescending { it.createdAt ?: 0L }
+        }.catch {
+            emit(
+                inMemoryPolls.values
+                    .filter { it.proposerId == userId && "polls:${it.id}" !in localDeletedRecords }
+                    .sortedByDescending { it.createdAt ?: 0L },
+            )
         }
     }
 
     fun observePollById(pollId: String): Flow<CitizenPoll?> {
-        return localMutationTick.map {
-            inMemoryPolls[pollId]?.takeIf { "polls:${it.id}" !in localDeletedRecords }
+        return combine(
+            pb.observeCollection("polls", pollIntervalMs = 5_000L) {
+                try {
+                    pb.getOneOrNull("polls", pollId)
+                } catch (_: Exception) {
+                    null
+                }
+            },
+            localMutationTick,
+        ) { remoteJson, _ ->
+            if ("polls:$pollId" in localDeletedRecords) {
+                null
+            } else if (remoteJson != null) {
+                val mapped = mapPoll(remoteJson)
+                inMemoryPolls[pollId] = mapped
+                mapped
+            } else {
+                inMemoryPolls[pollId]
+            }
+        }.catch {
+            emit(inMemoryPolls[pollId]?.takeIf { "polls:${it.id}" !in localDeletedRecords })
         }
     }
 
@@ -3239,8 +3589,10 @@ class SurabayaRepository(
         optionTexts: List<String>,
     ): String {
         val uid = requireUserId()
-        val account = pb.getOneOrNull("users", uid)
-        val proposerName = account?.optString("name")?.takeIf { it.isNotBlank() } ?: "Warga Surabaya"
+        val account = runCatching { pb.getOneOrNull("users", uid) }.getOrNull()
+        val proposerName = account?.optString("name")?.takeIf { it.isNotBlank() }
+            ?: pb.currentSession?.displayName?.takeIf { it.isNotBlank() }
+            ?: "Warga Surabaya"
 
         val cleanTitle = title.trim().take(150)
         val cleanDesc = description.trim().take(1500)
@@ -3260,10 +3612,10 @@ class SurabayaRepository(
             throw IllegalArgumentException("Usulan polling minimal wajib memiliki 2 opsi pilihan.")
         }
 
-        val pollId = "poll_" + UUID.randomUUID().toString().replace("-", "").take(16)
+        val pollId = PocketBaseClient.deterministicPbId("poll_${UUID.randomUUID()}")
         val opts = validOptions.mapIndexed { idx, optText ->
             PollOption(
-                id = "opt_${idx + 1}_" + UUID.randomUUID().toString().take(6),
+                id = "opt_${idx + 1}_" + UUID.randomUUID().toString().replace("-", "").take(6),
                 text = optText.take(120),
                 voteCount = 0,
             )
@@ -3277,7 +3629,7 @@ class SurabayaRepository(
             description = cleanDesc,
             category = cleanCategory,
             district = cleanDistrict,
-            status = "PENDING", // Menunggu persetujuan admin/moderator
+            status = "PENDING",
             options = opts,
             totalVotes = 0,
             voterUids = emptyList(),
@@ -3289,42 +3641,72 @@ class SurabayaRepository(
 
         inMemoryPolls[pollId] = newPoll
         bumpMutationTick()
+
+        try {
+            val payload = JSONObject().apply {
+                put("id", pollId)
+                put("proposer_id", uid)
+                put("proposer_name", proposerName.take(80))
+                put("title", cleanTitle)
+                put("description", cleanDesc)
+                put("category", cleanCategory.take(40))
+                put("district", cleanDistrict.take(60))
+                put("status", "PENDING")
+                put("admin_note", "")
+                put("options_json", encodePollOptions(opts))
+                put("total_votes", 0)
+                put("voter_uids", "")
+                put("votes_by_user_json", "{}")
+                put("comment_count", 0)
+            }
+            pb.createRecord("polls", payload)
+        } catch (e: Exception) {
+            Log.w(TAG, "proposePoll PB save fallback: ${e.message}")
+        }
+
         return pollId
     }
 
     suspend fun moderatePoll(pollId: String, approve: Boolean, adminNote: String = "") {
-        val current = inMemoryPolls[pollId] ?: return
-        val updated = current.copy(
-            status = if (approve) "APPROVED" else "REJECTED",
-            adminNote = adminNote.trim().take(300),
-            updatedAt = System.currentTimeMillis(),
-        )
-        inMemoryPolls[pollId] = updated
-        bumpMutationTick()
+        val nextStatus = if (approve) "APPROVED" else "REJECTED"
+        val cleanNote = adminNote.trim().take(300)
+        val current = inMemoryPolls[pollId]
+        if (current != null) {
+            inMemoryPolls[pollId] = current.copy(
+                status = nextStatus,
+                adminNote = cleanNote,
+                updatedAt = System.currentTimeMillis(),
+            )
+            bumpMutationTick()
+        }
+        try {
+            pb.updateRecord("polls", pollId, JSONObject().apply {
+                put("status", nextStatus)
+                put("admin_note", cleanNote)
+            })
+        } catch (e: Exception) {
+            Log.w(TAG, "moderatePoll PB update fallback: ${e.message}")
+        }
     }
 
     suspend fun votePoll(pollId: String, optionId: String): Boolean {
         val uid = requireUserId()
-        val current = inMemoryPolls[pollId] ?: return false
+        val current = inMemoryPolls[pollId]
+            ?: runCatching { pb.getOneOrNull("polls", pollId)?.let(::mapPoll) }.getOrNull()
+            ?: return false
         if (current.status != "APPROVED") {
             throw IllegalStateException("Polling ini belum disetujui atau sudah ditutup.")
         }
 
-        // Cek apakah suara sudah pernah diberikan untuk opsi ini (idempotent)
         val existingVote = current.votesByUser[uid]
         if (existingVote == optionId) {
             return true
         }
 
-        // Setiap user tepat 1 suara: jika berpindah opsi, kurangi opsi lama dan tambahkan opsi baru
         val updatedOptions = current.options.map { opt ->
             when {
-                opt.id == optionId -> {
-                    opt.copy(voteCount = opt.voteCount + 1)
-                }
-                existingVote != null && opt.id == existingVote -> {
-                    opt.copy(voteCount = (opt.voteCount - 1).coerceAtLeast(0))
-                }
+                opt.id == optionId -> opt.copy(voteCount = opt.voteCount + 1)
+                existingVote != null && opt.id == existingVote -> opt.copy(voteCount = (opt.voteCount - 1).coerceAtLeast(0))
                 else -> opt
             }
         }
@@ -3345,12 +3727,61 @@ class SurabayaRepository(
 
         inMemoryPolls[pollId] = updatedPoll
         bumpMutationTick()
+
+        try {
+            val patch = JSONObject().apply {
+                put("options_json", encodePollOptions(updatedOptions))
+                put("total_votes", newTotalVotes)
+                put("voter_uids", encodeUidList(newVoterUids))
+                put("votes_by_user_json", encodeVotesByUser(newVotesMap))
+            }
+            try {
+                pb.updateRecord("polls", pollId, patch)
+            } catch (e: PocketBaseException) {
+                if (e.statusCode == 404) {
+                    val createFromSeed = JSONObject().apply {
+                        put("id", PocketBaseClient.deterministicPbId(pollId).takeIf { pollId.length != 15 } ?: pollId)
+                        put("proposer_id", uid)
+                        put("proposer_name", updatedPoll.proposerName.take(80))
+                        put("title", updatedPoll.title.take(160))
+                        put("description", updatedPoll.description.take(1600))
+                        put("category", updatedPoll.category.take(40))
+                        put("district", updatedPoll.district.take(60))
+                        put("status", updatedPoll.status)
+                        put("admin_note", updatedPoll.adminNote.take(300))
+                        put("options_json", encodePollOptions(updatedOptions))
+                        put("total_votes", newTotalVotes)
+                        put("voter_uids", encodeUidList(newVoterUids))
+                        put("votes_by_user_json", encodeVotesByUser(newVotesMap))
+                        put("comment_count", updatedPoll.commentCount)
+                    }
+                    runCatching { pb.createRecord("polls", createFromSeed) }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "votePoll PB sync fallback: ${e.message}")
+        }
+
         return true
     }
 
     fun observePollComments(pollId: String): Flow<List<PollComment>> {
-        return localMutationTick.map {
-            inMemoryPollComments[pollId]?.toList()?.sortedByDescending { it.createdAt ?: 0L } ?: emptyList()
+        val safePollId = escapePbValue(pollId)
+        return combine(
+            pb.observeCollection("poll_comments", pollIntervalMs = 5_000L) {
+                try {
+                    pb.getList(collection = "poll_comments", filter = "poll_id = '$safePollId'", sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remote = remoteList.map(::mapPollComment)
+            val localList = inMemoryPollComments[pollId]?.toList() ?: emptyList()
+            (remote + localList).distinctBy { it.id }.sortedByDescending { it.createdAt ?: 0L }
+        }.catch {
+            emit(inMemoryPollComments[pollId]?.toList()?.sortedByDescending { it.createdAt ?: 0L } ?: emptyList())
         }
     }
 
@@ -3360,11 +3791,15 @@ class SurabayaRepository(
         if (cleanText.isBlank()) {
             throw IllegalArgumentException("Komentar warga tidak boleh kosong.")
         }
-        val account = pb.getOneOrNull("users", uid)
-        val authorName = account?.optString("name")?.takeIf { it.isNotBlank() } ?: "Warga Surabaya"
-        val authorDistrict = account?.optString("district")?.takeIf { it.isNotBlank() } ?: "Genteng"
+        val account = runCatching { pb.getOneOrNull("users", uid) }.getOrNull()
+        val authorName = account?.optString("name")?.takeIf { it.isNotBlank() }
+            ?: pb.currentSession?.displayName?.takeIf { it.isNotBlank() }
+            ?: "Warga Surabaya"
+        val authorDistrict = account?.optString("district")?.takeIf { it.isNotBlank() }
+            ?: pb.currentSession?.district?.takeIf { it.isNotBlank() }
+            ?: "Genteng"
 
-        val commentId = "pcom_" + UUID.randomUUID().toString().replace("-", "").take(16)
+        val commentId = PocketBaseClient.deterministicPbId("pcom_${UUID.randomUUID()}")
         val newComment = PollComment(
             id = commentId,
             pollId = pollId,
@@ -3378,45 +3813,177 @@ class SurabayaRepository(
         val list = inMemoryPollComments.computeIfAbsent(pollId) { CopyOnWriteArrayList() }
         list.add(newComment)
 
+        val nextCount = (inMemoryPolls[pollId]?.commentCount ?: (list.size - 1)) + 1
         inMemoryPolls[pollId]?.let { poll ->
             inMemoryPolls[pollId] = poll.copy(
-                commentCount = list.size,
+                commentCount = nextCount,
                 updatedAt = System.currentTimeMillis(),
             )
         }
         bumpMutationTick()
+
+        try {
+            val payload = JSONObject().apply {
+                put("id", commentId)
+                put("poll_id", pollId)
+                put("author_id", uid)
+                put("author_name", authorName.take(80))
+                put("author_district", authorDistrict.take(60))
+                put("text", cleanText)
+            }
+            pb.createRecord("poll_comments", payload)
+            runCatching {
+                pb.updateRecord("polls", pollId, JSONObject().apply {
+                    put("comment_count", nextCount)
+                })
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "addPollComment PB sync fallback: ${e.message}")
+        }
+
         return commentId
     }
 
     suspend fun deletePoll(pollId: String, requesterUid: String, isAdmin: Boolean) {
         val p = inMemoryPolls[pollId]
-        if (p != null && (p.proposerId == requesterUid || isAdmin)) {
+        if (p == null || p.proposerId == requesterUid || isAdmin) {
             inMemoryPolls.remove(pollId)
             inMemoryPollComments.remove(pollId)
             localDeletedRecords.add("polls:$pollId")
             bumpMutationTick()
+            runCatching { pb.deleteRecord("polls", pollId) }
         }
     }
 
     // --- TAMBAL BAN TERDEKAT (SALAM SATU ASPAL) OPERATIONS ---
 
+    private fun mapTambalBanSpot(j: JSONObject): TambalBanSpot {
+        val id = j.optString("id")
+        val districtName = j.optString("district", "Genteng").ifBlank { "Genteng" }
+        val sanitizedMapsUrl = LinkSecurityValidator.sanitizeOrEmpty(j.optString("maps_url"), SafeLinkCategory.GOOGLE_MAPS)
+        val rawLat = j.optDouble("lat", Double.NaN)
+        val rawLng = j.optDouble("lng", Double.NaN)
+        val hasValidStoredLatLng = !rawLat.isNaN() && !rawLng.isNaN() && (rawLat != 0.0 || rawLng != 0.0)
+        val (resolvedLat, resolvedLng) = extractLatLngFromMapsUrl(sanitizedMapsUrl)
+            ?: if (hasValidStoredLatLng) {
+                rawLat to rawLng
+            } else {
+                SurabayaDistricts.coordinateFor(districtName)
+            }
+        val photoFile = extractFileNames(j, "photo").firstOrNull()
+        val resolvedPhotoUrl = when {
+            !photoFile.isNullOrBlank() -> pb.buildFileUrl("tambal_ban", id, photoFile)
+            else -> j.optString("photo_url")
+        }
+        val verifiedUids = decodeUidList(j.optString("verified_uids"))
+        return TambalBanSpot(
+            id = id,
+            authorId = j.optString("author_id"),
+            authorName = j.optString("author_name", "Warga Surabaya"),
+            name = j.optString("name"),
+            description = j.optString("description"),
+            district = districtName,
+            address = j.optString("address"),
+            latitude = resolvedLat,
+            longitude = resolvedLng,
+            is24Hours = j.optBoolean("is_24_hours", false),
+            isTubeless = j.optBoolean("is_tubeless", true),
+            forMotor = j.optBoolean("for_motor", true),
+            forMobil = j.optBoolean("for_mobil", false),
+            canCallOut = j.optBoolean("can_call_out", false),
+            photoUrl = resolvedPhotoUrl,
+            mapsUrl = sanitizedMapsUrl,
+            phoneNumber = j.optString("phone_number"),
+            whatsappNumber = j.optString("whatsapp_number"),
+            verifiedCount = maxOf(j.optInt("verified_count", 0), verifiedUids.size),
+            verifiedUserIds = verifiedUids,
+            commentCount = j.optInt("comment_count", 0),
+            createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+        )
+    }
+
+    private fun mapTambalBanComment(j: JSONObject): TambalBanComment = TambalBanComment(
+        id = j.optString("id"),
+        spotId = j.optString("spot_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        authorDistrict = j.optString("author_district", "Genteng").ifBlank { "Genteng" },
+        text = j.optString("text"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
     fun observeTambalBanSpots(): Flow<List<TambalBanSpot>> {
-        return localMutationTick.map {
-            inMemoryTambalBan.values
-                .filter { "tambal_ban:${it.id}" !in localDeletedRecords }
+        return combine(
+            pb.observeCollection("tambal_ban", pollIntervalMs = 7_000L) {
+                try {
+                    pb.getList(collection = "tambal_ban", sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val combinedMap = inMemoryTambalBan.toMutableMap()
+            for (item in remoteList) {
+                val spot = mapTambalBanSpot(item)
+                combinedMap[spot.id] = spot
+                inMemoryTambalBan[spot.id] = spot
+            }
+            combinedMap.values
+                .filter { "tambal_ban:${it.id}" !in localDeletedRecords && it.authorId !in localBannedUids }
                 .sortedByDescending { it.verifiedCount * 10 + (it.commentCount * 2) }
+        }.catch {
+            emit(
+                inMemoryTambalBan.values
+                    .filter { "tambal_ban:${it.id}" !in localDeletedRecords }
+                    .sortedByDescending { it.verifiedCount * 10 + (it.commentCount * 2) },
+            )
         }
     }
 
     fun observeTambalBanById(spotId: String): Flow<TambalBanSpot?> {
-        return localMutationTick.map {
-            inMemoryTambalBan[spotId]?.takeIf { "tambal_ban:${it.id}" !in localDeletedRecords }
+        return combine(
+            pb.observeCollection("tambal_ban", pollIntervalMs = 6_000L) {
+                try {
+                    pb.getOneOrNull("tambal_ban", spotId)
+                } catch (_: Exception) {
+                    null
+                }
+            },
+            localMutationTick,
+        ) { remoteJson, _ ->
+            if ("tambal_ban:$spotId" in localDeletedRecords) {
+                null
+            } else if (remoteJson != null) {
+                val mapped = mapTambalBanSpot(remoteJson)
+                inMemoryTambalBan[spotId] = mapped
+                mapped
+            } else {
+                inMemoryTambalBan[spotId]
+            }
+        }.catch {
+            emit(inMemoryTambalBan[spotId]?.takeIf { "tambal_ban:${it.id}" !in localDeletedRecords })
         }
     }
 
     fun observeTambalBanComments(spotId: String): Flow<List<TambalBanComment>> {
-        return localMutationTick.map {
-            inMemoryTambalBanComments[spotId]?.toList()?.sortedByDescending { it.createdAt ?: 0L } ?: emptyList()
+        val safeSpotId = escapePbValue(spotId)
+        return combine(
+            pb.observeCollection("tambal_ban_comments", pollIntervalMs = 5_000L) {
+                try {
+                    pb.getList(collection = "tambal_ban_comments", filter = "spot_id = '$safeSpotId'", sort = "-created")
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val remote = remoteList.map(::mapTambalBanComment)
+            val localList = inMemoryTambalBanComments[spotId]?.toList() ?: emptyList()
+            (remote + localList).distinctBy { it.id }.sortedByDescending { it.createdAt ?: 0L }
+        }.catch {
+            emit(inMemoryTambalBanComments[spotId]?.toList()?.sortedByDescending { it.createdAt ?: 0L } ?: emptyList())
         }
     }
 
@@ -3452,29 +4019,84 @@ class SurabayaRepository(
         }
 
         val spotId = PocketBaseClient.deterministicPbId("tb_${UUID.randomUUID()}")
-        val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val cleanName = name.trim().take(120)
+        val cleanDesc = description.trim().take(1000)
+        val cleanDistrict = district.trim().ifEmpty { "Genteng" }.take(60)
+        val cleanAddress = address.trim().take(200)
+        val cleanPhone = phoneNumber.trim().take(30)
+        val cleanWa = whatsappNumber.trim().take(30)
+        val (lat, lng) = extractLatLngFromMapsUrl(cleanMapsUrl) ?: SurabayaDistricts.coordinateFor(cleanDistrict)
         val now = System.currentTimeMillis()
 
-        var uploadedPhotoUrl = ""
-        if (photo != null) {
-            try {
+        var uploadedPhotoUrl = photo?.dataUri.orEmpty()
+        try {
+            if (photo != null) {
+                val fields = mapOf(
+                    "id" to spotId,
+                    "author_id" to uid,
+                    "author_name" to authorName.take(80),
+                    "name" to cleanName,
+                    "description" to cleanDesc,
+                    "district" to cleanDistrict,
+                    "address" to cleanAddress,
+                    "lat" to lat.toString(),
+                    "lng" to lng.toString(),
+                    "is_24_hours" to is24Hours.toString(),
+                    "is_tubeless" to isTubeless.toString(),
+                    "for_motor" to forMotor.toString(),
+                    "for_mobil" to forMobil.toString(),
+                    "can_call_out" to canCallOut.toString(),
+                    "maps_url" to cleanMapsUrl,
+                    "phone_number" to cleanPhone,
+                    "whatsapp_number" to cleanWa,
+                    "verified_count" to "1",
+                    "verified_uids" to uid,
+                    "comment_count" to "0",
+                )
                 val fileParts = listOf(MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes))
-                val json = pb.createRecordMultipartFiles("tambal_ban", emptyMap(), fileParts)
-                val serverId = json.optString("id").ifBlank { spotId }
-                uploadedPhotoUrl = pb.buildFileUrl("tambal_ban", serverId, photo.fileName)
-            } catch (e: Exception) {
-                Log.w(TAG, "Gagal upload foto tambal ban ke server, melanjutkan dengan ID lokal: ${e.message}")
+                val created = pb.createRecordMultipartFiles("tambal_ban", fields, fileParts)
+                val serverId = created.optString("id").ifBlank { spotId }
+                val storedFile = extractFileNames(created, "photo").firstOrNull()
+                if (!storedFile.isNullOrBlank()) {
+                    uploadedPhotoUrl = pb.buildFileUrl("tambal_ban", serverId, storedFile)
+                }
+            } else {
+                val payload = JSONObject().apply {
+                    put("id", spotId)
+                    put("author_id", uid)
+                    put("author_name", authorName.take(80))
+                    put("name", cleanName)
+                    put("description", cleanDesc)
+                    put("district", cleanDistrict)
+                    put("address", cleanAddress)
+                    put("lat", lat)
+                    put("lng", lng)
+                    put("is_24_hours", is24Hours)
+                    put("is_tubeless", isTubeless)
+                    put("for_motor", forMotor)
+                    put("for_mobil", forMobil)
+                    put("can_call_out", canCallOut)
+                    put("maps_url", cleanMapsUrl)
+                    put("phone_number", cleanPhone)
+                    put("whatsapp_number", cleanWa)
+                    put("verified_count", 1)
+                    put("verified_uids", uid)
+                    put("comment_count", 0)
+                }
+                pb.createRecord("tambal_ban", payload)
             }
+        } catch (e: Exception) {
+            Log.w(TAG, "Gagal simpan lokasi tambal ban ke server, disimpan lokal: ${e.message}")
         }
 
         val newSpot = TambalBanSpot(
             id = spotId,
             authorId = uid,
             authorName = authorName,
-            name = name.trim().take(120),
-            description = description.trim().take(1000),
-            district = district.trim(),
-            address = address.trim().take(200),
+            name = cleanName,
+            description = cleanDesc,
+            district = cleanDistrict,
+            address = cleanAddress,
             latitude = lat,
             longitude = lng,
             is24Hours = is24Hours,
@@ -3484,8 +4106,8 @@ class SurabayaRepository(
             canCallOut = canCallOut,
             photoUrl = uploadedPhotoUrl,
             mapsUrl = cleanMapsUrl,
-            phoneNumber = phoneNumber.trim().take(30),
-            whatsappNumber = whatsappNumber.trim().take(30),
+            phoneNumber = cleanPhone,
+            whatsappNumber = cleanWa,
             verifiedCount = 1,
             verifiedUserIds = listOf(uid),
             commentCount = 0,
@@ -3500,7 +4122,9 @@ class SurabayaRepository(
 
     suspend fun verifyTambalBanSpot(spotId: String): Boolean {
         val uid = requireUserId()
-        val current = inMemoryTambalBan[spotId] ?: return false
+        val current = inMemoryTambalBan[spotId]
+            ?: runCatching { pb.getOneOrNull("tambal_ban", spotId)?.let(::mapTambalBanSpot) }.getOrNull()
+            ?: return false
 
         val alreadyVerified = uid in current.verifiedUserIds
         val updatedIds = if (alreadyVerified) {
@@ -3517,18 +4141,29 @@ class SurabayaRepository(
 
         inMemoryTambalBan[spotId] = updated
         bumpMutationTick()
+
+        try {
+            pb.updateRecord("tambal_ban", spotId, JSONObject().apply {
+                put("verified_count", updatedIds.size)
+                put("verified_uids", encodeUidList(updatedIds))
+            })
+        } catch (e: Exception) {
+            Log.w(TAG, "verifyTambalBanSpot PB sync fallback: ${e.message}")
+        }
+
         return !alreadyVerified
     }
 
     suspend fun addTambalBanComment(spotId: String, text: String): String {
         val uid = requireUserId()
         val authorName = pb.currentSession?.displayName?.ifBlank { "Warga Surabaya" } ?: "Warga Surabaya"
-        val district = pb.currentSession?.district ?: "Genteng"
+        val district = pb.currentSession?.district?.ifBlank { "Genteng" } ?: "Genteng"
 
         if (text.trim().length < 3) {
             throw IllegalArgumentException("Komentar minimal 3 karakter.")
         }
 
+        val cleanText = text.trim().take(500)
         val cmtId = PocketBaseClient.deterministicPbId("tbc_${UUID.randomUUID()}")
         val now = System.currentTimeMillis()
 
@@ -3538,31 +4173,53 @@ class SurabayaRepository(
             authorId = uid,
             authorName = authorName,
             authorDistrict = district,
-            text = text.trim().take(500),
+            text = cleanText,
             createdAt = now,
         )
 
         val list = inMemoryTambalBanComments.computeIfAbsent(spotId) { CopyOnWriteArrayList() }
         list.add(0, newComment)
 
+        val nextCount = (inMemoryTambalBan[spotId]?.commentCount ?: (list.size - 1)) + 1
         inMemoryTambalBan[spotId]?.let { spot ->
             inMemoryTambalBan[spotId] = spot.copy(
-                commentCount = list.size,
+                commentCount = nextCount,
                 updatedAt = now,
             )
         }
 
         bumpMutationTick()
+
+        try {
+            val payload = JSONObject().apply {
+                put("id", cmtId)
+                put("spot_id", spotId)
+                put("author_id", uid)
+                put("author_name", authorName.take(80))
+                put("author_district", district.take(60))
+                put("text", cleanText)
+            }
+            pb.createRecord("tambal_ban_comments", payload)
+            runCatching {
+                pb.updateRecord("tambal_ban", spotId, JSONObject().apply {
+                    put("comment_count", nextCount)
+                })
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "addTambalBanComment PB sync fallback: ${e.message}")
+        }
+
         return cmtId
     }
 
     suspend fun deleteTambalBanSpot(spotId: String, requesterUid: String, isAdmin: Boolean) {
         val spot = inMemoryTambalBan[spotId]
-        if (spot != null && (spot.authorId == requesterUid || isAdmin)) {
+        if (spot == null || spot.authorId == requesterUid || isAdmin) {
             inMemoryTambalBan.remove(spotId)
             inMemoryTambalBanComments.remove(spotId)
             localDeletedRecords.add("tambal_ban:$spotId")
             bumpMutationTick()
+            runCatching { pb.deleteRecord("tambal_ban", spotId) }
         }
     }
 

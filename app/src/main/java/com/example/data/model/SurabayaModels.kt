@@ -6,12 +6,29 @@ sealed interface UiState<out T> {
     data class Error(val message: String) : UiState<Nothing>
 }
 
+fun normalizeCitizenGender(raw: String): String {
+    return when (raw.trim().uppercase()) {
+        "PEREMPUAN", "WANITA", "FEMALE", "P", "CEWEK", "NING" -> "PEREMPUAN"
+        "LAKI_LAKI", "LAKI-LAKI", "LAKI LAKI", "PRIA", "MALE", "L", "COWOK", "CAK" -> "LAKI_LAKI"
+        else -> ""
+    }
+}
+
+fun formatCitizenGenderLabel(raw: String): String {
+    return when (normalizeCitizenGender(raw)) {
+        "PEREMPUAN" -> "Perempuan"
+        "LAKI_LAKI" -> "Laki-laki"
+        else -> ""
+    }
+}
+
 data class PbUserSession(
     val token: String,
     val userId: String,
     val email: String,
     val displayName: String,
     val district: String = "Genteng",
+    val gender: String = "",
     val isAdmin: Boolean = false,
 )
 
@@ -20,6 +37,7 @@ data class UserAccount(
     val userId: String = "",
     val displayName: String = "",
     val district: String = "Genteng",
+    val gender: String = "",
     val bio: String = "",
     val searchRadiusKm: Double = 10.0,
     val isDiscoverable: Boolean = true,
@@ -29,7 +47,13 @@ data class UserAccount(
     val isBanned: Boolean = false,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
-)
+) {
+    val normalizedGender: String
+        get() = normalizeCitizenGender(gender)
+
+    val genderLabel: String
+        get() = formatCitizenGenderLabel(gender)
+}
 
 data class BookmarkItem(
     val id: String = "",
@@ -46,6 +70,7 @@ data class NearbyProfile(
     val id: String = "",
     val userId: String = "",
     val displayName: String = "",
+    val gender: String = "",
     val avatarColorHex: String = "#006B5E",
     val avatarUrl: String = "",
     val bio: String = "",
@@ -57,7 +82,13 @@ data class NearbyProfile(
     val isBanned: Boolean = false,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
-)
+) {
+    val normalizedGender: String
+        get() = normalizeCitizenGender(gender)
+
+    val genderLabel: String
+        get() = formatCitizenGenderLabel(gender)
+}
 
 data class IncidentReport(
     val id: String = "",

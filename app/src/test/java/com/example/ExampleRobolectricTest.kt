@@ -20,7 +20,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.pinch
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,7 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.PollingScreen
 import com.example.ui.screens.SplashScreen
+import com.example.ui.screens.TemanSekitarScreen
 import com.example.ui.sheets.CitizenProfileSheetContent
 import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
@@ -55,6 +59,7 @@ import com.example.ui.sheets.PollDetailSheetContent
 import com.example.ui.sheets.ProfileAndPrivacySheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
+import com.example.ui.viewmodel.NearbyPeerItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -1177,8 +1182,162 @@ class ExampleRobolectricTest {
     assertEquals("Berbagi info warung malam & kaki lima", submittedSubtitle)
     assertEquals("Monggo bagi rekomendasi kuliner malam favoritmu!", submittedWelcome)
   }
+
+  @Test
+  fun `temanSekitarScreen filters Perempuan and LakiLaki displays estimated distance and opens profile or photo zoom`() {
+    val femalePeer = NearbyProfile(
+      id = "peer_nadia",
+      userId = "uid_nadia",
+      displayName = "Nadia Kusuma",
+      gender = "PEREMPUAN",
+      district = "Wonokromo",
+      bio = "Suka hunting kuliner penyetan & kopi susu.",
+      interests = "Kuliner, Kopi",
+    )
+    val malePeer = NearbyProfile(
+      id = "peer_bima",
+      userId = "uid_bima",
+      displayName = "Bima Pratama",
+      gender = "LAKI_LAKI",
+      district = "Gubeng",
+      bio = "Hobi lari pagi di Taman Bungkul.",
+      interests = "Lari Pagi, Fotografi",
+    )
+
+    val peers = listOf(
+      NearbyPeerItem(profile = femalePeer, distanceKm = 0.34),
+      NearbyPeerItem(profile = malePeer, distanceKm = 1.82),
+    )
+
+    var openedProfilePeer: NearbyProfile? = null
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(860.dp)) {
+          TemanSekitarScreen(
+            nearbyPeersState = UiState.Success(peers),
+            userAccount = UserAccount(id = "me", displayName = "Cak Raka", district = "Genteng", searchRadiusKm = 10.0),
+            isLiveGpsActive = true,
+            onRefreshGps = {},
+            onOpenPrivacySheet = {},
+            onGreetPeer = {},
+            onOpenCitizenProfile = { openedProfilePeer = it },
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // 1. Both citizens & their estimated distances and gender badges are displayed under "Semua (2)"
+    composeTestRule.onNodeWithTag("filter_gender_all").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("filter_gender_female").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("filter_gender_male").assertIsDisplayed()
+
+    composeTestRule.onNodeWithTag("nearby_peer_card_peer_nadia").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("nearby_peer_card_peer_bima").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("peer_distance_badge_peer_nadia", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithTag("peer_distance_badge_peer_bima", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Estimasi ± 350 m", useUnmergedTree = true).assertIsDisplayed()
+
+    // 2. Filter "Perempuan" -> only Nadia appears, Bima is hidden
+    composeTestRule.onNodeWithTag("filter_gender_female").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("nearby_peer_card_peer_nadia").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("nearby_peer_card_peer_bima").assertDoesNotExist()
+
+    // 3. Filter "Laki-laki" -> only Bima appears, Nadia is hidden
+    composeTestRule.onNodeWithTag("filter_gender_male").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("nearby_peer_card_peer_bima").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("nearby_peer_card_peer_nadia").assertDoesNotExist()
+
+    // 4. Filter back to "Semua" -> clicking a person's card triggers slide-up profile bottom sheet callback
+    composeTestRule.onNodeWithTag("filter_gender_all").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("nearby_peer_card_peer_nadia").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("uid_nadia", openedProfilePeer?.userId)
+
+    // 5. Clicking bagian foto (avatar) opens the 2-finger pinch-to-zoom dialog directly
+    composeTestRule.onNodeWithTag("peer_avatar_photo_peer_nadia", useUnmergedTree = true).performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("citizen_photo_zoom_dialog").assertIsDisplayed()
+    composeTestRule.onNodeWithText("100%").assertIsDisplayed()
+
+    // Perform 2-finger pinch outward on the photo canvas -> zoom percentage increases above 100%
+    composeTestRule.onNodeWithTag("citizen_photo_zoom_canvas").performTouchInput {
+      pinch(
+        start0 = Offset(center.x - 20f, center.y),
+        end0 = Offset(center.x - 140f, center.y),
+        start1 = Offset(center.x + 20f, center.y),
+        end1 = Offset(center.x + 140f, center.y),
+        durationMillis = 250L,
+      )
+    }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("citizen_photo_zoom_close_btn").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("citizen_photo_zoom_dialog").assertDoesNotExist()
+  }
+
+  @Test
+  fun `citizenProfileSheetContent shows estimated distance and gender and opens 2 finger zoomable photo on avatar click`() {
+    val profile = NearbyProfile(
+      id = "peer_sari",
+      userId = "uid_sari",
+      displayName = "Sari Wulandari",
+      gender = "PEREMPUAN",
+      district = "Genteng",
+      bio = "Pecinta kuliner Jalan Tunjungan & kopi pagi.",
+      interests = "Kuliner, Jalan Pagi",
+    )
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(860.dp)) {
+          CitizenProfileSheetContent(
+            citizenUserId = "uid_sari",
+            initialName = "Sari Wulandari",
+            citizenProfile = profile,
+            citizenMoments = emptyList(),
+            currentUserId = "uid_viewer",
+            isAdmin = false,
+            estimatedDistanceKm = 1.6,
+            onOpenMomentDetail = {},
+            onGreetCitizen = {},
+            onBlockCitizen = { _, _ -> },
+            onEditMyProfile = {},
+            onClose = {},
+          )
+        }
+      }
+    }
+
+    composeTestRule.waitForIdle()
+
+    // Verify slide-up profile header displays estimated distance and gender badges
+    composeTestRule.onNodeWithTag("citizen_profile_sheet").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("citizen_profile_distance_badge", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithTag("citizen_profile_gender_badge", useUnmergedTree = true).assertIsDisplayed()
+
+    // Tap the profile photo inside the slide-up profile sheet -> opens fullscreen zoom dialog
+    composeTestRule.onNodeWithTag("citizen_profile_avatar_btn").performClick()
+    composeTestRule.waitForIdle()
+
+    composeTestRule.onNodeWithTag("citizen_photo_zoom_dialog").assertIsDisplayed()
+    composeTestRule.onNodeWithText("100%").assertIsDisplayed()
+
+    // Double-tap zoom or 2-finger pinch works smoothly
+    composeTestRule.onNodeWithTag("citizen_photo_zoom_canvas").performTouchInput {
+      doubleClick()
+    }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithText("250%").assertIsDisplayed()
+
+    // Close fullscreen photo viewer
+    composeTestRule.onNodeWithTag("citizen_photo_zoom_close_btn").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("citizen_photo_zoom_dialog").assertDoesNotExist()
+  }
 }
-
-
-
-

@@ -86,10 +86,14 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.R
+import androidx.compose.material.icons.filled.Female
+import androidx.compose.material.icons.filled.Male
+import androidx.compose.material3.minimumInteractiveComponentSize
 import com.example.data.model.BookmarkItem
 import com.example.data.model.NearbyProfile
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
+import com.example.data.model.formatCitizenGenderLabel
 import com.example.data.util.LinkSecurityValidator
 import com.example.data.util.LinkValidationResult
 import com.example.data.util.SafeLinkCategory
@@ -1379,7 +1383,7 @@ fun ProfileAndPrivacySheetContent(
     onOpenCreateMoment: () -> Unit = {},
     onUnblockUser: (String) -> Unit = {},
     onToggleAdmin: (Boolean) -> Unit,
-    onSaveProfile: (
+        onSaveProfile: (
         name: String,
         district: String,
         bio: String,
@@ -1389,8 +1393,25 @@ fun ProfileAndPrivacySheetContent(
         avatarUri: Uri?,
     ) -> Unit,
     onSignOut: () -> Unit,
+    onSaveProfileWithGender: (
+        (
+            name: String,
+            gender: String,
+            district: String,
+            bio: String,
+            interests: String,
+            radiusKm: Double,
+            discoverable: Boolean,
+            avatarUri: Uri?,
+        ) -> Unit
+    )? = null,
 ) {
     var displayName by remember(userAccount?.displayName) { mutableStateOf(userAccount?.displayName ?: "Warga Surabaya") }
+    var selectedGender by remember(userAccount?.gender, nearbyProfile?.gender) {
+        mutableStateOf(
+            userAccount?.normalizedGender?.ifBlank { nearbyProfile?.normalizedGender.orEmpty() }.orEmpty(),
+        )
+    }
     var district by remember(userAccount?.district) { mutableStateOf(userAccount?.district ?: "Genteng") }
     var bio by remember(userAccount?.bio) { mutableStateOf(userAccount?.bio ?: "Halo rek! Salam kenal.") }
     var interests by remember(nearbyProfile?.interests) {
@@ -1407,8 +1428,25 @@ fun ProfileAndPrivacySheetContent(
     val context = LocalContext.current
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showOwnAvatarZoom by remember { mutableStateOf(false) }
 
     val existingAvatarUrl = userAccount?.avatarUrl.orEmpty().ifBlank { nearbyProfile?.avatarUrl.orEmpty() }
+    val previewOrExistingAvatarUrl = selectedAvatarUri?.toString()?.ifBlank { existingAvatarUrl } ?: existingAvatarUrl
+
+    if (showOwnAvatarZoom) {
+        CitizenAvatarZoomDialog(
+            name = displayName,
+            subtitle = buildList {
+                add("Kec. $district")
+                val gLbl = formatCitizenGenderLabel(selectedGender)
+                if (gLbl.isNotBlank()) add(gLbl)
+            }.joinToString(" • "),
+            avatarUrl = previewOrExistingAvatarUrl,
+            avatarColorHex = nearbyProfile?.avatarColorHex ?: "#006B5E",
+            onDismiss = { showOwnAvatarZoom = false },
+        )
+    }
+
     val avatarPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
@@ -1437,11 +1475,13 @@ fun ProfileAndPrivacySheetContent(
                 district = district,
                 bio = bio,
                 interests = interests.split(",").map { it.trim() }.filter { it.isNotBlank() },
-                avatarUrl = existingAvatarUrl,
+                avatarUrl = previewOrExistingAvatarUrl,
                 avatarColorHex = nearbyProfile?.avatarColorHex ?: "#006B5E",
                 totalMoments = userMoments.size,
                 totalLikes = userMoments.sumOf { it.likesCount },
                 isMyOwnProfile = true,
+                genderLabel = formatCitizenGenderLabel(selectedGender),
+                onAvatarClick = { showOwnAvatarZoom = true },
                 onGreet = {},
                 onBlock = {},
                 onEditProfile = { activeProfileTab = 1 },
@@ -1795,6 +1835,94 @@ fun ProfileAndPrivacySheetContent(
             onSelect = { district = it },
         )
 
+        if (focusPrivacyOnly || activeProfileTab == 1) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFFF5FBF7),
+                border = BorderStroke(1.dp, OutlineVariantLight),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("profile_gender_selector"),
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.profile_gender_label),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ToskaOnPrimaryContainer,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FilterChip(
+                            selected = selectedGender == "LAKI_LAKI",
+                            onClick = { if (!isSubmitting) selectedGender = "LAKI_LAKI" },
+                            label = { Text(stringResource(R.string.gender_option_male)) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Male,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF1565C0),
+                                selectedLabelColor = Color.White,
+                                selectedLeadingIconColor = Color.White,
+                            ),
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("gender_chip_male"),
+                        )
+
+                        FilterChip(
+                            selected = selectedGender == "PEREMPUAN",
+                            onClick = { if (!isSubmitting) selectedGender = "PEREMPUAN" },
+                            label = { Text(stringResource(R.string.gender_option_female)) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Female,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFAD1457),
+                                selectedLabelColor = Color.White,
+                                selectedLeadingIconColor = Color.White,
+                            ),
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("gender_chip_female"),
+                        )
+
+                        FilterChip(
+                            selected = selectedGender.isBlank(),
+                            onClick = { if (!isSubmitting) selectedGender = "" },
+                            label = { Text(stringResource(R.string.gender_option_unspecified)) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = ToskaPrimaryDeep,
+                                selectedLabelColor = Color.White,
+                            ),
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("gender_chip_unspecified"),
+                        )
+                    }
+                }
+            }
+        }
+
         // GPS Radius & Discoverability Controls
         Surface(
             shape = RoundedCornerShape(18.dp),
@@ -1920,15 +2048,29 @@ fun ProfileAndPrivacySheetContent(
 
         Button(
             onClick = {
-                onSaveProfile(
-                    displayName,
-                    district,
-                    bio,
-                    interests,
-                    radiusSlider.roundToInt().toDouble(),
-                    isDiscoverable,
-                    selectedAvatarUri,
-                )
+                val roundedRadius = radiusSlider.roundToInt().toDouble()
+                if (onSaveProfileWithGender != null) {
+                    onSaveProfileWithGender(
+                        displayName,
+                        selectedGender,
+                        district,
+                        bio,
+                        interests,
+                        roundedRadius,
+                        isDiscoverable,
+                        selectedAvatarUri,
+                    )
+                } else {
+                    onSaveProfile(
+                        displayName,
+                        district,
+                        bio,
+                        interests,
+                        roundedRadius,
+                        isDiscoverable,
+                        selectedAvatarUri,
+                    )
+                }
             },
             enabled = displayName.trim().length >= 2 && !isSubmitting,
             shape = CircleShape,

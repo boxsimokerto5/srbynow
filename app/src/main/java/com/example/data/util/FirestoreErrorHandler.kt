@@ -140,6 +140,17 @@ fun formatDistanceLabel(km: Double): String {
     }
 }
 
+fun formatEstimatedDistanceLabel(km: Double): String {
+    return when {
+        km < 0.1 -> "± 100 m"
+        km < 1.0 -> {
+            val roundedMeters = (((km * 1000.0) / 50.0).roundToInt() * 50).coerceAtLeast(100)
+            "± $roundedMeters m"
+        }
+        else -> String.format(Locale.forLanguageTag("id-ID"), "± %.1f km", km)
+    }
+}
+
 private val MAPS_AT_COORD_REGEX = Regex("""@(-?\d+\.\d+),\s*(-?\d+\.\d+)""")
 private val MAPS_QUERY_COORD_REGEX = Regex("""[?&](?:q|ll|query)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)""", RegexOption.IGNORE_CASE)
 private val MAPS_PLACE_COORD_REGEX = Regex("""!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)""")

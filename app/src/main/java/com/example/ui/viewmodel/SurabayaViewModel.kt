@@ -730,9 +730,11 @@ class SurabayaViewModel(
         isDiscoverable: Boolean,
         avatarUri: Uri? = null,
         context: Context? = null,
+        gender: String = "",
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
         val appCtx = context?.applicationContext
+        val effectiveGender = gender.ifBlank { userAccount.value?.gender ?: myNearbyProfile.value?.gender.orEmpty() }
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
@@ -775,6 +777,7 @@ class SurabayaViewModel(
                     isDiscoverable = isDiscoverable,
                     lat = districtLat,
                     lng = districtLng,
+                    gender = effectiveGender,
                     avatarPhoto = preparedAvatar,
                     onPhotoSchemaMissing = { photoSchemaMissing = true },
                 )

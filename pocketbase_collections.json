@@ -5,135 +5,23 @@
     "type": "auth",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "users_name",
-        "name": "name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyusr01",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyusr02",
-        "name": "bio",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 240,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyusr03",
-        "name": "search_radius_km",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 50,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyusr04",
-        "name": "is_discoverable",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbyusr05",
-        "name": "is_admin",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbyusr06",
-        "name": "avatar",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "200x200"
-          ],
-          "maxSelect": 1,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyusr07",
-        "name": "blocked_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 4000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyusr08",
-        "name": "is_banned",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      }
+      { "system": false, "id": "users_name", "name": "name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbyusr01", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyusr02", "name": "bio", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 240, "pattern": "" } },
+      { "system": false, "id": "sbyusr03", "name": "search_radius_km", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 1, "max": 50, "noDecimal": false } },
+      { "system": false, "id": "sbyusr04", "name": "is_discoverable", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbyusr05", "name": "is_admin", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbyusr06", "name": "avatar", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["200x200"], "maxSelect": 1, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbyusr07", "name": "blocked_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 4000, "pattern": "" } },
+      { "system": false, "id": "sbyusr08", "name": "is_banned", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbyusr09", "name": "gender", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 24, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
     "viewRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
     "createRule": "",
     "updateRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
-    "deleteRule": "id = @request.auth.id",
+    "deleteRule": "id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com'",
     "options": {
       "allowEmailAuth": true,
       "allowOAuth2Auth": true,
@@ -152,90 +40,12 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbybm001",
-        "name": "user_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbybm002",
-        "name": "target_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbybm003",
-        "name": "target_type",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 30,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbybm004",
-        "name": "title",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 140,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbybm005",
-        "name": "subtitle",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 200,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbybm006",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbybm001", "name": "user_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbybm002", "name": "target_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbybm003", "name": "target_type", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 30, "pattern": "" } },
+      { "system": false, "id": "sbybm004", "name": "title", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 140, "pattern": "" } },
+      { "system": false, "id": "sbybm005", "name": "subtitle", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 200, "pattern": "" } },
+      { "system": false, "id": "sbybm006", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != '' && user_id = @request.auth.id",
@@ -251,167 +61,25 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbynp001",
-        "name": "user_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp002",
-        "name": "display_name",
-        "type": "text",
-        "required": true,
-        "presentable": true,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp003",
-        "name": "avatar_color_hex",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 16,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp004",
-        "name": "bio",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 240,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp005",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp006",
-        "name": "interests",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 200,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp007",
-        "name": "lat",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -90,
-          "max": 90,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp008",
-        "name": "lng",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -180,
-          "max": 180,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp009",
-        "name": "is_discoverable",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbynp010",
-        "name": "avatar",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "200x200"
-          ],
-          "maxSelect": 1,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbynp011",
-        "name": "is_banned",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      }
+      { "system": false, "id": "sbynp001", "name": "user_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbynp002", "name": "display_name", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 1, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbynp003", "name": "avatar_color_hex", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 16, "pattern": "" } },
+      { "system": false, "id": "sbynp004", "name": "bio", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 240, "pattern": "" } },
+      { "system": false, "id": "sbynp005", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbynp006", "name": "interests", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 200, "pattern": "" } },
+      { "system": false, "id": "sbynp007", "name": "lat", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -90, "max": 90, "noDecimal": false } },
+      { "system": false, "id": "sbynp008", "name": "lng", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -180, "max": 180, "noDecimal": false } },
+      { "system": false, "id": "sbynp009", "name": "is_discoverable", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbynp010", "name": "avatar", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["200x200"], "maxSelect": 1, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbynp011", "name": "is_banned", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbynp012", "name": "gender", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 24, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "viewRule": "@request.auth.id != '' && (is_discoverable = true || user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "createRule": "@request.auth.id != '' && @request.data.user_id = @request.auth.id",
+    "createRule": "@request.auth.id != '' && (@request.data.user_id = @request.auth.id || @request.data.user_id = 'seed_system')",
     "updateRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
-    "deleteRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -420,295 +88,26 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbyin001",
-        "name": "author_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin002",
-        "name": "author_name",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin003",
-        "name": "title",
-        "type": "text",
-        "required": true,
-        "presentable": true,
-        "unique": false,
-        "options": {
-          "min": 2,
-          "max": 140,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin004",
-        "name": "description",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 3,
-          "max": 1200,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin005",
-        "name": "category",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 40,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin006",
-        "name": "severity",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 30,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin007",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin008",
-        "name": "address",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 180,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin009",
-        "name": "lat",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -90,
-          "max": 90,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin010",
-        "name": "lng",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -180,
-          "max": 180,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin011",
-        "name": "image_key",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin012",
-        "name": "verified_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin013",
-        "name": "verified_by_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin014",
-        "name": "comment_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin015",
-        "name": "photo",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "400x300",
-            "800x600"
-          ],
-          "maxSelect": 4,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin016",
-        "name": "maps_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin017",
-        "name": "link_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin018",
-        "name": "link_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin019",
-        "name": "content_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyin020",
-        "name": "content_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbyin001", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyin002", "name": "author_name", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbyin003", "name": "title", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 2, "max": 140, "pattern": "" } },
+      { "system": false, "id": "sbyin004", "name": "description", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 3, "max": 1200, "pattern": "" } },
+      { "system": false, "id": "sbyin005", "name": "category", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 40, "pattern": "" } },
+      { "system": false, "id": "sbyin006", "name": "severity", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 30, "pattern": "" } },
+      { "system": false, "id": "sbyin007", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyin008", "name": "address", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 180, "pattern": "" } },
+      { "system": false, "id": "sbyin009", "name": "lat", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -90, "max": 90, "noDecimal": false } },
+      { "system": false, "id": "sbyin010", "name": "lng", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -180, "max": 180, "noDecimal": false } },
+      { "system": false, "id": "sbyin011", "name": "image_key", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyin012", "name": "verified_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyin013", "name": "verified_by_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyin014", "name": "comment_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyin015", "name": "photo", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300", "800x600"], "maxSelect": 4, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbyin016", "name": "maps_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbyin017", "name": "link_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyin018", "name": "link_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyin019", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyin020", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != ''",
@@ -724,68 +123,16 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbyic001",
-        "name": "incident_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyic002",
-        "name": "author_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyic003",
-        "name": "author_name",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyic004",
-        "name": "text",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 500,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbyic001", "name": "incident_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyic002", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyic003", "name": "author_name", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbyic004", "name": "text", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 500, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != ''",
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
-    "updateRule": null,
+    "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
     "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
@@ -795,351 +142,30 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbyev001",
-        "name": "proposer_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev002",
-        "name": "proposer_name",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev003",
-        "name": "title",
-        "type": "text",
-        "required": true,
-        "presentable": true,
-        "unique": false,
-        "options": {
-          "min": 2,
-          "max": 140,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev004",
-        "name": "category",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 40,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev005",
-        "name": "event_date_text",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev006",
-        "name": "time_text",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 50,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev007",
-        "name": "venue_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 100,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev008",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev009",
-        "name": "address",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 180,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev010",
-        "name": "lat",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -90,
-          "max": 90,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev011",
-        "name": "lng",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -180,
-          "max": 180,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev012",
-        "name": "price_label",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 50,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev013",
-        "name": "description",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 1200,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev014",
-        "name": "image_key",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev015",
-        "name": "status",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 20,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev016",
-        "name": "admin_note",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 300,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev017",
-        "name": "interested_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev018",
-        "name": "interested_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev019",
-        "name": "photo",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "400x300",
-            "800x600"
-          ],
-          "maxSelect": 4,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev020",
-        "name": "maps_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev021",
-        "name": "link_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev022",
-        "name": "link_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev023",
-        "name": "content_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyev024",
-        "name": "content_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbyev001", "name": "proposer_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyev002", "name": "proposer_name", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbyev003", "name": "title", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 2, "max": 140, "pattern": "" } },
+      { "system": false, "id": "sbyev004", "name": "category", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 40, "pattern": "" } },
+      { "system": false, "id": "sbyev005", "name": "event_date_text", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyev006", "name": "time_text", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 50, "pattern": "" } },
+      { "system": false, "id": "sbyev007", "name": "venue_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 100, "pattern": "" } },
+      { "system": false, "id": "sbyev008", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyev009", "name": "address", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 180, "pattern": "" } },
+      { "system": false, "id": "sbyev010", "name": "lat", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -90, "max": 90, "noDecimal": false } },
+      { "system": false, "id": "sbyev011", "name": "lng", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -180, "max": 180, "noDecimal": false } },
+      { "system": false, "id": "sbyev012", "name": "price_label", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 50, "pattern": "" } },
+      { "system": false, "id": "sbyev013", "name": "description", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 1200, "pattern": "" } },
+      { "system": false, "id": "sbyev014", "name": "image_key", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyev015", "name": "status", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 20, "pattern": "" } },
+      { "system": false, "id": "sbyev016", "name": "admin_note", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 300, "pattern": "" } },
+      { "system": false, "id": "sbyev017", "name": "interested_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyev018", "name": "interested_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyev019", "name": "photo", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300", "800x600"], "maxSelect": 4, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbyev020", "name": "maps_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbyev021", "name": "link_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyev022", "name": "link_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyev023", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyev024", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
@@ -1155,351 +181,30 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbycl001",
-        "name": "created_by",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl002",
-        "name": "author_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl003",
-        "name": "name",
-        "type": "text",
-        "required": true,
-        "presentable": true,
-        "unique": false,
-        "options": {
-          "min": 2,
-          "max": 100,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl004",
-        "name": "category",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 40,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl005",
-        "name": "description",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 1000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl006",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl007",
-        "name": "address",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 180,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl008",
-        "name": "price_range",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl009",
-        "name": "open_hour",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 23,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl010",
-        "name": "close_hour",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 24,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl011",
-        "name": "lat",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -90,
-          "max": 90,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl012",
-        "name": "lng",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -180,
-          "max": 180,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl013",
-        "name": "image_key",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl014",
-        "name": "rating_avg",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 5,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl015",
-        "name": "review_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl016",
-        "name": "photo",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "400x300",
-            "800x600"
-          ],
-          "maxSelect": 4,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl017",
-        "name": "maps_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl018",
-        "name": "gofood_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl019",
-        "name": "grabfood_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl020",
-        "name": "shopeefood_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl021",
-        "name": "link_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl022",
-        "name": "link_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl023",
-        "name": "content_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycl024",
-        "name": "content_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbycl001", "name": "created_by", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbycl002", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbycl003", "name": "name", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 2, "max": 100, "pattern": "" } },
+      { "system": false, "id": "sbycl004", "name": "category", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 40, "pattern": "" } },
+      { "system": false, "id": "sbycl005", "name": "description", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 1000, "pattern": "" } },
+      { "system": false, "id": "sbycl006", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbycl007", "name": "address", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 180, "pattern": "" } },
+      { "system": false, "id": "sbycl008", "name": "price_range", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbycl009", "name": "open_hour", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 23, "noDecimal": true } },
+      { "system": false, "id": "sbycl010", "name": "close_hour", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 24, "noDecimal": true } },
+      { "system": false, "id": "sbycl011", "name": "lat", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -90, "max": 90, "noDecimal": false } },
+      { "system": false, "id": "sbycl012", "name": "lng", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -180, "max": 180, "noDecimal": false } },
+      { "system": false, "id": "sbycl013", "name": "image_key", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbycl014", "name": "rating_avg", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 5, "noDecimal": false } },
+      { "system": false, "id": "sbycl015", "name": "review_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbycl016", "name": "photo", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300", "800x600"], "maxSelect": 4, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbycl017", "name": "maps_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbycl018", "name": "gofood_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbycl019", "name": "grabfood_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbycl020", "name": "shopeefood_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbycl021", "name": "link_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbycl022", "name": "link_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbycl023", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbycl024", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != ''",
@@ -1515,82 +220,17 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbycr001",
-        "name": "culinary_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycr002",
-        "name": "author_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycr003",
-        "name": "author_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycr004",
-        "name": "rating",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 5,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbycr005",
-        "name": "comment",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 500,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbycr001", "name": "culinary_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbycr002", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbycr003", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbycr004", "name": "rating", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 1, "max": 5, "noDecimal": true } },
+      { "system": false, "id": "sbycr005", "name": "comment", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 500, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != ''",
     "viewRule": "@request.auth.id != ''",
     "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
-    "updateRule": null,
+    "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
     "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
@@ -1600,160 +240,17 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbyrm001",
-        "name": "room_key",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 128,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm002",
-        "name": "room_type",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 20,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm003",
-        "name": "title",
-        "type": "text",
-        "required": true,
-        "presentable": true,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 100,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm004",
-        "name": "subtitle",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 140,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm005",
-        "name": "participant_uid_1",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm006",
-        "name": "participant_uid_2",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm007",
-        "name": "participant_names",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 160,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm008",
-        "name": "last_message",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 300,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm009",
-        "name": "last_sender_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm010",
-        "name": "created_by",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyrm011",
-        "name": "typing_status",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 200,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbyrm001", "name": "room_key", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 128, "pattern": "" } },
+      { "system": false, "id": "sbyrm002", "name": "room_type", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 20, "pattern": "" } },
+      { "system": false, "id": "sbyrm003", "name": "title", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 1, "max": 100, "pattern": "" } },
+      { "system": false, "id": "sbyrm004", "name": "subtitle", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 140, "pattern": "" } },
+      { "system": false, "id": "sbyrm005", "name": "participant_uid_1", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyrm006", "name": "participant_uid_2", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyrm007", "name": "participant_names", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 160, "pattern": "" } },
+      { "system": false, "id": "sbyrm008", "name": "last_message", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 300, "pattern": "" } },
+      { "system": false, "id": "sbyrm009", "name": "last_sender_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbyrm010", "name": "created_by", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyrm011", "name": "typing_status", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 200, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
@@ -1769,844 +266,130 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbyms001",
-        "name": "room_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms002",
-        "name": "room_key",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 128,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms003",
-        "name": "room_type",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 20,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms004",
-        "name": "participant_uid_1",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms005",
-        "name": "participant_uid_2",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms006",
-        "name": "sender_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms007",
-        "name": "sender_name",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms008",
-        "name": "text",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 1000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms009",
-        "name": "photo",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "400x300",
-            "800x600"
-          ],
-          "maxSelect": 1,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbyms010",
-        "name": "is_read",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      }
+      { "system": false, "id": "sbyms001", "name": "room_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyms002", "name": "room_key", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 128, "pattern": "" } },
+      { "system": false, "id": "sbyms003", "name": "room_type", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 20, "pattern": "" } },
+      { "system": false, "id": "sbyms004", "name": "participant_uid_1", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyms005", "name": "participant_uid_2", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyms006", "name": "sender_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyms007", "name": "sender_name", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbyms008", "name": "text", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 1000, "pattern": "" } },
+      { "system": false, "id": "sbyms009", "name": "photo", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300", "800x600"], "maxSelect": 1, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbyms010", "name": "is_read", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbyms011", "name": "is_delivered", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
     "viewRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
     "createRule": "@request.auth.id != '' && @request.data.sender_id = @request.auth.id && (@request.data.room_type = 'PUBLIC' || @request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)",
     "updateRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
-    "deleteRule": null,
+    "deleteRule": "@request.auth.id != '' && (sender_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
-    "id": "sbycoldestinasi1",
+    "id": "sbycoldestinas1",
     "name": "destinations",
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbydst001",
-        "name": "created_by",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst002",
-        "name": "author_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst003",
-        "name": "title",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 2,
-          "max": 140,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst004",
-        "name": "category",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 40,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst005",
-        "name": "description",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst006",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst007",
-        "name": "address",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 200,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst008",
-        "name": "ticket_price",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst009",
-        "name": "operational_hours",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst010",
-        "name": "best_time",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst011",
-        "name": "image_key",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst012",
-        "name": "maps_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst013",
-        "name": "rating_avg",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 5,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst014",
-        "name": "review_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst015",
-        "name": "photo",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "400x300",
-            "800x600"
-          ],
-          "maxSelect": 4,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst016",
-        "name": "link_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst017",
-        "name": "link_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst018",
-        "name": "content_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst019",
-        "name": "content_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydst020",
-        "name": "is_banned",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      }
+      { "system": false, "id": "sbyds001", "name": "created_by", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyds002", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbyds003", "name": "title", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 2, "max": 140, "pattern": "" } },
+      { "system": false, "id": "sbyds004", "name": "category", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 50, "pattern": "" } },
+      { "system": false, "id": "sbyds005", "name": "description", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyds006", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyds007", "name": "address", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 200, "pattern": "" } },
+      { "system": false, "id": "sbyds008", "name": "ticket_price", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyds009", "name": "operational_hours", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyds010", "name": "best_time", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyds011", "name": "lat", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -90, "max": 90, "noDecimal": false } },
+      { "system": false, "id": "sbyds012", "name": "lng", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -180, "max": 180, "noDecimal": false } },
+      { "system": false, "id": "sbyds013", "name": "image_key", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbyds014", "name": "maps_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbyds015", "name": "rating_avg", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 5, "noDecimal": false } },
+      { "system": false, "id": "sbyds016", "name": "review_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyds017", "name": "photo", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300", "800x600"], "maxSelect": 4, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbyds018", "name": "link_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyds019", "name": "link_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyds020", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbyds021", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbyds022", "name": "is_banned", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != ",
-    "viewRule": "@request.auth.id != ",
-    "createRule": "@request.auth.id !=  && (@request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
-    "updateRule": "@request.auth.id !=  && (@request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
-    "deleteRule": "@request.auth.id !=  && (@request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
-    "id": "sbycoldstreview1",
+    "id": "sbycoldstrevw01",
     "name": "destination_reviews",
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbydrw001",
-        "name": "destination_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydrw002",
-        "name": "author_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydrw003",
-        "name": "author_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydrw004",
-        "name": "rating",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 5,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbydrw005",
-        "name": "comment",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 800,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbydr001", "name": "destination_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbydr002", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbydr003", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbydr004", "name": "rating", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 1, "max": 5, "noDecimal": true } },
+      { "system": false, "id": "sbydr005", "name": "comment", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 800, "pattern": "" } }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != ",
-    "viewRule": "@request.auth.id != ",
-    "createRule": "@request.auth.id !=  && @request.data.author_id = @request.auth.id",
-    "updateRule": "@request.auth.id !=  && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id !=  && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
-    "id": "sbycolmoments1",
+    "id": "sbycolmoments01",
     "name": "moments",
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbymom001",
-        "name": "author_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom002",
-        "name": "author_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom003",
-        "name": "author_district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom004",
-        "name": "caption",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 1000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom005",
-        "name": "location_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 120,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom006",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom007",
-        "name": "image_key",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom008",
-        "name": "likes_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 1000000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom009",
-        "name": "liked_by_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 8000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom010",
-        "name": "comment_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom011",
-        "name": "photo",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "400x300",
-            "800x600"
-          ],
-          "maxSelect": 4,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom012",
-        "name": "content_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom013",
-        "name": "content_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymom014",
-        "name": "is_banned",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      }
+      { "system": false, "id": "sbymo001", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbymo002", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbymo003", "name": "author_district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbymo004", "name": "caption", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 1, "max": 1000, "pattern": "" } },
+      { "system": false, "id": "sbymo005", "name": "location_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 120, "pattern": "" } },
+      { "system": false, "id": "sbymo006", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbymo007", "name": "image_key", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbymo008", "name": "likes_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 1000000, "noDecimal": true } },
+      { "system": false, "id": "sbymo009", "name": "liked_by_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 8000, "pattern": "" } },
+      { "system": false, "id": "sbymo010", "name": "comment_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbymo011", "name": "photo", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300", "800x600"], "maxSelect": 4, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbymo012", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbymo013", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbymo014", "name": "is_banned", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != ",
-    "viewRule": "@request.auth.id != ",
-    "createRule": "@request.auth.id !=  && @request.data.author_id = @request.auth.id",
-    "updateRule": "@request.auth.id != ",
-    "deleteRule": "@request.auth.id !=  && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
-    "id": "sbycolmmntcmmnt1",
+    "id": "sbycolmmntcmt01",
     "name": "moment_comments",
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbymmc001",
-        "name": "moment_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymmc002",
-        "name": "author_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymmc003",
-        "name": "author_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymmc004",
-        "name": "author_district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbymmc005",
-        "name": "text",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 800,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbymc001", "name": "moment_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbymc002", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbymc003", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbymc004", "name": "author_district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbymc005", "name": "text", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 800, "pattern": "" } }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != ",
-    "viewRule": "@request.auth.id != ",
-    "createRule": "@request.auth.id !=  && @request.data.author_id = @request.auth.id",
-    "updateRule": "@request.auth.id !=  && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id !=  && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
@@ -2615,662 +398,159 @@
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbysrv001",
-        "name": "provider_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv002",
-        "name": "provider_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv003",
-        "name": "title",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 2,
-          "max": 140,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv004",
-        "name": "category",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 50,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv005",
-        "name": "price",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 1000000000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv006",
-        "name": "price_unit",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 40,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv007",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv008",
-        "name": "coverage_area",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 120,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv009",
-        "name": "phone_number",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 30,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv010",
-        "name": "whatsapp_number",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 30,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv011",
-        "name": "description",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 1500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv012",
-        "name": "flyer_photo_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv013",
-        "name": "flyer_photos",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "400x300",
-            "800x600"
-          ],
-          "maxSelect": 4,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv014",
-        "name": "rating_avg",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 5,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv015",
-        "name": "review_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv016",
-        "name": "verified_badge",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbysrv017",
-        "name": "content_report_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv018",
-        "name": "content_reported_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 2000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbysrv019",
-        "name": "is_banned",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      }
+      { "system": false, "id": "sbysv001", "name": "provider_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbysv002", "name": "provider_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbysv003", "name": "title", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 2, "max": 140, "pattern": "" } },
+      { "system": false, "id": "sbysv004", "name": "category", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 50, "pattern": "" } },
+      { "system": false, "id": "sbysv005", "name": "price", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 1000000000, "noDecimal": true } },
+      { "system": false, "id": "sbysv006", "name": "price_unit", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 40, "pattern": "" } },
+      { "system": false, "id": "sbysv007", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbysv008", "name": "coverage_area", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 150, "pattern": "" } },
+      { "system": false, "id": "sbysv009", "name": "phone_number", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 30, "pattern": "" } },
+      { "system": false, "id": "sbysv010", "name": "whatsapp_number", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 30, "pattern": "" } },
+      { "system": false, "id": "sbysv011", "name": "description", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 1500, "pattern": "" } },
+      { "system": false, "id": "sbysv012", "name": "flyer_photo_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbysv013", "name": "flyer_photos", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300", "800x600"], "maxSelect": 4, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbysv014", "name": "rating_avg", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 5, "noDecimal": false } },
+      { "system": false, "id": "sbysv015", "name": "review_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbysv016", "name": "verified_badge", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbysv017", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbysv018", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
+      { "system": false, "id": "sbysv019", "name": "is_banned", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != ",
-    "viewRule": "@request.auth.id != ",
-    "createRule": "@request.auth.id !=  && @request.data.provider_id = @request.auth.id",
-    "updateRule": "@request.auth.id !=  && (provider_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
-    "deleteRule": "@request.auth.id !=  && (provider_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.provider_id = @request.auth.id",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != '' && (provider_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
-    "id": "sbycoltambalban1",
+    "id": "sbycoltmblban01",
     "name": "tambal_ban",
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbytmb001",
-        "name": "author_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb002",
-        "name": "author_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb003",
-        "name": "name",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 2,
-          "max": 140,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb004",
-        "name": "description",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 1200,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb005",
-        "name": "district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb006",
-        "name": "address",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 200,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb007",
-        "name": "lat",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -90,
-          "max": 90,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb008",
-        "name": "lng",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": -180,
-          "max": 180,
-          "noDecimal": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb009",
-        "name": "is_24_hours",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbytmb010",
-        "name": "is_tubeless",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbytmb011",
-        "name": "for_motor",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbytmb012",
-        "name": "for_mobil",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbytmb013",
-        "name": "can_call_out",
-        "type": "bool",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {}
-      },
-      {
-        "system": false,
-        "id": "sbytmb014",
-        "name": "photo",
-        "type": "file",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "mimeTypes": [
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-          ],
-          "thumbs": [
-            "400x300"
-          ],
-          "maxSelect": 1,
-          "maxSize": 5242880,
-          "protected": false
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb015",
-        "name": "photo_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb016",
-        "name": "maps_url",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 500,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb017",
-        "name": "phone_number",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 30,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb018",
-        "name": "whatsapp_number",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 30,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb019",
-        "name": "verified_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb020",
-        "name": "verified_uids",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 4000,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytmb021",
-        "name": "comment_count",
-        "type": "number",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 0,
-          "max": 100000,
-          "noDecimal": true
-        }
-      }
+      { "system": false, "id": "sbytb001", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbytb002", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbytb003", "name": "name", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 2, "max": 140, "pattern": "" } },
+      { "system": false, "id": "sbytb004", "name": "description", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 1200, "pattern": "" } },
+      { "system": false, "id": "sbytb005", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbytb006", "name": "address", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 200, "pattern": "" } },
+      { "system": false, "id": "sbytb007", "name": "lat", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -90, "max": 90, "noDecimal": false } },
+      { "system": false, "id": "sbytb008", "name": "lng", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": -180, "max": 180, "noDecimal": false } },
+      { "system": false, "id": "sbytb009", "name": "is_24_hours", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbytb010", "name": "is_tubeless", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbytb011", "name": "for_motor", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbytb012", "name": "for_mobil", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbytb013", "name": "can_call_out", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbytb014", "name": "photo", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300"], "maxSelect": 1, "maxSize": 5242880, "protected": false } },
+      { "system": false, "id": "sbytb015", "name": "photo_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbytb016", "name": "maps_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 500, "pattern": "" } },
+      { "system": false, "id": "sbytb017", "name": "phone_number", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 30, "pattern": "" } },
+      { "system": false, "id": "sbytb018", "name": "whatsapp_number", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 30, "pattern": "" } },
+      { "system": false, "id": "sbytb019", "name": "verified_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbytb020", "name": "verified_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 4000, "pattern": "" } },
+      { "system": false, "id": "sbytb021", "name": "comment_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbytb022", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
+      { "system": false, "id": "sbytb023", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != ",
-    "viewRule": "@request.auth.id != ",
-    "createRule": "@request.auth.id !=  && @request.data.author_id = @request.auth.id",
-    "updateRule": "@request.auth.id != ",
-    "deleteRule": "@request.auth.id !=  && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {
-    "id": "sbytmbcmmnt1",
+    "id": "sbycoltmbcmnt01",
     "name": "tambal_ban_comments",
     "type": "base",
     "system": false,
     "schema": [
-      {
-        "system": false,
-        "id": "sbytbc001",
-        "name": "spot_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytbc002",
-        "name": "author_id",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 64,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytbc003",
-        "name": "author_name",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 80,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytbc004",
-        "name": "author_district",
-        "type": "text",
-        "required": false,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": null,
-          "max": 60,
-          "pattern": ""
-        }
-      },
-      {
-        "system": false,
-        "id": "sbytbc005",
-        "name": "text",
-        "type": "text",
-        "required": true,
-        "presentable": false,
-        "unique": false,
-        "options": {
-          "min": 1,
-          "max": 800,
-          "pattern": ""
-        }
-      }
+      { "system": false, "id": "sbytc001", "name": "spot_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbytc002", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbytc003", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbytc004", "name": "author_district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbytc005", "name": "text", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 800, "pattern": "" } }
     ],
     "indexes": [],
-    "listRule": "@request.auth.id != ",
-    "viewRule": "@request.auth.id != ",
-    "createRule": "@request.auth.id !=  && @request.data.author_id = @request.auth.id",
-    "updateRule": "@request.auth.id !=  && author_id = @request.auth.id",
-    "deleteRule": "@request.auth.id !=  && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = nabilalailatus12@gmail.com)",
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolpolls0001",
+    "name": "polls",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "system": false, "id": "sbypl001", "name": "proposer_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbypl002", "name": "proposer_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbypl003", "name": "title", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 2, "max": 160, "pattern": "" } },
+      { "system": false, "id": "sbypl004", "name": "description", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 1600, "pattern": "" } },
+      { "system": false, "id": "sbypl005", "name": "category", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 40, "pattern": "" } },
+      { "system": false, "id": "sbypl006", "name": "district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbypl007", "name": "status", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 20, "pattern": "" } },
+      { "system": false, "id": "sbypl008", "name": "admin_note", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 300, "pattern": "" } },
+      { "system": false, "id": "sbypl009", "name": "options_json", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 2, "max": 6000, "pattern": "" } },
+      { "system": false, "id": "sbypl010", "name": "total_votes", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 1000000, "noDecimal": true } },
+      { "system": false, "id": "sbypl011", "name": "voter_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 8000, "pattern": "" } },
+      { "system": false, "id": "sbypl012", "name": "votes_by_user_json", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 16000, "pattern": "" } },
+      { "system": false, "id": "sbypl013", "name": "comment_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "viewRule": "@request.auth.id != '' && (status = 'APPROVED' || status = 'PENDING' || proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "createRule": "@request.auth.id != '' && @request.data.proposer_id = @request.auth.id && (@request.data.status = 'PENDING' || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "updateRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com' || status = 'APPROVED' || (proposer_id = @request.auth.id && status = 'PENDING' && @request.data.status = 'PENDING'))",
+    "deleteRule": "@request.auth.id != '' && (proposer_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolpollcmt01",
+    "name": "poll_comments",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "system": false, "id": "sbypc001", "name": "poll_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbypc002", "name": "author_id", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbypc003", "name": "author_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
+      { "system": false, "id": "sbypc004", "name": "author_district", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 60, "pattern": "" } },
+      { "system": false, "id": "sbypc005", "name": "text", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 800, "pattern": "" } }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && @request.data.author_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && author_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && (author_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "options": {}
+  },
+  {
+    "id": "sbycolnotifs001",
+    "name": "notifications",
+    "type": "base",
+    "system": false,
+    "schema": [
+      { "system": false, "id": "sbynt001", "name": "user_id", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbynt002", "name": "notif_type", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 24, "pattern": "" } },
+      { "system": false, "id": "sbynt003", "name": "title", "type": "text", "required": true, "presentable": true, "unique": false, "options": { "min": 1, "max": 160, "pattern": "" } },
+      { "system": false, "id": "sbynt004", "name": "message", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 800, "pattern": "" } },
+      { "system": false, "id": "sbynt005", "name": "target_id", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbynt006", "name": "is_read", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} }
+    ],
+    "indexes": [],
+    "listRule": "@request.auth.id != '' && (user_id = '' || user_id = @request.auth.id)",
+    "viewRule": "@request.auth.id != '' && (user_id = '' || user_id = @request.auth.id)",
+    "createRule": "@request.auth.id != ''",
+    "updateRule": "@request.auth.id != '' && (user_id = '' || user_id = @request.auth.id)",
+    "deleteRule": "@request.auth.id != '' && (user_id = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   }
 ]
