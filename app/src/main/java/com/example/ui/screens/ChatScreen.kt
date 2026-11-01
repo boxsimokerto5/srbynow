@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PersonAddAlt1
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -74,6 +75,7 @@ import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
+import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 
 @Composable
@@ -408,6 +410,21 @@ private fun ChatRoomRowCard(
                         modifier = Modifier.size(24.dp),
                     )
                 }
+            } else if (room.isOfficialAccount) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(FreshGreenGradient),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Verified,
+                        contentDescription = "Akun Resmi Arek Surabaya",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
             } else {
                 InitialsAvatar(
                     name = displayTitle,
@@ -425,14 +442,40 @@ private fun ChatRoomRowCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = displayTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
                         modifier = Modifier.weight(1f),
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Text(
+                            text = displayTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (room.isOfficialAccount) FontWeight.Bold else FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (room.isOfficialAccount) {
+                            Icon(
+                                imageVector = Icons.Filled.Verified,
+                                contentDescription = "Resmi",
+                                tint = ToskaPrimary,
+                                modifier = Modifier.size(15.dp),
+                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = OpenGreenBg,
+                            ) {
+                                Text(
+                                    text = "RESMI",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OpenGreenText,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = formatRelativeTimestamp(room.updatedAt ?: room.createdAt),
                         style = MaterialTheme.typography.labelSmall,

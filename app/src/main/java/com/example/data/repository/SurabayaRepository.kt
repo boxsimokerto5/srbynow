@@ -59,8 +59,13 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+
+const val OFFICIAL_AREK_SURABAYA_UID = "arek_surabaya_official"
+const val OFFICIAL_AREK_SURABAYA_NAME = "Arek Surabaya (Resmi)"
+const val OFFICIAL_AREK_SURABAYA_DISTRICT = "Balaikota Surabaya"
 
 class SurabayaRepository(
     private val pb: PocketBaseClient,
@@ -1258,6 +1263,15 @@ class SurabayaRepository(
                 put("admin_note", adminNote.trim().take(300))
             }
             pb.updateRecord("events", eventId, patch)
+            if (approve) {
+                runCatching {
+                    val eventRec = pb.getOneOrNull("events", eventId)
+                    if (eventRec != null) {
+                        val event = mapEvent(eventRec)
+                        broadcastEventDirectMessageToCitizens(event)
+                    }
+                }
+            }
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -1946,6 +1960,108 @@ class SurabayaRepository(
         }
     }
 
+    fun buildEventDmText(event: SurabayaEvent): String {
+        return buildString {
+            append("🎉 Halo Cak & Ning! Ada agenda event seru terkini di Surabaya:\n\n")
+            append("📌 ${event.title}\n")
+            if (event.eventDateText.isNotBlank()) append("📅 Tanggal: ${event.eventDateText}")
+            if (event.timeText.isNotBlank()) append(" • ${event.timeText}")
+            append("\n")
+            if (event.venueName.isNotBlank()) append("📍 Lokasi: ${event.venueName}, ${event.district}\n")
+            if (event.address.isNotBlank() && event.address != event.venueName) append("🗺️ Alamat: ${event.address}\n")
+            append("🎟️ Tiket: ${event.priceLabel}\n\n")
+            if (event.description.isNotBlank()) append("${event.description}\n\n")
+            append("✨ Poster resmi ini otomatis tersimpan di Galeri HP Anda (Album: ArekSurabaya). Mari ramaikan dan lestarikan guyub rukun Surabaya!")
+        }.take(1000)
+    }
+
+    suspend fun syncEventDirectMessagesForUser(
+        userId: String,
+        userName: String,
+        events: List<SurabayaEvent>,
+    ) = withContext(Dispatchers.IO) {
+        if (userId.isBlank() || events.isEmpty()) return@withContext
+        val cleanUserName = userName.trim().replace("|", " ").take(60).ifEmpty { "Warga Surabaya" }
+        val sortedPair = listOf(OFFICIAL_AREK_SURABAYA_UID, userId).sorted()
+        val roomKey = buildDirectRoomId(OFFICIAL_AREK_SURABAYA_UID, userId)
+        val roomId = PocketBaseClient.deterministicPbId(roomKey)
+
+        try {
+            val existingRoom = pb.getOneOrNull("chat_rooms", roomId)
+            val latestEvent = events.maxByOrNull { it.createdAt ?: 0L } ?: events.first()
+            val alignedNames = if (sortedPair[0] == OFFICIAL_AREK_SURABAYA_UID) {
+                "$OFFICIAL_AREK_SURABAYA_NAME|$cleanUserName"
+            } else {
+                "$cleanUserName|$OFFICIAL_AREK_SURABAYA_NAME"
+            }
+
+            if (existingRoom == null) {
+                val roomPayload = JSONObject().apply {
+                    put("id", roomId)
+                    put("room_key", roomKey)
+                    put("room_type", "DIRECT")
+                    put("title", OFFICIAL_AREK_SURABAYA_NAME)
+                    put("subtitle", "Informasi & Event Resmi Kota Surabaya")
+                    put("participant_uid_1", sortedPair[0])
+                    put("participant_uid_2", sortedPair[1])
+                    put("participant_names", alignedNames.take(160))
+                    put("last_message", "🎉 Info Event: ${latestEvent.title}".take(300))
+                    put("last_sender_name", OFFICIAL_AREK_SURABAYA_NAME)
+                    put("created_by", OFFICIAL_AREK_SURABAYA_UID)
+                }
+                runCatching { pb.createRecord("chat_rooms", roomPayload) }
+            } else {
+                val roomPatch = JSONObject().apply {
+                    put("last_message", "🎉 Info Event: ${latestEvent.title}".take(300))
+                    put("last_sender_name", OFFICIAL_AREK_SURABAYA_NAME)
+                }
+                runCatching { pb.updateRecord("chat_rooms", roomId, roomPatch) }
+            }
+
+            for (event in events) {
+                val msgId = PocketBaseClient.deterministicPbId("evdm_${event.id}_${userId}")
+                val existingMsg = pb.getOneOrNull("chat_messages", msgId)
+                if (existingMsg == null) {
+                    val eventPhoto = event.allPhotos.firstOrNull() ?: event.photoUrl
+                    val msgPayload = JSONObject().apply {
+                        put("id", msgId)
+                        put("room_id", roomId)
+                        put("room_key", roomKey)
+                        put("room_type", "DIRECT")
+                        put("participant_uid_1", sortedPair[0])
+                        put("participant_uid_2", sortedPair[1])
+                        put("sender_id", OFFICIAL_AREK_SURABAYA_UID)
+                        put("sender_name", OFFICIAL_AREK_SURABAYA_NAME)
+                        put("text", buildEventDmText(event))
+                        if (eventPhoto.isNotBlank()) {
+                            put("photo_url", eventPhoto)
+                        }
+                        put("is_delivered", true)
+                        put("is_read", false)
+                    }
+                    runCatching { pb.createRecord("chat_messages", msgPayload) }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "syncEventDirectMessagesForUser warning: ${e.message}")
+        }
+    }
+
+    suspend fun broadcastEventDirectMessageToCitizens(event: SurabayaEvent) = withContext(Dispatchers.IO) {
+        try {
+            val citizenRecords = pb.getList("nearby_profiles", perPage = 100)
+            for (citizen in citizenRecords) {
+                val citizenUid = citizen.optString("user_id").ifBlank { citizen.optString("id") }
+                val citizenName = citizen.optString("display_name").ifBlank { "Warga Surabaya" }
+                if (citizenUid.isNotBlank() && citizenUid != OFFICIAL_AREK_SURABAYA_UID) {
+                    syncEventDirectMessagesForUser(citizenUid, citizenName, listOf(event))
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "broadcastEventDirectMessageToCitizens warning: ${e.message}")
+        }
+    }
+
     private suspend fun isCurrentSessionAdmin(uid: String): Boolean {
         val userRec = pb.getOneOrNull("users", uid)
         val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
@@ -2081,10 +2197,10 @@ class SurabayaRepository(
         senderName: String,
         text: String,
         photo: PreparedPhoto? = null,
-    ) {
+    ): String {
         val uid = requireUserId()
         val cleanText = text.trim().take(1000)
-        if (cleanText.isEmpty() && photo == null) return
+        if (cleanText.isEmpty() && photo == null) return ""
         val cleanSender = senderName.trim().take(80).ifEmpty { "Warga Surabaya" }
         val msgId = PocketBaseClient.deterministicPbId("msg_${UUID.randomUUID()}")
         val uid1 = if (room.roomType == "DIRECT") room.participantUids.getOrNull(0).orEmpty() else ""
@@ -2140,11 +2256,64 @@ class SurabayaRepository(
                 put("last_sender_name", cleanSender)
             }
             pb.updateRecord("chat_rooms", room.id, roomPatch)
+            return msgId
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {
             logBackendError(e, OperationType.CREATE, "chat_messages/$msgId")
             throw e
+        }
+    }
+
+    /**
+     * Store-and-forward server storage pruner.
+     * When recipient has downloaded the photo to local cache and Galeri:
+     * - Marks message as delivered.
+     * - If it's a 1-on-1 direct chat, clears the photo attachment from server disk immediately,
+     *   ensuring server storage is never burdened while preserving full local offline access!
+     */
+    suspend fun markChatPhotoDeliveredAndPruneServer(msgId: String, isDirect: Boolean) {
+        if (msgId.isBlank()) return
+        withContext(Dispatchers.IO) {
+            try {
+                val patch = JSONObject().apply {
+                    put("is_delivered", true)
+                    if (isDirect) {
+                        put("photo", JSONObject.NULL)
+                    }
+                }
+                pb.updateRecord("chat_messages", msgId, patch)
+                Log.d(TAG, "Chat photo $msgId marked delivered (isDirect=$isDirect, serverPruned=$isDirect)")
+            } catch (e: Exception) {
+                Log.w(TAG, "markChatPhotoDeliveredAndPruneServer error: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Periodic/lazy cleanup of older delivered server photos to guarantee zero storage bloat.
+     */
+    suspend fun pruneOldServerChatPhotos() {
+        withContext(Dispatchers.IO) {
+            try {
+                val oldPhotos = pb.getList(
+                    collection = "chat_messages",
+                    filter = "photo != '' && is_read = true",
+                    perPage = 30,
+                )
+                for (item in oldPhotos) {
+                    val id = item.optString("id")
+                    if (id.isNotBlank()) {
+                        runCatching {
+                            pb.updateRecord("chat_messages", id, JSONObject().apply {
+                                put("photo", JSONObject.NULL)
+                            })
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Non-critical background cleanup
+            }
         }
     }
 
@@ -2519,6 +2688,8 @@ class SurabayaRepository(
         val isReadRemote = j.optBoolean("is_read", false)
         val isReadLocal = localReadMsgIds.contains(id)
         val isRead = isReadRemote || isReadLocal
+        val text = j.optString("text")
+        val hasAttachment = photoFileNames.isNotEmpty() || resolvedPhotoUrl.isNotBlank() || j.optBoolean("has_photo", false) || text.contains("📷 Foto")
         return ChatMessage(
             id = id,
             roomId = j.optString("room_id"),
@@ -2527,11 +2698,12 @@ class SurabayaRepository(
             participantUids = participants,
             senderId = j.optString("sender_id"),
             senderName = j.optString("sender_name", "Warga Surabaya"),
-            text = j.optString("text"),
+            text = text,
             photoUrl = resolvedPhotoUrl,
             isDelivered = isDeliveredRemote,
             isRead = isRead,
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
+            hasPhotoAttachment = hasAttachment,
         )
     }
 

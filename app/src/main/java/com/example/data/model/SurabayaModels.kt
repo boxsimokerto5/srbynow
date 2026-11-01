@@ -297,6 +297,11 @@ data class ChatRoom(
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
 ) {
+    val isOfficialAccount: Boolean
+        get() = title.contains("Arek Surabaya", ignoreCase = true) ||
+            participantNames.contains("Arek Surabaya", ignoreCase = true) ||
+            participantUids.contains("arek_surabaya_official")
+
     fun displayTitleFor(currentUserId: String): String {
         if (roomType != "DIRECT") return title
         if (participantNames.contains("|")) {
@@ -345,9 +350,10 @@ data class ChatMessage(
     val isDelivered: Boolean = true,
     val isRead: Boolean = false,
     val createdAt: Long? = null,
+    val hasPhotoAttachment: Boolean = false,
 ) {
     val hasPhoto: Boolean
-        get() = photoUrl.isNotBlank()
+        get() = photoUrl.isNotBlank() || hasPhotoAttachment || text.contains("📷 Foto")
 
     val deliveryStatus: MessageDeliveryStatus
         get() = when {

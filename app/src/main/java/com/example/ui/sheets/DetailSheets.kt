@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -65,9 +66,13 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.StarOutline
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.util.ChatMediaManager
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -1742,16 +1747,21 @@ fun ChatConversationSheetContent(
     onAdminDeleteGroup: (() -> Unit)? = null,
     onMarkMessagesRead: ((List<String>) -> Unit)? = null,
     onTyping: ((Boolean) -> Unit)? = null,
+    onSyncPhotos: ((List<ChatMessage>) -> Unit)? = null,
 ) {
     var inputText by remember { mutableStateOf("") }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var activeZoomPhotoUrl by remember { mutableStateOf<String?>(null) }
+    var activeZoomMsgId by remember { mutableStateOf<String?>(null) }
     var showBlockPeerDialog by remember(room.id) { mutableStateOf(false) }
     var showDeleteGroupDialog by remember(room.id) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val displayTitle = room.displayTitleFor(currentUserId)
     val context = LocalContext.current
     val activeTypingPeerName = room.activeTypingPeerName(currentUserId)
+
+    val cachedMessageIds by ChatMediaManager.cachedMessageIds.collectAsStateWithLifecycle()
+    val downloadingMessageIds by ChatMediaManager.downloadingMessageIds.collectAsStateWithLifecycle()
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -1762,12 +1772,64 @@ fun ChatConversationSheetContent(
     }
 
     if (activeZoomPhotoUrl != null) {
-        FullscreenZoomablePhotoViewerDialog(
-            photoUrls = listOf(activeZoomPhotoUrl!!),
-            fallbackImageKey = "hero_surabaya",
-            title = "Foto Obrolan",
-            onDismiss = { activeZoomPhotoUrl = null },
-        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            FullscreenZoomablePhotoViewerDialog(
+                photoUrls = listOf(activeZoomPhotoUrl!!),
+                fallbackImageKey = "hero_surabaya",
+                title = "Foto Obrolan",
+                onDismiss = {
+                    activeZoomPhotoUrl = null
+                    activeZoomMsgId = null
+                },
+            )
+            val zoomMsgId = activeZoomMsgId
+            if (zoomMsgId != null) {
+                Surface(
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                    color = Color.Black.copy(alpha = 0.85f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp, start = 16.dp, end = 16.dp),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val opened = ChatMediaManager.openInGallery(context, zoomMsgId)
+                                if (!opened) {
+                                    android.widget.Toast.makeText(context, "Foto tersimpan di Pictures/ArekSurabaya", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+                            shape = CircleShape,
+                        ) {
+                            Icon(Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.chat_photo_open_gallery))
+                        }
+
+                        Button(
+                            onClick = {
+                                ChatMediaManager.sharePhoto(context, zoomMsgId)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                            shape = CircleShape,
+                        ) {
+                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.chat_photo_share))
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (showBlockPeerDialog && onBlockPeer != null) {
@@ -1827,6 +1889,7 @@ fun ChatConversationSheetContent(
     }
 
     LaunchedEffect(messages) {
+        onSyncPhotos?.invoke(messages)
         if (onMarkMessagesRead != null && messages.isNotEmpty()) {
             val unreadPeerMsgIds = messages
                 .filter { it.senderId != currentUserId && !it.isRead }
@@ -2025,21 +2088,72 @@ fun ChatConversationSheetContent(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
-                                    if (msg.photoUrl.isNotBlank()) {
-                                        AsyncImage(
-                                            model = ImageRequest.Builder(context)
-                                                .data(msg.photoUrl)
-                                                .crossfade(true)
-                                                .build(),
-                                            contentDescription = "Foto terkirim",
-                                            contentScale = ContentScale.Crop,
+                                    if (msg.hasPhoto) {
+                                        val isSavedLocally = cachedMessageIds.contains(msg.id) || ChatMediaManager.isPhotoSavedLocally(context, msg.id)
+                                        val isDownloading = downloadingMessageIds.contains(msg.id)
+                                        val photoModel = ChatMediaManager.getLocalOrRemoteModel(context, msg)
+                                        Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .heightIn(max = 200.dp)
+                                                .heightIn(max = 210.dp)
                                                 .clip(RoundedCornerShape(12.dp))
-                                                .clickable { activeZoomPhotoUrl = msg.photoUrl }
+                                                .clickable {
+                                                    val localPath = (photoModel as? java.io.File)?.absolutePath
+                                                    activeZoomPhotoUrl = if (!localPath.isNullOrBlank()) localPath else msg.photoUrl
+                                                    activeZoomMsgId = msg.id
+                                                }
                                                 .testTag("chat_msg_photo_${msg.id}"),
-                                        )
+                                        ) {
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(context)
+                                                    .data(photoModel)
+                                                    .crossfade(true)
+                                                    .build(),
+                                                contentDescription = "Foto terkirim",
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxWidth().heightIn(max = 210.dp),
+                                            )
+                                            if (isDownloading || isSavedLocally) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
+                                                    color = Color.Black.copy(alpha = 0.60f),
+                                                    modifier = Modifier
+                                                        .align(Alignment.BottomEnd)
+                                                        .padding(4.dp),
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                                    ) {
+                                                        if (isDownloading) {
+                                                            CircularProgressIndicator(
+                                                                modifier = Modifier.size(10.dp),
+                                                                strokeWidth = 1.5.dp,
+                                                                color = Color.White,
+                                                            )
+                                                            Text(
+                                                                text = "Menyimpan…",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = Color.White,
+                                                            )
+                                                        } else {
+                                                            Icon(
+                                                                imageVector = Icons.Filled.PhotoLibrary,
+                                                                contentDescription = "Tersimpan di Galeri",
+                                                                tint = OpenGreenText,
+                                                                modifier = Modifier.size(11.dp),
+                                                            )
+                                                            Text(
+                                                                text = "Galeri",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = Color.White,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                     if (msg.text.isNotBlank() && msg.text != "📷 Foto") {
                                         Text(
@@ -2076,21 +2190,72 @@ fun ChatConversationSheetContent(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
-                                    if (msg.photoUrl.isNotBlank()) {
-                                        AsyncImage(
-                                            model = ImageRequest.Builder(context)
-                                                .data(msg.photoUrl)
-                                                .crossfade(true)
-                                                .build(),
-                                            contentDescription = "Foto dari ${msg.senderName}",
-                                            contentScale = ContentScale.Crop,
+                                    if (msg.hasPhoto) {
+                                        val isSavedLocally = cachedMessageIds.contains(msg.id) || ChatMediaManager.isPhotoSavedLocally(context, msg.id)
+                                        val isDownloading = downloadingMessageIds.contains(msg.id)
+                                        val photoModel = ChatMediaManager.getLocalOrRemoteModel(context, msg)
+                                        Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .heightIn(max = 200.dp)
+                                                .heightIn(max = 210.dp)
                                                 .clip(RoundedCornerShape(12.dp))
-                                                .clickable { activeZoomPhotoUrl = msg.photoUrl }
+                                                .clickable {
+                                                    val localPath = (photoModel as? java.io.File)?.absolutePath
+                                                    activeZoomPhotoUrl = if (!localPath.isNullOrBlank()) localPath else msg.photoUrl
+                                                    activeZoomMsgId = msg.id
+                                                }
                                                 .testTag("chat_msg_photo_${msg.id}"),
-                                        )
+                                        ) {
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(context)
+                                                    .data(photoModel)
+                                                    .crossfade(true)
+                                                    .build(),
+                                                contentDescription = "Foto dari ${msg.senderName}",
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxWidth().heightIn(max = 210.dp),
+                                            )
+                                            if (isDownloading || isSavedLocally) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
+                                                    color = Color.Black.copy(alpha = 0.60f),
+                                                    modifier = Modifier
+                                                        .align(Alignment.BottomEnd)
+                                                        .padding(4.dp),
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                                    ) {
+                                                        if (isDownloading) {
+                                                            CircularProgressIndicator(
+                                                                modifier = Modifier.size(10.dp),
+                                                                strokeWidth = 1.5.dp,
+                                                                color = Color.White,
+                                                            )
+                                                            Text(
+                                                                text = "Menyimpan…",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = Color.White,
+                                                            )
+                                                        } else {
+                                                            Icon(
+                                                                imageVector = Icons.Filled.PhotoLibrary,
+                                                                contentDescription = "Tersimpan di Galeri",
+                                                                tint = OpenGreenText,
+                                                                modifier = Modifier.size(11.dp),
+                                                            )
+                                                            Text(
+                                                                text = "Galeri",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = Color.White,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                     if (msg.text.isNotBlank() && msg.text != "📷 Foto") {
                                         Text(

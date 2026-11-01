@@ -39,6 +39,13 @@
     <string name="chat_photo_preview_hint">Tekan tombol kirim atau tambahkan pesan teks di bawah</string>
     <string name="chat_cancel_photo">Batal lampirkan foto</string>
     <string name="chat_photo_placeholder_hint">Tulis keterangan foto (opsional)…</string>
+    <string name="chat_photo_saved_gallery">Tersimpan di Galeri</string>
+    <string name="chat_photo_saving">Menyimpan ke Galeri…</string>
+    <string name="chat_photo_open_gallery">Buka di Galeri</string>
+    <string name="chat_photo_storage_bridge_badge">Jembatan Otomatis: Foto tersimpan di Galeri HP</string>
+    <string name="chat_photo_offline_ready">Tersimpan di HP (Offline)</string>
+    <string name="chat_photo_share">Bagikan</string>
+    <string name="chat_photo_compressed_badge">Terkirim &amp; Tersimpan di Galeri</string>
     <string name="incident_comments_title">Pantauan &amp; Komentar Warga (%1$d)</string>
     <string name="incident_comments_scroll_hint">Geser komentar ↕</string>
     <string name="incident_comments_empty">Belum ada komentar tambahan. Bagikan pantauan terkini Anda di lokasi ini.</string>

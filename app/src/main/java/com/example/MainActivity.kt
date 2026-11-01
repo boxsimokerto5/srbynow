@@ -122,6 +122,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.example.data.model.AppNotificationType
+import com.example.data.util.ChatMediaManager
 import com.example.data.util.SurabayaNotificationHelper
 import com.example.data.audio.RadioPlaybackState
 import com.example.data.audio.SurabayaRadioPlayer
@@ -237,6 +238,7 @@ fun SurabayaMainHub(
         factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY])
+                ChatMediaManager.init(app)
                 val pbClient = PocketBaseClient.getInstance(app)
                 SurabayaViewModel(
                     repository = SurabayaRepository(pbClient),
@@ -309,6 +311,13 @@ fun SurabayaMainHub(
     val activeTambalBanComments by viewModel.activeTambalBanComments.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(approvedEventsState) {
+        val events = (approvedEventsState as? com.example.data.model.UiState.Success)?.data
+        if (!events.isNullOrEmpty()) {
+            viewModel.syncApprovedEventsToDirectChatAndGallery(context, events)
+        }
+    }
 
     // Android 13+ Notification Runtime Permission Request
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1161,6 +1170,9 @@ fun SurabayaMainHub(
                         },
                         onTyping = { isTyping ->
                             viewModel.setTyping(liveRoom, isTyping)
+                        },
+                        onSyncPhotos = { msgs ->
+                            viewModel.syncAndSaveChatPhotos(context, msgs, liveRoom)
                         },
                     )
                 }

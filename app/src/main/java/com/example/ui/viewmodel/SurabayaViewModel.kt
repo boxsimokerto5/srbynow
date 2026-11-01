@@ -38,6 +38,7 @@ import com.example.data.repository.SurabayaRepository
 import com.example.data.util.PollImageExporter
 import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.ImageSafetyScanResult
+import com.example.data.util.ChatMediaManager
 import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
 import com.example.data.util.PreparedPhoto
@@ -50,6 +51,7 @@ import com.example.data.util.SurabayaSpamProtector
 import com.example.data.util.calculateDistanceKm
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -368,7 +370,10 @@ class SurabayaViewModel(
         rooms.filter { room ->
             val otherId = room.otherParticipantIdFor(currentUserId)
             otherId == null || otherId !in blockedSet
-        }
+        }.sortedWith(
+            compareByDescending<ChatRoom> { it.isOfficialAccount }
+                .thenByDescending { it.updatedAt ?: it.createdAt ?: 0L }
+        )
     }
         .catch { e ->
             Log.w(TAG, "observeDirectChatRooms error", e)
@@ -583,6 +588,8 @@ class SurabayaViewModel(
                     lng = gps.lng,
                     district = gps.nearestDistrict,
                 )
+                // Lazy maintenance of chat media storage bridge: prune old delivered photos from server
+                repository.pruneOldServerChatPhotos()
             } catch (e: Exception) {
                 Log.w(TAG, "Initial bootstrap warning", e)
             }
@@ -1105,7 +1112,7 @@ class SurabayaViewModel(
                 repository.moderateEvent(eventId, approve, adminNote)
                 dismissSheet()
                 notifyMessage(
-                    if (approve) "Event disetujui & tayang di halaman Event Surabaya!"
+                    if (approve) "Event disetujui & otomatis disiarkan via DM personal ke seluruh warga!"
                     else "Usulan event telah ditolak.",
                 )
             } catch (e: Exception) {
@@ -1373,7 +1380,8 @@ class SurabayaViewModel(
                         context = context,
                         uri = photoUri,
                         prefix = "chat",
-                        maxDimensionPx = 1280,
+                        maxDimensionPx = 1024,
+                        initialQuality = 75,
                     )
                     if (prepared != null) {
                         val isSafe = verifyPhotosAreSafe(listOf(prepared))
@@ -1381,12 +1389,63 @@ class SurabayaViewModel(
                         preparedPhoto = prepared
                     }
                 }
-                repository.sendMessage(room, currentDisplayName(), text, preparedPhoto)
+                val msgId = repository.sendMessage(room, currentDisplayName(), text, preparedPhoto)
+                if (msgId.isNotBlank() && preparedPhoto != null && context != null) {
+                    // WhatsApp-style: Immediately save outgoing photo to local cache & Android Gallery!
+                    ChatMediaManager.saveOutgoingPhoto(context, msgId, preparedPhoto.bytes, preparedPhoto.mimeType)
+                }
                 setTyping(room, false)
             } catch (e: Exception) {
                 notifyMessage("Gagal mengirim pesan: ${e.localizedMessage ?: ""}")
             } finally {
                 _isSendingChatMessage.value = false
+            }
+        }
+    }
+
+    /**
+     * Store-and-forward synchronizer: Automatically downloads incoming chat photos to local disk cache,
+     * registers them into the device's Android Gallery (Pictures/ArekSurabaya), and triggers server pruning
+     * for direct chats so server database storage stays permanently clean!
+     */
+    fun syncAndSaveChatPhotos(context: Context, messages: List<ChatMessage>, room: ChatRoom) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val photosToDownload = messages.filter { msg ->
+                msg.photoUrl.isNotBlank() && !ChatMediaManager.isPhotoSavedLocally(context, msg.id)
+            }
+            for (msg in photosToDownload) {
+                val file = ChatMediaManager.downloadAndSaveIncomingPhoto(context, msg.id, msg.photoUrl)
+                if (file != null && msg.senderId != currentUserId) {
+                    repository.markChatPhotoDeliveredAndPruneServer(msg.id, isDirect = (room.roomType == "DIRECT"))
+                }
+            }
+        }
+    }
+
+    /**
+     * Automatically syncs approved event DMs to the current user's direct chat with "Arek Surabaya",
+     * and silently downloads/saves the event poster into the Android device's Gallery (Pictures/ArekSurabaya).
+     * No user confirmation is requested—ensuring the poster is preserved directly in the citizen's gallery!
+     */
+    fun syncApprovedEventsToDirectChatAndGallery(context: Context, events: List<SurabayaEvent>) {
+        if (events.isEmpty() || currentUserId.isBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Sync DM records in database
+                repository.syncEventDirectMessagesForUser(currentUserId, currentDisplayName(), events)
+
+                // 2. Silently save event posters into device Gallery
+                for (event in events) {
+                    val drawableId = com.example.data.util.resolveImageDrawable(event.imageKey)
+                    ChatMediaManager.saveEventPosterToGallery(
+                        context = context,
+                        eventId = event.id,
+                        photoUrl = event.allPhotos.firstOrNull() ?: event.photoUrl,
+                        drawableResId = drawableId,
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "syncApprovedEventsToDirectChatAndGallery warning: ${e.message}")
             }
         }
     }
