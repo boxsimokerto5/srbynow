@@ -437,6 +437,14 @@ fun SurabayaMainHub(
         }
     }
 
+    // Back button returns to previous sheet (e.g. Chat) if citizen profile has a returnSheet
+    val citizenReturnSheet = (activeSheet as? ActiveBottomSheet.CitizenProfile)?.returnSheet
+    BackHandler(enabled = citizenReturnSheet != null) {
+        if (citizenReturnSheet != null) {
+            viewModel.openSheet(citizenReturnSheet)
+        }
+    }
+
     // Back button returns to Home tab if on another tab
     BackHandler(enabled = activeSheet == null && selectedTab != MainTab.HOME) {
         viewModel.selectTab(MainTab.HOME)
@@ -1128,7 +1136,13 @@ fun SurabayaMainHub(
                         onGreetCitizen = { profile -> viewModel.greetNearbyPeer(profile) },
                         onBlockCitizen = { uid, name -> viewModel.blockCitizen(uid, name) },
                         onEditMyProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
-                        onClose = { viewModel.dismissSheet() },
+                        onClose = {
+                            if (sheetTarget.returnSheet != null) {
+                                viewModel.openSheet(sheetTarget.returnSheet)
+                            } else {
+                                viewModel.dismissSheet()
+                            }
+                        },
                     )
                 }
                 ActiveBottomSheet.BookmarksList -> {
@@ -1313,12 +1327,33 @@ fun SurabayaMainHub(
                     val liveRoom = (publicChatRooms + directChatRooms)
                         .firstOrNull { it.id == sheetTarget.room.id } ?: sheetTarget.room
                     val peerUid = liveRoom.otherParticipantIdFor(currentUserId)
+                        ?: if (liveRoom.roomType == "DIRECT" && liveRoom.roomKey.startsWith("direct_")) {
+                            val parts = liveRoom.roomKey.removePrefix("direct_").split("_")
+                            parts.firstOrNull { it.isNotBlank() && it != currentUserId }
+                        } else null
                     val context = androidx.compose.ui.platform.LocalContext.current
+                    val peerProfile = if (peerUid != null) {
+                        val peerItems = (nearbyPeersState as? UiState.Success)?.data.orEmpty()
+                        peerItems.firstOrNull { it.profile.userId == peerUid || it.profile.id == peerUid }?.profile
+                            ?: allDiscoverableCitizens.firstOrNull { it.userId == peerUid || it.id == peerUid }
+                    } else null
                     ChatConversationSheetContent(
                         room = liveRoom,
                         messages = activeChatMessages,
                         currentUserId = currentUserId,
                         isSending = isSendingChatMessage || isScanningPhoto,
+                        peerProfile = peerProfile,
+                        onOpenPeerProfile = if (peerUid != null) {
+                            {
+                                val targetName = peerProfile?.displayName?.ifBlank { liveRoom.displayTitleFor(currentUserId) }
+                                    ?: liveRoom.displayTitleFor(currentUserId)
+                                viewModel.openCitizenProfile(
+                                    userId = peerUid,
+                                    displayName = targetName,
+                                    returnSheet = ActiveBottomSheet.ChatConversation(liveRoom),
+                                )
+                            }
+                        } else null,
                         onSendMessage = { txt, photoUri ->
                             viewModel.sendChatMessage(liveRoom, txt, photoUri, context)
                         },

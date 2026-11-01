@@ -103,7 +103,11 @@ sealed interface ActiveBottomSheet {
     data object BookmarksList : ActiveBottomSheet
     data object Notifications : ActiveBottomSheet
     data object ProfileAndAdmin : ActiveBottomSheet
-    data class CitizenProfile(val userId: String, val initialDisplayName: String = "") : ActiveBottomSheet
+    data class CitizenProfile(
+        val userId: String,
+        val initialDisplayName: String = "",
+        val returnSheet: ActiveBottomSheet? = null,
+    ) : ActiveBottomSheet
     data object StartDirectChat : ActiveBottomSheet
     data object CreatePublicGroup : ActiveBottomSheet
     data class ChatConversation(val room: ChatRoom) : ActiveBottomSheet
@@ -705,8 +709,12 @@ class SurabayaViewModel(
         _activeSheet.value = null
     }
 
-    fun openCitizenProfile(userId: String, displayName: String = "") {
-        _activeSheet.value = ActiveBottomSheet.CitizenProfile(userId, displayName)
+    fun openCitizenProfile(
+        userId: String,
+        displayName: String = "",
+        returnSheet: ActiveBottomSheet? = null,
+    ) {
+        _activeSheet.value = ActiveBottomSheet.CitizenProfile(userId, displayName, returnSheet)
     }
 
     // Radio Suara Surabaya 100 FM

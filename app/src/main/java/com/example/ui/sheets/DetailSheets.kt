@@ -51,6 +51,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChatBubble
@@ -138,6 +140,7 @@ import com.example.data.model.IncidentReport
 import com.example.data.model.MomentComment
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
+import com.example.data.model.NearbyProfile
 import com.example.data.model.UserMoment
 import com.example.data.util.PendingExternalLink
 import com.example.data.util.SafeLinkCategory
@@ -151,6 +154,7 @@ import com.example.ui.components.AdminRawLinkPreviewBadge
 import com.example.ui.components.CulinaryDeliveryLinksRow
 import com.example.ui.components.CulinaryPhotoCarousel
 import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
+import com.example.ui.components.InitialsAvatar
 import com.example.ui.components.PostContentSafetyRow
 import com.example.ui.components.PostExternalLinkSecurityStrip
 import com.example.ui.components.SafeExternalLinkConfirmationDialog
@@ -167,6 +171,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.FreshGreenGradient
+import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
@@ -1742,6 +1747,8 @@ fun ChatConversationSheetContent(
     messages: List<ChatMessage>,
     currentUserId: String,
     isSending: Boolean = false,
+    peerProfile: NearbyProfile? = null,
+    onOpenPeerProfile: (() -> Unit)? = null,
     onSendMessage: (String, Uri?) -> Unit,
     onBlockPeer: (() -> Unit)? = null,
     onAdminDeleteGroup: (() -> Unit)? = null,
@@ -1926,58 +1933,163 @@ fun ChatConversationSheetContent(
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        val isDirect = room.roomType == "DIRECT"
+        val isOfficial = room.isOfficialAccount
+        val locationLabel = remember(room, peerProfile) {
+            val dist = peerProfile?.district?.trim().orEmpty()
+            when {
+                dist.isNotBlank() -> if (dist.startsWith("Kec.", ignoreCase = true)) dist else "Kec. $dist, Surabaya"
+                isDirect -> {
+                    if (room.subtitle.isNotBlank()) {
+                        val firstPart = room.subtitle.split("•").firstOrNull()?.trim().orEmpty()
+                        if (firstPart.isNotBlank()) {
+                            if (firstPart.startsWith("Kec.", ignoreCase = true)) firstPart else "Kec. $firstPart, Surabaya"
+                        } else {
+                            "Surabaya"
+                        }
+                    } else {
+                        "Surabaya"
+                    }
+                }
+                room.subtitle.isNotBlank() -> room.subtitle
+                else -> "Ruang Publik Surabaya"
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .then(
+                        if (onOpenPeerProfile != null) {
+                            Modifier
+                                .clickable(
+                                    onClick = onOpenPeerProfile,
+                                    role = Role.Button,
+                                    onClickLabel = "Buka profil $displayTitle",
+                                )
+                                .padding(vertical = 4.dp, horizontal = 2.dp)
+                        } else {
+                            Modifier.padding(vertical = 4.dp, horizontal = 2.dp)
+                        }
+                    )
+                    .testTag("chat_peer_profile_header"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = displayTitle,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (activeTypingPeerName != null) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.testTag("chat_typing_indicator_header"),
-                    ) {
-                        BouncingDotsIndicator(color = ToskaPrimaryDeep)
-                        Text(
-                            text = if (room.roomType == "DIRECT") "sedang mengetik…" else "$activeTypingPeerName sedang mengetik…",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ToskaPrimaryDeep,
+                if (isDirect) {
+                    if (isOfficial) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(FreshGreenGradient),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Verified,
+                                contentDescription = "Akun Resmi Arek Surabaya",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    } else {
+                        InitialsAvatar(
+                            name = displayTitle,
+                            colorHex = peerProfile?.avatarColorHex ?: "#006B5E",
+                            sizeDp = 44,
+                            avatarUrl = peerProfile?.avatarUrl.orEmpty(),
                         )
                     }
                 } else {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(MintSoftGradient),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = OpenGreenBg,
-                        ) {
-                            Text(
-                                text = "Sinkron 2 Arah",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = OpenGreenText,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        Icon(
+                            imageVector = Icons.Filled.Groups,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = displayTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (isOfficial) {
+                            Icon(
+                                imageVector = Icons.Filled.Verified,
+                                contentDescription = "Terverifikasi",
+                                tint = ToskaPrimary,
+                                modifier = Modifier.size(16.dp),
                             )
                         }
-                        Text(
-                            text = "Room ID: ${room.roomKey.ifBlank { room.id }}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.testTag("chat_sheet_room_id"),
-                        )
+                    }
+
+                    if (activeTypingPeerName != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.testTag("chat_typing_indicator_header"),
+                        ) {
+                            BouncingDotsIndicator(color = ToskaPrimaryDeep)
+                            Text(
+                                text = if (room.roomType == "DIRECT") "sedang mengetik…" else "$activeTypingPeerName sedang mengetik…",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = ToskaPrimaryDeep,
+                            )
+                        }
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.testTag("chat_peer_location_row"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.LocationOn,
+                                contentDescription = null,
+                                tint = ToskaPrimary,
+                                modifier = Modifier.size(13.dp),
+                            )
+                            Text(
+                                text = locationLabel,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (onOpenPeerProfile != null) {
+                                Text(
+                                    text = "• Buka Profil",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ToskaPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
                     }
                 }
             }

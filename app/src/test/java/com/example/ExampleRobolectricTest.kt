@@ -51,6 +51,7 @@ import com.example.ui.screens.KulinerScreen
 import com.example.ui.screens.PollingScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.TemanSekitarScreen
+import com.example.ui.sheets.ChatConversationSheetContent
 import com.example.ui.sheets.CitizenProfileSheetContent
 import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
@@ -1395,5 +1396,56 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("tab_my_lensa_warga").performClick()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag("moment_thumbnail_m2").assertIsDisplayed()
+  }
+
+  @Test
+  fun `chat conversation sheet displays user photo name and location and triggers profile open on click`() {
+    val sampleRoom = ChatRoom(
+      id = "room_cak_dimas",
+      roomKey = "direct_user_1_peer_dimas",
+      roomType = "DIRECT",
+      title = "Cak Dimas Surabaya",
+      subtitle = "Genteng • Tegalsari",
+      participantUids = listOf("my_uid", "peer_dimas"),
+      participantNames = "Saya|Cak Dimas Surabaya",
+    )
+    val samplePeerProfile = NearbyProfile(
+      id = "peer_dimas",
+      userId = "peer_dimas",
+      displayName = "Cak Dimas Surabaya",
+      district = "Genteng",
+      avatarColorHex = "#006B5E",
+    )
+
+    var profileOpened = false
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(860.dp)) {
+          ChatConversationSheetContent(
+            room = sampleRoom,
+            messages = emptyList(),
+            currentUserId = "my_uid",
+            peerProfile = samplePeerProfile,
+            onOpenPeerProfile = { profileOpened = true },
+            onSendMessage = { _, _ -> },
+          )
+        }
+      }
+    }
+    composeTestRule.waitForIdle()
+
+    // 1. Verify user name and location are displayed, and "Sinkron 2 Arah" / "Room ID" are replaced
+    composeTestRule.onNodeWithTag("chat_peer_profile_header").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Cak Dimas Surabaya", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithTag("chat_peer_location_row", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Kec. Genteng, Surabaya", substring = true, useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Sinkron 2 Arah").assertDoesNotExist()
+    composeTestRule.onNodeWithTag("chat_sheet_room_id").assertDoesNotExist()
+
+    // 2. Click the profile header -> triggers onOpenPeerProfile
+    composeTestRule.onNodeWithTag("chat_peer_profile_header").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected profileOpened callback when chat header is clicked", profileOpened)
   }
 }
