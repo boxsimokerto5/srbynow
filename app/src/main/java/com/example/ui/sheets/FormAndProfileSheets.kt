@@ -43,9 +43,14 @@ import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -71,6 +77,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -78,6 +85,7 @@ import com.example.R
 import com.example.data.model.BookmarkItem
 import com.example.data.model.NearbyProfile
 import com.example.data.model.UserAccount
+import com.example.data.model.UserMoment
 import com.example.data.util.LinkSecurityValidator
 import com.example.data.util.LinkValidationResult
 import com.example.data.util.SafeLinkCategory
@@ -1233,6 +1241,9 @@ fun ProfileAndPrivacySheetContent(
     isSubmitting: Boolean = false,
     isScanningPhoto: Boolean = false,
     knownCitizens: List<NearbyProfile> = emptyList(),
+    userMoments: List<UserMoment> = emptyList(),
+    onOpenMomentDetail: (String) -> Unit = {},
+    onOpenCreateMoment: () -> Unit = {},
     onUnblockUser: (String) -> Unit = {},
     onToggleAdmin: (Boolean) -> Unit,
     onSaveProfile: (
@@ -1259,6 +1270,7 @@ fun ProfileAndPrivacySheetContent(
         mutableStateOf(userAccount?.isDiscoverable ?: true)
     }
     var selectedAvatarUri by remember { mutableStateOf<Uri?>(null) }
+    var activeProfileTab by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
@@ -1282,13 +1294,178 @@ fun ProfileAndPrivacySheetContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         GoogleMapsSheetHandleHeader(
-            title = if (focusPrivacyOnly) "Pengaturan Radius GPS & Privasi" else "Profil Warga & Mode Admin",
+            title = if (focusPrivacyOnly) "Pengaturan Radius GPS & Privasi" else "Profil Warga Surabaya",
             subtitle = userEmail.ifBlank { "Akun Warga Terverifikasi • PocketBase Surabaya" },
         )
 
         if (!focusPrivacyOnly) {
-            // Avatar Photo Picker Row
-            Surface(
+            InstagramProfileHeaderCard(
+                name = displayName,
+                district = district,
+                bio = bio,
+                interests = interests.split(",").map { it.trim() }.filter { it.isNotBlank() },
+                avatarUrl = existingAvatarUrl,
+                avatarColorHex = nearbyProfile?.avatarColorHex ?: "#006B5E",
+                totalMoments = userMoments.size,
+                totalLikes = userMoments.sumOf { it.likesCount },
+                isMyOwnProfile = true,
+                onGreet = {},
+                onBlock = {},
+                onEditProfile = { activeProfileTab = 1 },
+            )
+
+            // Segment Tabs: Momen Saya vs Pengaturan
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = activeProfileTab == 0,
+                    onClick = { activeProfileTab = 0 },
+                    label = { Text("Momen Saya (${userMoments.size})") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.GridOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                        selectedLeadingIconColor = Color.White,
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).testTag("tab_my_moments"),
+                )
+                FilterChip(
+                    selected = activeProfileTab == 1,
+                    onClick = { activeProfileTab = 1 },
+                    label = { Text("Pengaturan & Akun") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                        selectedLeadingIconColor = Color.White,
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).testTag("tab_profile_settings"),
+                )
+            }
+        }
+
+        if (!focusPrivacyOnly && activeProfileTab == 0) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "Galeri Momen Saya",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                OutlinedButton(
+                    onClick = onOpenCreateMoment,
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.testTag("btn_post_new_moment_from_profile"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AddAPhoto,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Posting Momen", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            if (userMoments.isEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFFF7FBF8),
+                    border = BorderStroke(1.dp, OutlineVariantLight),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(ToskaPrimaryDeep.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AddPhotoAlternate,
+                                contentDescription = null,
+                                tint = ToskaPrimaryDeep,
+                                modifier = Modifier.size(28.dp),
+                            )
+                        }
+                        Text(
+                            text = "Belum Ada Momen Diposting",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = "Momen yang kamu bagikan akan muncul di profilmu layaknya galeri Instagram. Ayo abadikan sudut seru Surabaya!",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        Button(
+                            onClick = onOpenCreateMoment,
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimaryDeep),
+                            modifier = Modifier.testTag("btn_create_first_moment"),
+                        ) {
+                            Text("Posting Momen Sekarang", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                val chunked = userMoments.chunked(3)
+                for (rowMoments in chunked) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        for (moment in rowMoments) {
+                            InstagramGridThumbnail(
+                                moment = moment,
+                                onClick = { onOpenMomentDetail(moment.id) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        for (i in 0 until (3 - rowMoments.size)) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (focusPrivacyOnly || activeProfileTab == 1) {
+            if (!focusPrivacyOnly) {
+                // Avatar Photo Picker Row
+                Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFFF5FBF7),
                 border = BorderStroke(1.dp, OutlineVariantLight),
@@ -1719,6 +1896,7 @@ fun ProfileAndPrivacySheetContent(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.btn_sign_out))
             }
+        }
         }
 
         Spacer(modifier = Modifier.height(10.dp))

@@ -2222,6 +2222,7 @@ fun MomentDetailSheetContent(
     onReport: () -> Unit,
     onBlockAuthor: () -> Unit,
     onAdminDelete: (() -> Unit)? = null,
+    onOpenAuthorProfile: ((authorId: String, authorName: String) -> Unit)? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -2263,7 +2264,13 @@ fun MomentDetailSheetContent(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(enabled = onOpenAuthorProfile != null) {
+                                onOpenAuthorProfile?.invoke(moment.authorId, moment.authorName)
+                            }
+                            .padding(vertical = 2.dp),
                     ) {
                         Box(
                             modifier = Modifier
@@ -2281,11 +2288,22 @@ fun MomentDetailSheetContent(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text(
-                                text = moment.authorName,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = moment.authorName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                if (onOpenAuthorProfile != null) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "• Lihat Profil",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = ToskaPrimaryDeep,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
+                            }
                             Text(
                                 text = "${moment.district}${if (moment.locationName.isNotBlank()) " • ${moment.locationName}" else ""} • ${formatRelativeTimestamp(moment.timestamp)}",
                                 style = MaterialTheme.typography.bodySmall,

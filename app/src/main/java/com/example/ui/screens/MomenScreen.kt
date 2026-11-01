@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -81,6 +82,7 @@ fun MomenScreen(
     onToggleLike: (UserMoment) -> Unit,
     onReportMoment: (UserMoment) -> Unit,
     onBlockAuthor: (uid: String, name: String) -> Unit,
+    onOpenAuthorProfile: (authorId: String, authorName: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     var selectedDistrict by rememberSaveable { mutableStateOf("ALL") }
@@ -140,6 +142,7 @@ fun MomenScreen(
                                     onOpenFullscreenPhoto = { pageIdx -> viewerTarget = moment to pageIdx },
                                     onReport = { onReportMoment(moment) },
                                     onBlockAuthor = { onBlockAuthor(moment.authorId, moment.authorName) },
+                                    onOpenAuthorProfile = { onOpenAuthorProfile(moment.authorId, moment.authorName) },
                                 )
                             }
                         }
@@ -189,6 +192,7 @@ private fun MomentFeedCard(
     onOpenFullscreenPhoto: (Int) -> Unit,
     onReport: () -> Unit,
     onBlockAuthor: () -> Unit,
+    onOpenAuthorProfile: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val isLiked = currentUserId in moment.likedByUids
@@ -214,32 +218,64 @@ private fun MomentFeedCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onOpenAuthorProfile)
+                        .padding(vertical = 2.dp)
+                        .testTag("moment_author_header_${moment.id}"),
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(42.dp)
                             .clip(CircleShape)
-                            .background(ToskaPrimaryDeep),
+                            .background(
+                                Brush.sweepGradient(
+                                    listOf(
+                                        Color(0xFF006B5E),
+                                        Color(0xFF26A69A),
+                                        Color(0xFF80CBC4),
+                                        Color(0xFF006B5E),
+                                    )
+                                )
+                            )
+                            .padding(2.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            text = moment.authorName.take(1).uppercase(),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(ToskaPrimaryDeep),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = moment.authorName.take(1).uppercase(),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = moment.authorName,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = moment.authorName,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "• Lihat Profil",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ToskaPrimaryDeep,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Filled.LocationOn,

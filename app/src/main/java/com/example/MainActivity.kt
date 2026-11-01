@@ -126,6 +126,7 @@ import com.example.data.audio.SurabayaRadioPlayer
 import com.example.ui.sheets.AdminPendingPollsSheetContent
 import com.example.ui.sheets.BookmarksSheetContent
 import com.example.ui.sheets.ChatConversationSheetContent
+import com.example.ui.sheets.CitizenProfileSheetContent
 import com.example.ui.sheets.CreateCulinarySheetContent
 import com.example.ui.sheets.CreateDestinationSheetContent
 import com.example.ui.sheets.CreateIncidentSheetContent
@@ -528,6 +529,7 @@ fun SurabayaMainHub(
                                 onToggleLike = { moment -> viewModel.toggleMomentLike(moment) },
                                 onReportMoment = { viewModel.reportMomentContent(it) },
                                 onBlockAuthor = { uid, name -> viewModel.blockCitizen(uid, name) },
+                                onOpenAuthorProfile = { uid, name -> viewModel.openCitizenProfile(uid, name) },
                             )
                             MainTab.DESTINASI -> DestinasiScreen(
                                 destinationsState = destinationsState,
@@ -588,6 +590,9 @@ fun SurabayaMainHub(
                                 onGreetPeer = { viewModel.greetNearbyPeer(it) },
                                 onBlockPeer = { peer ->
                                     viewModel.blockCitizen(peer.userId.ifBlank { peer.id }, peer.displayName)
+                                },
+                                onOpenCitizenProfile = { peer ->
+                                    viewModel.openCitizenProfile(peer.userId.ifBlank { peer.id }, peer.displayName)
                                 },
                             )
                             MainTab.CHAT -> ChatScreen(
@@ -883,6 +888,9 @@ fun SurabayaMainHub(
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
                         knownCitizens = allDiscoverableCitizens,
+                        userMoments = (momentsState as? UiState.Success)?.data?.filter { it.authorId == currentUserId }.orEmpty(),
+                        onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
+                        onOpenCreateMoment = { viewModel.openSheet(ActiveBottomSheet.CreateMoment) },
                         onUnblockUser = { uid -> viewModel.unblockCitizen(uid) },
                         onToggleAdmin = { viewModel.toggleAdminMode(it) },
                         onSaveProfile = { name, dist, bio, ints, rad, disc, avatarUri ->
@@ -896,6 +904,24 @@ fun SurabayaMainHub(
                                 scope = scope,
                             )
                         },
+                    )
+                }
+                is ActiveBottomSheet.CitizenProfile -> {
+                    val targetUid = sheetTarget.userId
+                    val foundProfile = allDiscoverableCitizens.firstOrNull { it.userId == targetUid || it.id == targetUid }
+                    val citizenMoments = (momentsState as? UiState.Success)?.data?.filter { it.authorId == targetUid }.orEmpty()
+                    CitizenProfileSheetContent(
+                        citizenUserId = targetUid,
+                        initialName = sheetTarget.initialDisplayName,
+                        citizenProfile = foundProfile,
+                        citizenMoments = citizenMoments,
+                        currentUserId = currentUserId,
+                        isAdmin = isAdmin,
+                        onOpenMomentDetail = { viewModel.openSheet(ActiveBottomSheet.MomentDetail(it)) },
+                        onGreetCitizen = { profile -> viewModel.greetNearbyPeer(profile) },
+                        onBlockCitizen = { uid, name -> viewModel.blockCitizen(uid, name) },
+                        onEditMyProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
+                        onClose = { viewModel.dismissSheet() },
                     )
                 }
                 ActiveBottomSheet.BookmarksList -> {
@@ -981,6 +1007,9 @@ fun SurabayaMainHub(
                             onAdminDelete = if (isAdmin) {
                                 { viewModel.adminDeletePost("moments", found.id) }
                             } else null,
+                            onOpenAuthorProfile = { uid, name ->
+                                viewModel.openCitizenProfile(uid, name)
+                            },
                             onClose = { viewModel.dismissSheet() },
                         )
                     }

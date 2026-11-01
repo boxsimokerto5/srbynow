@@ -30,16 +30,20 @@ import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
+import com.example.data.model.UserMoment
+import com.example.data.model.NearbyProfile
 import com.example.data.model.CitizenPoll
 import com.example.data.model.PollOption
 import com.example.data.model.PollComment
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.PollingScreen
 import com.example.ui.screens.SplashScreen
+import com.example.ui.sheets.CitizenProfileSheetContent
 import com.example.ui.sheets.CulinaryDetailSheetContent
 import com.example.ui.sheets.EventDetailSheetContent
 import com.example.ui.sheets.IncidentDetailSheetContent
 import com.example.ui.sheets.PollDetailSheetContent
+import com.example.ui.sheets.ProfileAndPrivacySheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import org.junit.Assert.assertEquals
@@ -796,6 +800,127 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("btn_close_poll_detail").performClick()
     composeTestRule.waitForIdle()
     assertTrue(dismissCalled)
+  }
+
+  @Test
+  fun citizenProfileSheet_displaysMomentsAndTriggersDetailClick() {
+    var openedMomentId = ""
+    var greetedUser = ""
+
+    val sampleProfile = NearbyProfile(
+      userId = "citizen_456",
+      displayName = "Cak Hadi",
+      district = "Wonokromo",
+      bio = "Pecinta rawon dan gowes pagi.",
+      interests = "Gowes, Kuliner, Fotografi",
+    )
+    val sampleMoments = listOf(
+      UserMoment(
+        id = "mom_101",
+        authorId = "citizen_456",
+        authorName = "Cak Hadi",
+        caption = "Sunset cakep nang Jembatan Ujung Galuh!",
+        locationName = "Jembatan Ujung Galuh",
+        district = "Wonokromo",
+        likesCount = 18,
+      ),
+      UserMoment(
+        id = "mom_102",
+        authorId = "citizen_456",
+        authorName = "Cak Hadi",
+        caption = "Sarapan lontong balap legendaris.",
+        locationName = "Pasar Wonokromo",
+        district = "Wonokromo",
+        likesCount = 25,
+      ),
+    )
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        CitizenProfileSheetContent(
+          citizenUserId = "citizen_456",
+          initialName = "Cak Hadi",
+          citizenProfile = sampleProfile,
+          citizenMoments = sampleMoments,
+          currentUserId = "current_user_123",
+          isAdmin = false,
+          onOpenMomentDetail = { openedMomentId = it },
+          onGreetCitizen = { greetedUser = it.displayName },
+          onBlockCitizen = { _, _ -> },
+          onEditMyProfile = {},
+          onClose = {},
+        )
+      }
+    }
+
+    // Verify profile header information
+    composeTestRule.onNodeWithTag("citizen_profile_sheet").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("stat_moments_count").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Cak Hadi").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Pecinta rawon dan gowes pagi.").assertIsDisplayed()
+
+    // Verify Instagram-style moment grid thumbnail
+    composeTestRule.onNodeWithTag("moment_thumbnail_mom_101").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("moment_thumbnail_mom_101").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("mom_101", openedMomentId)
+
+    // Verify Greet button
+    composeTestRule.onNodeWithTag("greet_citizen_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("greet_citizen_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("Cak Hadi", greetedUser)
+  }
+
+  @Test
+  fun userProfileSheet_showsMyMomentsAndPostButton() {
+    var postMomentTriggered = false
+    var openedMomentId = ""
+
+    val myAccount = UserAccount(
+      userId = "my_uid",
+      displayName = "Ning Sarah",
+      district = "Genteng",
+      bio = "Halo warga Surabaya!",
+    )
+    val myMoments = listOf(
+      UserMoment(
+        id = "mom_mine_1",
+        authorId = "my_uid",
+        authorName = "Ning Sarah",
+        caption = "Ngopi sore nang Tunjungan",
+        district = "Genteng",
+        likesCount = 42,
+      ),
+    )
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        ProfileAndPrivacySheetContent(
+          userAccount = myAccount,
+          nearbyProfile = NearbyProfile(userId = "my_uid", displayName = "Ning Sarah", district = "Genteng"),
+          userEmail = "sarah@arek.sby",
+          isAdmin = false,
+          focusPrivacyOnly = false,
+          userMoments = myMoments,
+          onOpenMomentDetail = { openedMomentId = it },
+          onOpenCreateMoment = { postMomentTriggered = true },
+          onToggleAdmin = {},
+          onSaveProfile = { _, _, _, _, _, _, _ -> },
+          onSignOut = {},
+        )
+      }
+    }
+
+    composeTestRule.onNodeWithTag("tab_my_moments").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("moment_thumbnail_mom_mine_1").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("moment_thumbnail_mom_mine_1").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("mom_mine_1", openedMomentId)
+
+    composeTestRule.onNodeWithTag("btn_post_new_moment_from_profile").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue(postMomentTriggered)
   }
 }
 

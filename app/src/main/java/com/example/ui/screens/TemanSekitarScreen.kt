@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,6 +81,7 @@ fun TemanSekitarScreen(
     onOpenPrivacySheet: () -> Unit,
     onGreetPeer: (NearbyProfile) -> Unit,
     onBlockPeer: (NearbyProfile) -> Unit = {},
+    onOpenCitizenProfile: (NearbyProfile) -> Unit = {},
 ) {
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -259,6 +261,7 @@ fun TemanSekitarScreen(
                             peerItem = item,
                             onGreet = { onGreetPeer(item.profile) },
                             onBlock = { onBlockPeer(item.profile) },
+                            onOpenProfile = { onOpenCitizenProfile(item.profile) },
                         )
                     }
                 }
@@ -272,6 +275,7 @@ private fun NearbyPeerCard(
     peerItem: NearbyPeerItem,
     onGreet: () -> Unit,
     onBlock: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
 ) {
     val peer = peerItem.profile
     val tags = peer.interests.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(3)
@@ -324,7 +328,12 @@ private fun NearbyPeerCard(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(11.dp),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onOpenProfile)
+                        .padding(vertical = 2.dp)
+                        .testTag("peer_profile_click_${peer.id}"),
                 ) {
                     InitialsAvatar(
                         name = peer.displayName,
