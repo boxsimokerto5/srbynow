@@ -2287,6 +2287,7 @@ fun HomePollCard(
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = ToskaPrimary.copy(alpha = 0.12f),
+                    modifier = Modifier.weight(1f, fill = false),
                 ) {
                     Text(
                         text = poll.category.replace("_", " "),
@@ -2294,8 +2295,11 @@ fun HomePollCard(
                         fontWeight = FontWeight.Bold,
                         color = ToskaPrimaryDeep,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.HowToVote,
@@ -2309,6 +2313,8 @@ fun HomePollCard(
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = ToskaPrimaryDeep,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
             }

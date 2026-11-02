@@ -7,20 +7,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,13 +36,10 @@ import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -63,22 +58,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.CitizenPoll
 import com.example.data.model.PollComment
-import com.example.data.util.SurabayaDistricts
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
@@ -106,6 +97,7 @@ fun PollDetailSheetContent(
     var commentInput by remember(poll.id) { mutableStateOf("") }
     val commentListState = rememberLazyListState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var isDescriptionExpanded by remember { mutableStateOf(false) }
 
     if (showDeleteConfirm) {
         androidx.compose.material3.AlertDialog(
@@ -132,179 +124,190 @@ fun PollDetailSheetContent(
     }
 
     val userVotedOptionId = poll.userVotedOptionId(currentUserId)
-    val hasVoted = userVotedOptionId != null
-
-    // Scroll isolation: Prevents middle comment scrolling from inadvertently dragging/closing the bottom sheet
-    val commentNestedScrollConnection = remember(poll.id, commentListState) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y < 0f && commentListState.canScrollForward) {
-                    return Offset.Zero
-                }
-                return Offset.Zero
-            }
-
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource,
-            ): Offset {
-                // Consume remaining scroll so swiping comments up/down never drags the sheet closed
-                return available
-            }
-        }
-    }
 
     LaunchedEffect(comments.size) {
         if (comments.isNotEmpty()) {
-            commentListState.animateScrollToItem(0)
+            commentListState.animateScrollToItem(commentListState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
         }
     }
 
-    BoxWithConstraints(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
     ) {
-        val totalAvailableHeight = maxHeight
-        // Allocate generous height for the scrollable middle section
-        val maxCommentsHeight = (totalAvailableHeight - 280.dp).coerceAtLeast(180.dp)
-
-        Column(modifier = Modifier.fillMaxWidth()) {
+        // Konten bergulir terpadu yang adaptif untuk berbagai ukuran layar perangkat
+        LazyColumn(
+            state = commentListState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false),
+            contentPadding = PaddingValues(bottom = 12.dp),
+        ) {
             // ==========================================
-            // BAGIAN ATAS: POLLING CARD TETAP TERLIHAT (FIXED/STICKY TOP)
+            // BAGIAN 1: HEADER (Kategori, Kecamatan, Tombol Tutup/Hapus)
             // ==========================================
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-            ) {
-                // Top Header Row with Close Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+            item(key = "header_section") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 10.dp)
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = ToskaPrimary.copy(alpha = 0.15f),
-                            modifier = Modifier.padding(end = 8.dp),
-                        ) {
-                            Text(
-                                text = poll.category.replace("_", " "),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = ToskaPrimaryDeep,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            )
-                        }
-                        Text(
-                            text = "Kec. ${poll.district}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (onDelete != null) {
-                            IconButton(
-                                onClick = { showDeleteConfirm = true },
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .testTag("btn_delete_poll_detail"),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Hapus Polling",
-                                    tint = AlertCrimson.copy(alpha = 0.8f),
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .testTag("btn_close_poll_detail"),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Tutup",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Judul Polling
-                Text(
-                    text = poll.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Proposer & Total Votes Banner
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Diusulkan oleh: ${poll.proposerName}",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = ToskaPrimary.copy(alpha = 0.12f),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.weight(1f, fill = false),
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.HowToVote,
-                                contentDescription = null,
-                                tint = ToskaPrimaryDeep,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = ToskaPrimary.copy(alpha = 0.15f),
+                                modifier = Modifier.padding(end = 8.dp),
+                            ) {
+                                Text(
+                                    text = poll.category.replace("_", " "),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ToskaPrimaryDeep,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                             Text(
-                                text = "${poll.totalVotes} Suara Warga",
+                                text = "Kec. ${poll.district}",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = ToskaPrimaryDeep,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (onDelete != null) {
+                                IconButton(
+                                    onClick = { showDeleteConfirm = true },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .testTag("btn_delete_poll_detail"),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Hapus Polling",
+                                        tint = AlertCrimson.copy(alpha = 0.8f),
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .testTag("btn_close_poll_detail"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Tutup",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Judul Polling
+                    Text(
+                        text = poll.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Pengusul & Total Suara Warga (Adaptif: Teks pengusul dibatasi & badge suara dijamin tidak terjepit)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Diusulkan oleh: ${poll.proposerName}",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = ToskaPrimary.copy(alpha = 0.12f),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.HowToVote,
+                                    contentDescription = null,
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "${poll.totalVotes} Suara Warga",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ToskaPrimaryDeep,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                            }
+                        }
+                    }
+
+                    // Deskripsi dengan dukungan baca selengkapnya / ringkas agar tidak terpotong kaku
+                    if (poll.description.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val isLongDesc = poll.description.length > 100 || poll.description.contains("\n")
+                        Column {
+                            Text(
+                                text = poll.description,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp, lineHeight = 17.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (isLongDesc) {
+                                Text(
+                                    text = if (isDescriptionExpanded) "Ringkas ▲" else "Selengkapnya ▼",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ToskaPrimaryDeep,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clickable { isDescriptionExpanded = !isDescriptionExpanded }
+                                        .padding(top = 4.dp, bottom = 2.dp),
+                                )
+                            }
                         }
                     }
                 }
+            }
 
-                if (poll.description.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = poll.description,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 3,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Card Opsi Suara dengan Grafik Batang & Persentase
+            // ==========================================
+            // BAGIAN 2: PILIHAN OPSI SUARA POLLING
+            // ==========================================
+            item(key = "options_section") {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     poll.options.forEach { opt ->
@@ -363,17 +366,24 @@ fun PollDetailSheetContent(
 
                                     Spacer(modifier = Modifier.width(8.dp))
 
-                                    Column(horizontalAlignment = Alignment.End) {
+                                    Column(
+                                        horizontalAlignment = Alignment.End,
+                                        modifier = Modifier.widthIn(min = 48.dp),
+                                    ) {
                                         Text(
                                             text = "%.1f%%".format(percentage),
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = if (isChosenByMe) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            softWrap = false,
                                         )
                                         Text(
                                             text = "${opt.voteCount} suara",
                                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            softWrap = false,
                                         )
                                     }
                                 }
@@ -395,22 +405,25 @@ fun PollDetailSheetContent(
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // ==========================================
-                // TOMBOL SHARE & UNDUH HASIL POLLING (JPG)
-                // ==========================================
+            // ==========================================
+            // BAGIAN 3: TOMBOL BERBAGI & UNDUH HASIL POLLING
+            // ==========================================
+            item(key = "actions_section") {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Tombol Share Teks Polling
                     OutlinedButton(
                         onClick = { onShareText(poll) },
                         shape = RoundedCornerShape(10.dp),
                         border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.6f)),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
                             .testTag("btn_share_poll_text"),
@@ -419,14 +432,16 @@ fun PollDetailSheetContent(
                             imageVector = Icons.Default.Share,
                             contentDescription = null,
                             tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(15.dp),
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Bagikan Teks",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = ToskaPrimaryDeep,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
@@ -435,7 +450,7 @@ fun PollDetailSheetContent(
                         onClick = { onShareJpg(poll) },
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
                             .testTag("btn_share_poll_jpg"),
@@ -444,14 +459,16 @@ fun PollDetailSheetContent(
                             imageVector = Icons.Default.Image,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(15.dp),
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Bagikan JPG",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
@@ -473,164 +490,148 @@ fun PollDetailSheetContent(
                 }
             }
 
-            // Divider Pemisah antara Polling Card Tetap dan Komentar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-            )
-
-            // Header Section Komentar dengan Petunjuk Geser Atas/Bawah (↕)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = 18.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Komentar Warga (${comments.size})",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+            // ==========================================
+            // BAGIAN 4: PEMISAH SECTION
+            // ==========================================
+            item(key = "divider_section") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.SwapVert,
-                        contentDescription = null,
-                        tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+            }
+
+            // ==========================================
+            // BAGIAN 5: HEADER KOMENTAR
+            // ==========================================
+            item(key = "comments_header") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        text = "Geser komentar ↕",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ToskaPrimaryDeep,
-                        fontWeight = FontWeight.Medium,
+                        text = "Komentar Warga (${comments.size})",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
 
             // ==========================================
-            // BAGIAN TENGAH: DAFTAR KOMENTAR GESER ATAS-BAWAH (SCROLLABLE ↕)
+            // BAGIAN 6: DAFTAR KOMENTAR WARGA
             // ==========================================
-            LazyColumn(
-                state = commentListState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 120.dp, max = maxCommentsHeight)
-                    .nestedScroll(commentNestedScrollConnection)
-                    .padding(horizontal = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 6.dp),
-            ) {
-                if (comments.isEmpty()) {
-                    item {
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            if (comments.isEmpty()) {
+                item(key = "empty_comments") {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 6.dp),
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 12.dp),
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Text(
-                                    text = "Belum ada komentar warga",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Jadilah yang pertama menyampaikan pandangan dan solusi untuk polling ini!",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                )
-                            }
+                            Text(
+                                text = "Belum ada komentar warga",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Jadilah yang pertama menyampaikan pandangan dan solusi untuk polling ini!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            )
                         }
                     }
-                } else {
-                    items(comments, key = { it.id }) { item ->
+                }
+            } else {
+                items(comments, key = { it.id }) { item ->
+                    Box(modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)) {
                         PollCommentItem(comment = item)
                     }
                 }
             }
+        }
 
-            // ==========================================
-            // BAGIAN BAWAH: INPUT KOMENTAR STICKY
-            // ==========================================
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 3.dp,
-                shadowElevation = 4.dp,
-                color = MaterialTheme.colorScheme.surface,
+        // ==========================================
+        // BAGIAN 7: INPUT KOMENTAR STICKY DI BAWAH
+        // ==========================================
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 3.dp,
+            shadowElevation = 4.dp,
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedTextField(
-                        value = commentInput,
-                        onValueChange = { commentInput = it },
-                        placeholder = { Text("Tulis pendapat warga...", fontSize = 13.sp) },
-                        shape = RoundedCornerShape(24.dp),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(
-                            onSend = {
-                                if (commentInput.isNotBlank()) {
-                                    onAddComment(commentInput.trim())
-                                    commentInput = ""
-                                    keyboardController?.hide()
-                                    focusManager.clearFocus()
-                                }
-                            }
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ToskaPrimary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("input_poll_comment"),
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(
-                        onClick = {
+                OutlinedTextField(
+                    value = commentInput,
+                    onValueChange = { commentInput = it },
+                    placeholder = { Text("Tulis pendapat warga...", fontSize = 13.sp) },
+                    shape = RoundedCornerShape(24.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
                             if (commentInput.isNotBlank()) {
                                 onAddComment(commentInput.trim())
                                 commentInput = ""
                                 keyboardController?.hide()
                                 focusManager.clearFocus()
                             }
-                        },
-                        enabled = commentInput.isNotBlank(),
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(
-                                color = if (commentInput.isNotBlank()) ToskaPrimary else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = CircleShape,
-                            )
-                            .testTag("btn_send_poll_comment"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Kirim Komentar",
-                            tint = if (commentInput.isNotBlank()) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(20.dp),
+                        }
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ToskaPrimary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("input_poll_comment"),
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = {
+                        if (commentInput.isNotBlank()) {
+                            onAddComment(commentInput.trim())
+                            commentInput = ""
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                        }
+                    },
+                    enabled = commentInput.isNotBlank(),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(
+                            color = if (commentInput.isNotBlank()) ToskaPrimary else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape,
                         )
-                    }
+                        .testTag("btn_send_poll_comment"),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Kirim Komentar",
+                        tint = if (commentInput.isNotBlank()) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
         }
@@ -659,7 +660,10 @@ private fun PollCommentItem(comment: PollComment) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false),
+                ) {
                     Surface(
                         shape = CircleShape,
                         color = ToskaPrimary.copy(alpha = 0.15f),
@@ -681,19 +685,27 @@ private fun PollCommentItem(comment: PollComment) {
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = "Kec. ${comment.authorDistrict}",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
                     text = dateString,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
 

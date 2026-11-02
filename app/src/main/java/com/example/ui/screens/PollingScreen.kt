@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -730,7 +731,7 @@ fun PollCardItem(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f, fill = false),
                 ) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
@@ -742,6 +743,8 @@ fun PollCardItem(
                             fontWeight = FontWeight.Bold,
                             color = ToskaPrimaryDeep,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     Spacer(modifier = Modifier.width(6.dp))
@@ -749,8 +752,12 @@ fun PollCardItem(
                         text = "Kec. ${poll.district}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -765,6 +772,8 @@ fun PollCardItem(
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = ToskaPrimaryDeep,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
             }
@@ -858,23 +867,32 @@ fun PollCardItem(
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = if (isChosenByMe) FontWeight.Bold else FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
+                                        maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                 }
 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.widthIn(min = 40.dp),
+                                ) {
                                     Text(
                                         text = "%.0f%%".format(percentage),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isChosenByMe) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        softWrap = false,
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "(${opt.voteCount})",
                                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        softWrap = false,
                                     )
                                 }
                             }
