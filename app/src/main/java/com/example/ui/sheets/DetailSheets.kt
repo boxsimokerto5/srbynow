@@ -719,6 +719,7 @@ fun EventDetailSheetContent(
     onReportLink: () -> Unit = {},
     onAdminClearLinks: () -> Unit = {},
     onReportContent: () -> Unit = {},
+    onEditEvent: (() -> Unit)? = null,
     onBlockAuthor: (() -> Unit)? = null,
     onAdminDeletePost: (() -> Unit)? = null,
     onAdminRestoreBlur: (() -> Unit)? = null,
@@ -878,31 +879,55 @@ fun EventDetailSheetContent(
                 }
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
-                        Text(
-                            text = formatEventCategoryLabel(event.category),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false),
+                    ) {
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+                            Text(
+                                text = formatEventCategoryLabel(event.category),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
+                        val (statusLabel, bg, fg) = when (event.status) {
+                            "APPROVED" -> Triple("Disetujui Admin", OpenGreenBg, OpenGreenText)
+                            "REJECTED" -> Triple("Ditolak", Color(0xFFFFDAD6), Color(0xFF93000A))
+                            else -> Triple("Menunggu Persetujuan Admin", PendingAmberBg, PendingAmberText)
+                        }
+                        Surface(shape = CircleShape, color = bg) {
+                            Text(
+                                text = statusLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = fg,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
                     }
-                    val (statusLabel, bg, fg) = when (event.status) {
-                        "APPROVED" -> Triple("Disetujui Admin", OpenGreenBg, OpenGreenText)
-                        "REJECTED" -> Triple("Ditolak", Color(0xFFFFDAD6), Color(0xFF93000A))
-                        else -> Triple("Menunggu Persetujuan Admin", PendingAmberBg, PendingAmberText)
-                    }
-                    Surface(shape = CircleShape, color = bg) {
-                        Text(
-                            text = statusLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = fg,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        )
+
+                    val isOwner = (event.proposerId.isNotBlank() && event.proposerId == currentUserId) || isAdmin
+                    if (isOwner && onEditEvent != null) {
+                        IconButton(
+                            onClick = onEditEvent,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .testTag("btn_edit_event"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = "Edit Event",
+                                tint = ToskaPrimaryDeep,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
                 }
 

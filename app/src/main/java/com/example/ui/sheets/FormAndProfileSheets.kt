@@ -105,8 +105,10 @@ import androidx.compose.material.icons.filled.Male
 import androidx.compose.material3.minimumInteractiveComponentSize
 import com.example.data.model.BookmarkItem
 import com.example.data.model.DestinationDraft
+import com.example.data.model.EventDraft
 import com.example.data.model.NearbyProfile
 import com.example.data.model.SurabayaDestination
+import com.example.data.model.SurabayaEvent
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.model.POST_TYPE_MOMEN
@@ -114,6 +116,7 @@ import com.example.data.model.POST_TYPE_LENSA_WARGA
 import com.example.data.model.formatCitizenGenderLabel
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.util.DestinationDraftManager
+import com.example.data.util.EventDraftManager
 import com.example.data.util.LinkSecurityValidator
 import com.example.data.util.LinkValidationResult
 import com.example.data.util.SafeLinkCategory
@@ -462,8 +465,11 @@ fun CreateIncidentSheetContent(
 @Composable
 fun ProposeEventSheetContent(
     defaultDistrict: String,
+    initialEvent: SurabayaEvent? = null,
     isSubmitting: Boolean = false,
     isScanningPhoto: Boolean = false,
+    onSaveDraft: ((EventDraft) -> Unit)? = null,
+    onClearDraft: (() -> Unit)? = null,
     onSubmit: (
         title: String,
         category: String,
@@ -477,18 +483,38 @@ fun ProposeEventSheetContent(
         mapsUrl: String,
         photoUris: List<Uri>,
     ) -> Unit,
+    onClose: (() -> Unit)? = null,
 ) {
-    var title by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("FESTIVAL") }
-    var dateText by remember { mutableStateOf("Minggu, 29 Nov 2026") }
-    var timeText by remember { mutableStateOf("18.30 - 21.30 WIB") }
-    var venue by remember { mutableStateOf("") }
-    var district by remember { mutableStateOf(defaultDistrict) }
-    var address by remember { mutableStateOf("") }
-    var mapsUrl by remember { mutableStateOf("") }
-    var price by remember { mutableStateOf("Gratis") }
-    var description by remember { mutableStateOf("") }
-    var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val context = LocalContext.current
+    val isEditMode = initialEvent != null
+
+    val savedDraft = remember(initialEvent) {
+        if (initialEvent == null) EventDraftManager.loadDraft(context) else null
+    }
+    var hasLoadedDraft by remember { mutableStateOf(savedDraft != null) }
+
+    var title by remember { mutableStateOf(initialEvent?.title ?: savedDraft?.title.orEmpty()) }
+    var category by remember { mutableStateOf(initialEvent?.category ?: savedDraft?.category ?: "FESTIVAL") }
+    var dateText by remember { mutableStateOf(initialEvent?.eventDateText ?: savedDraft?.dateText ?: "Minggu, 29 Nov 2026") }
+    var timeText by remember { mutableStateOf(initialEvent?.timeText ?: savedDraft?.timeText ?: "18.30 - 21.30 WIB") }
+    var venue by remember { mutableStateOf(initialEvent?.venueName ?: savedDraft?.venueName.orEmpty()) }
+    var district by remember { mutableStateOf(initialEvent?.district ?: savedDraft?.district ?: defaultDistrict) }
+    var address by remember { mutableStateOf(initialEvent?.address ?: savedDraft?.address.orEmpty()) }
+    var mapsUrl by remember { mutableStateOf(initialEvent?.mapsUrl ?: savedDraft?.mapsUrl.orEmpty()) }
+    var price by remember { mutableStateOf(initialEvent?.priceLabel ?: savedDraft?.priceLabel ?: "Gratis") }
+    var description by remember { mutableStateOf(initialEvent?.description ?: savedDraft?.description.orEmpty()) }
+    var selectedPhotoUris by remember {
+        mutableStateOf<List<Uri>>(
+            if (initialEvent == null && savedDraft != null) {
+                savedDraft.photoUris.mapNotNull {
+                    try { Uri.parse(it) } catch (_: Exception) { null }
+                }
+            } else emptyList()
+        )
+    }
+
+    var showDraftSavedNotice by remember { mutableStateOf(false) }
+    var showUnsavedDialog by remember { mutableStateOf(false) }
 
     val mapsValidation = remember(mapsUrl) {
         LinkSecurityValidator.validateOptionalLink(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
@@ -500,6 +526,70 @@ fun ProposeEventSheetContent(
         description.trim().length >= 3 &&
         mapsValidation is LinkValidationResult.Valid
 
+    val currentDraft = remember(title, category, dateText, timeText, venue, district, address, price, description, mapsUrl, selectedPhotoUris) {
+        EventDraft(
+            title = title.trim(),
+            category = category,
+            dateText = dateText.trim(),
+            timeText = timeText.trim(),
+            venueName = venue.trim(),
+            district = district,
+            address = address.trim(),
+            priceLabel = price.trim().ifBlank { "Gratis" },
+            description = description.trim(),
+            mapsUrl = mapsUrl.trim(),
+            photoUris = selectedPhotoUris.map { it.toString() },
+        )
+    }
+
+    val handleAttemptClose: () -> Unit = {
+        if (!isEditMode && currentDraft.hasContent()) {
+            showUnsavedDialog = true
+        } else {
+            onClose?.invoke()
+        }
+    }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("Simpan Draf Sebelum Keluar?") },
+            text = {
+                Text("Anda sudah mengisi rincian usulan event ini. Simpan sebagai draf agar dapat dilanjutkan saat mencari alamat atau tautan Maps.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        EventDraftManager.saveDraft(context, currentDraft)
+                        onSaveDraft?.invoke(currentDraft)
+                        showUnsavedDialog = false
+                        onClose?.invoke()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                ) {
+                    Text("Simpan Draf & Keluar")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = {
+                            EventDraftManager.clearDraft(context)
+                            onClearDraft?.invoke()
+                            showUnsavedDialog = false
+                            onClose?.invoke()
+                        }
+                    ) {
+                        Text("Buang", color = AlertCrimson)
+                    }
+                    TextButton(onClick = { showUnsavedDialog = false }) {
+                        Text("Lanjut Mengisi")
+                    }
+                }
+            },
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -509,10 +599,115 @@ fun ProposeEventSheetContent(
             .padding(horizontal = 18.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        GoogleMapsSheetHandleHeader(
-            title = "Usulkan Event Surabaya",
-            subtitle = "Unggah hingga 4 poster/foto acara beserta titik lokasi Google Maps. Usulan akan ditinjau Admin.",
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isEditMode) "Edit Event Surabaya" else "Usulkan Event Surabaya",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = if (isEditMode) "Perbarui informasi acara, jadwal, lokasi, atau poster kegiatan warga." else "Unggah hingga 4 poster/foto acara beserta titik lokasi Google Maps. Usulan akan ditinjau Admin.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (onClose != null) {
+                IconButton(onClick = handleAttemptClose, modifier = Modifier.testTag("btn_close_event_form")) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Tutup",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        if (hasLoadedDraft && !isEditMode) {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ToskaPrimary.copy(alpha = 0.12f)),
+                border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = Icons.Filled.Bookmark,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Melanjutkan draf event tersimpan",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ToskaPrimaryDeep,
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            EventDraftManager.clearDraft(context)
+                            onClearDraft?.invoke()
+                            hasLoadedDraft = false
+                            title = ""
+                            category = "FESTIVAL"
+                            dateText = "Minggu, 29 Nov 2026"
+                            timeText = "18.30 - 21.30 WIB"
+                            venue = ""
+                            district = defaultDistrict
+                            address = ""
+                            mapsUrl = ""
+                            price = "Gratis"
+                            description = ""
+                            selectedPhotoUris = emptyList()
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text("Bersihkan Draf", color = AlertCrimson, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        if (showDraftSavedNotice) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = ToskaPrimary.copy(alpha = 0.15f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Draf usulan event berhasil disimpan! Anda aman mencari link/alamat di aplikasi lain.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ToskaPrimaryDeep,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
 
         FormMultiPhotoPickerSection(
             selectedPhotoUris = selectedPhotoUris,
@@ -520,7 +715,7 @@ fun ProposeEventSheetContent(
             maxPhotos = 4,
             enabled = !isSubmitting,
             title = stringResource(R.string.event_multi_photo_title),
-            subtitle = stringResource(R.string.event_multi_photo_subtitle),
+            subtitle = if (isEditMode) "Tambahkan foto baru untuk mengganti/melengkapi poster acara." else stringResource(R.string.event_multi_photo_subtitle),
         )
 
         OutlinedTextField(
@@ -707,6 +902,26 @@ fun ProposeEventSheetContent(
             )
         }
 
+        if (!isEditMode) {
+            OutlinedButton(
+                onClick = {
+                    EventDraftManager.saveDraft(context, currentDraft)
+                    onSaveDraft?.invoke(currentDraft)
+                    showDraftSavedNotice = true
+                },
+                enabled = !isSubmitting && currentDraft.hasContent(),
+                shape = CircleShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .testTag("btn_save_event_draft"),
+            ) {
+                Icon(Icons.Filled.Bookmark, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Simpan Sebagai Draf Event")
+            }
+        }
+
         Button(
             onClick = {
                 onSubmit(
@@ -743,7 +958,7 @@ fun ProposeEventSheetContent(
                     ),
                 )
             } else {
-                Text("Kirim Usulan ke Admin")
+                Text(if (isEditMode) "Simpan Perubahan Event" else "Kirim Usulan ke Admin")
             }
         }
 

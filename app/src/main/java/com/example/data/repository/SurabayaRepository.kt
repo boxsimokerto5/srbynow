@@ -1332,6 +1332,115 @@ class SurabayaRepository(
         }
     }
 
+    suspend fun updateEvent(
+        eventId: String,
+        title: String,
+        category: String,
+        eventDateText: String,
+        timeText: String,
+        venueName: String,
+        district: String,
+        address: String,
+        priceLabel: String,
+        description: String,
+        mapsUrl: String = "",
+        photos: List<PreparedPhoto> = emptyList(),
+    ): Boolean {
+        val uid = requireUserId()
+        val cur = cachedEvents[eventId]
+        val userRec = pb.getOneOrNull("users", uid)
+        val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
+        val isAdmin = isOfficialAdminEmail(email) ||
+            userRec?.optBoolean("is_admin", false) == true ||
+            (pb.currentSession?.isAdmin == true)
+        val isOwner = cur == null || cur.proposerId == uid || isAdmin || isCurrentSessionAdmin(uid)
+        if (!isOwner) {
+            throw IllegalStateException("Hanya pengusul event atau Admin yang memiliki hak untuk mengubah event ini.")
+        }
+
+        val (lat, lng) = SurabayaDistricts.coordinateFor(district)
+        val cleanTitle = title.trim().take(140)
+        val cleanDate = eventDateText.trim().take(60)
+        val cleanTime = timeText.trim().take(50)
+        val cleanVenue = venueName.trim().take(100)
+        val cleanDistrict = district.trim().take(60)
+        val cleanAddress = address.trim().take(180)
+        val cleanPrice = priceLabel.trim().take(50).ifEmpty { "Gratis" }
+        val cleanDesc = description.trim().take(1200)
+        val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+        val boundedPhotos = photos.take(4)
+
+        val patch = JSONObject().apply {
+            put("title", cleanTitle)
+            put("category", category)
+            put("event_date_text", cleanDate)
+            put("time_text", cleanTime)
+            put("venue_name", cleanVenue)
+            put("district", cleanDistrict)
+            put("address", cleanAddress)
+            put("lat", lat)
+            put("lng", lng)
+            put("price_label", cleanPrice)
+            put("description", cleanDesc)
+            put("maps_url", cleanMapsUrl)
+            put("updated", System.currentTimeMillis())
+        }
+
+        val fields = mapOf(
+            "title" to cleanTitle,
+            "category" to category,
+            "event_date_text" to cleanDate,
+            "time_text" to cleanTime,
+            "venue_name" to cleanVenue,
+            "district" to cleanDistrict,
+            "address" to cleanAddress,
+            "lat" to lat.toString(),
+            "lng" to lng.toString(),
+            "price_label" to cleanPrice,
+            "description" to cleanDesc,
+            "maps_url" to cleanMapsUrl,
+        )
+
+        val allFileParts = boundedPhotos.mapIndexed { idx, p ->
+            MultipartFilePart(
+                fieldName = "photo",
+                fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                mimeType = p.mimeType,
+                bytes = p.bytes,
+            )
+        }
+
+        try {
+            if (allFileParts.isNotEmpty()) {
+                pb.updateRecordMultipartFiles("events", eventId, fields, allFileParts)
+            } else {
+                pb.updateRecord("events", eventId, patch)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "updateEvent PB update error: ${e.message}, updating cached locally")
+        }
+
+        if (cur != null) {
+            cachedEvents[eventId] = cur.copy(
+                title = cleanTitle,
+                category = category,
+                eventDateText = cleanDate,
+                timeText = cleanTime,
+                venueName = cleanVenue,
+                district = cleanDistrict,
+                address = cleanAddress,
+                lat = lat,
+                lng = lng,
+                priceLabel = cleanPrice,
+                description = cleanDesc,
+                mapsUrl = cleanMapsUrl,
+                updatedAt = System.currentTimeMillis(),
+            )
+        }
+        bumpMutationTick()
+        return true
+    }
+
     suspend fun moderateEvent(
         eventId: String,
         approve: Boolean,

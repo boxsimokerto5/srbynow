@@ -528,6 +528,25 @@ data class DestinationDraft(
         title.isNotBlank() || description.isNotBlank() || address.isNotBlank() || mapsUrl.isNotBlank() || photoUris.isNotEmpty()
 }
 
+data class EventDraft(
+    val title: String = "",
+    val category: String = "FESTIVAL",
+    val dateText: String = "Minggu, 29 Nov 2026",
+    val timeText: String = "18.30 - 21.30 WIB",
+    val venueName: String = "",
+    val district: String = "Genteng",
+    val address: String = "",
+    val priceLabel: String = "Gratis",
+    val description: String = "",
+    val mapsUrl: String = "",
+    val photoUris: List<String> = emptyList(),
+    val savedAt: Long = System.currentTimeMillis(),
+) {
+    fun hasContent(): Boolean =
+        title.isNotBlank() || venueName.isNotBlank() || address.isNotBlank() ||
+            description.isNotBlank() || mapsUrl.isNotBlank() || photoUris.isNotEmpty()
+}
+
 enum class AppNotificationType {
     CHAT,
     EVENT,

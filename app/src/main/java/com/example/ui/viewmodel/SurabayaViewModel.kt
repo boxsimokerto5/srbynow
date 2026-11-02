@@ -23,6 +23,7 @@ import com.example.data.model.CulinarySpot
 import com.example.data.model.DestinationDraft
 import com.example.data.model.DestinationReview
 import com.example.data.model.EventComment
+import com.example.data.model.EventDraft
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.KosComment
@@ -46,6 +47,7 @@ import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.ImageSafetyScanResult
 import com.example.data.util.ChatMediaManager
 import com.example.data.util.DestinationDraftManager
+import com.example.data.util.EventDraftManager
 import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
 import com.example.data.util.PreparedPhoto
@@ -96,6 +98,7 @@ sealed interface ActiveBottomSheet {
     data object CreateIncident : ActiveBottomSheet
     data class EventDetail(val eventId: String) : ActiveBottomSheet
     data object ProposeEvent : ActiveBottomSheet
+    data class EditEvent(val event: SurabayaEvent) : ActiveBottomSheet
     data class CulinaryDetail(val culinaryId: String) : ActiveBottomSheet
     data object CreateCulinary : ActiveBottomSheet
     data class MomentDetail(val momentId: String) : ActiveBottomSheet
@@ -1228,6 +1231,9 @@ class SurabayaViewModel(
                     onPhotoSchemaMissing = { photoSchemaMissing = true },
                     onMultiPhotoFallbackUsed = { multiPhotoFallbackUsed = true },
                 )
+                if (appCtx != null) {
+                    EventDraftManager.clearDraft(appCtx)
+                }
                 dismissSheet()
                 when {
                     preparedPhotos.isNotEmpty() && photoSchemaMissing -> {
@@ -1250,6 +1256,86 @@ class SurabayaViewModel(
                 notifyMessage("Gagal mengusulkan event: ${e.localizedMessage ?: "Periksa koneksi internet"}")
             } finally {
                 _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun saveEventDraft(context: Context, draft: EventDraft) {
+        EventDraftManager.saveDraft(context, draft)
+        notifyMessage("Draf event berhasil disimpan.")
+    }
+
+    fun clearEventDraft(context: Context) {
+        EventDraftManager.clearDraft(context)
+        notifyMessage("Draf event dibersihkan.")
+    }
+
+    fun updateEvent(
+        eventId: String,
+        title: String,
+        category: String,
+        eventDateText: String,
+        timeText: String,
+        venueName: String,
+        district: String,
+        address: String,
+        priceLabel: String,
+        description: String,
+        mapsUrl: String = "",
+        newPhotoUris: List<Uri> = emptyList(),
+        context: Context? = null,
+    ) {
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val preparedPhotos: List<PreparedPhoto> = buildList {
+                    if (appCtx != null && newPhotoUris.isNotEmpty()) {
+                        _isScanningPhoto.value = true
+                        try {
+                            for ((idx, uri) in newPhotoUris.take(4).withIndex()) {
+                                val compressed = ImageUploadHelper.preparePhotoFromUri(
+                                    context = appCtx,
+                                    uri = uri,
+                                    prefix = "event_edit_${idx + 1}",
+                                )
+                                if (compressed != null) {
+                                    add(compressed)
+                                }
+                            }
+                        } finally {
+                            _isScanningPhoto.value = false
+                        }
+                    }
+                }
+                if (newPhotoUris.isNotEmpty() && preparedPhotos.isNotEmpty()) {
+                    if (!verifyPhotosAreSafe(preparedPhotos)) {
+                        return@launch
+                    }
+                }
+
+                repository.updateEvent(
+                    eventId = eventId,
+                    title = title,
+                    category = category,
+                    eventDateText = eventDateText,
+                    timeText = timeText,
+                    venueName = venueName,
+                    district = district,
+                    address = address,
+                    priceLabel = priceLabel,
+                    description = description,
+                    mapsUrl = mapsUrl,
+                    photos = preparedPhotos,
+                )
+                dismissSheet()
+                notifyMessage("Event Surabaya berhasil diperbarui!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal memperbarui event: ${e.message}")
+            } finally {
+                _isSubmitting.value = false
+                _isScanningPhoto.value = false
             }
         }
     }

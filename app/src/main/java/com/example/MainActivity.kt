@@ -953,6 +953,11 @@ fun SurabayaMainHub(
                             onReportLink = { viewModel.reportEventLink(found) },
                             onAdminClearLinks = { viewModel.adminClearExternalLinks("events", found.id) },
                             onReportContent = { viewModel.reportEventContent(found) },
+                            onEditEvent = if ((found.proposerId.isNotBlank() && found.proposerId == currentUserId) || isAdmin) {
+                                { viewModel.openSheet(ActiveBottomSheet.EditEvent(found)) }
+                            } else {
+                                null
+                            },
                             onBlockAuthor = if (found.proposerId.isNotBlank() && found.proposerId != currentUserId) {
                                 { viewModel.blockCitizen(found.proposerId, found.proposerName) }
                             } else {
@@ -979,8 +984,11 @@ fun SurabayaMainHub(
                 ActiveBottomSheet.ProposeEvent -> {
                     ProposeEventSheetContent(
                         defaultDistrict = currentDistrict,
+                        initialEvent = null,
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
+                        onSaveDraft = { draft -> viewModel.saveEventDraft(context, draft) },
+                        onClearDraft = { viewModel.clearEventDraft(context) },
                         onSubmit = { title, cat, dateTxt, timeTxt, venue, dist, addr, price, desc, mapsUrl, photoUris ->
                             viewModel.submitEventProposal(
                                 title = title,
@@ -997,6 +1005,33 @@ fun SurabayaMainHub(
                                 context = context,
                             )
                         },
+                        onClose = { viewModel.dismissSheet() },
+                    )
+                }
+                is ActiveBottomSheet.EditEvent -> {
+                    ProposeEventSheetContent(
+                        defaultDistrict = sheetTarget.event.district,
+                        initialEvent = sheetTarget.event,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { title, cat, dateTxt, timeTxt, venue, dist, addr, price, desc, mapsUrl, photoUris ->
+                            viewModel.updateEvent(
+                                eventId = sheetTarget.event.id,
+                                title = title,
+                                category = cat,
+                                eventDateText = dateTxt,
+                                timeText = timeTxt,
+                                venueName = venue,
+                                district = dist,
+                                address = addr,
+                                priceLabel = price,
+                                description = desc,
+                                mapsUrl = mapsUrl,
+                                newPhotoUris = photoUris,
+                                context = context,
+                            )
+                        },
+                        onClose = { viewModel.dismissSheet() },
                     )
                 }
                 is ActiveBottomSheet.CulinaryDetail -> {
