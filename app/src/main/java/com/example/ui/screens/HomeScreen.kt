@@ -1142,7 +1142,7 @@ fun HomeScreen(
                     )
                 }
                 is UiState.Success -> {
-                    val topIncidents = incidentsState.data.take(3)
+                    val topIncidents = incidentsState.data.take(6)
                     if (topIncidents.isEmpty()) {
                         Text(
                             text = "Situasi Surabaya aman dan kondusif",
@@ -1151,13 +1151,12 @@ fun HomeScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            for (incident in topIncidents) {
+                            items(topIncidents, key = { it.id }) { incident ->
                                 HomeIncidentCard(
                                     incident = incident,
                                     onClick = { onOpenIncidentDetail(incident.id) },
@@ -1704,70 +1703,89 @@ private fun HomeIncidentCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
+        shadowElevation = 2.dp,
         modifier = Modifier
-            .fillMaxWidth()
+            .width(220.dp)
             .testTag("home_incident_${incident.id}"),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val photoModel = incident.allPhotos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(incident.imageKey)
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(photoModel)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = incident.title,
-                contentScale = ContentScale.Crop,
+        Column {
+            Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    .fillMaxWidth()
+                    .height(110.dp),
+            ) {
+                val photoModel = incident.allPhotos.firstOrNull()?.ifBlank { null }
+                    ?: resolveImageDrawable(incident.imageKey)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = incident.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Surface(
+                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    color = if (incident.severity == "DARURAT") AlertCrimson else ToskaPrimaryDeep.copy(alpha = 0.9f),
+                    modifier = Modifier.align(Alignment.TopStart),
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (incident.severity == "DARURAT") AlertCrimson.copy(alpha = 0.15f)
-                        else ToskaPrimaryDeep.copy(alpha = 0.12f),
-                    ) {
-                        Text(
-                            text = incident.category,
-                            color = if (incident.severity == "DARURAT") AlertCrimson else ToskaPrimaryDeep,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
-                    }
                     Text(
-                        text = "• ${incident.district}",
+                        text = incident.category,
+                        color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
-                Spacer(modifier = Modifier.height(2.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+                ) {
+                    Text(
+                        text = formatRelativeTimestamp(incident.createdAt),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            Column(modifier = Modifier.padding(10.dp)) {
                 Text(
                     text = incident.title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = formatRelativeTimestamp(incident.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = "Kec. ${incident.district}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ToskaPrimaryDeep,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

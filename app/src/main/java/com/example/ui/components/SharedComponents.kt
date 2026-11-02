@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -80,6 +81,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.R
@@ -96,6 +98,7 @@ import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaOnPrimaryContainer
+import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 
 fun openGoogleMapsLocation(context: Context, lat: Double, lng: Double, label: String) {
@@ -325,6 +328,141 @@ fun SurabayaCompactTopBar(
                 }
             }
             HorizontalDivider(thickness = 0.8.dp, color = OutlineVariantLight.copy(alpha = 0.7f))
+        }
+    }
+}
+
+data class CategoryCardItem(
+    val key: String,
+    val title: String,
+    val subtitle: String = "",
+    val icon: ImageVector? = null,
+    val count: Int? = null,
+    val badge: String? = null,
+    val accentColor: Color? = null,
+)
+
+@Composable
+fun CategoryCardRow(
+    items: List<CategoryCardItem>,
+    selectedKey: String,
+    onSelect: (String) -> Unit,
+    tagPrefix: String,
+    modifier: Modifier = Modifier,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        items(items, key = { it.key }) { item ->
+            val isSelected = item.key == selectedKey
+            val containerColor = if (isSelected) ToskaPrimary.copy(alpha = 0.12f) else Color.White
+            val borderColor = if (isSelected) ToskaPrimaryDeep else OutlineVariantLight.copy(alpha = 0.75f)
+            val borderWidth = if (isSelected) 1.5.dp else 1.dp
+            val elevation = if (isSelected) 2.dp else 1.dp
+
+            Surface(
+                onClick = { onSelect(item.key) },
+                shape = RoundedCornerShape(16.dp),
+                color = containerColor,
+                border = BorderStroke(borderWidth, borderColor),
+                shadowElevation = elevation,
+                modifier = Modifier
+                    .widthIn(min = 124.dp, max = 156.dp)
+                    .heightIn(min = 82.dp)
+                    .testTag("${tagPrefix}_card_${item.key.lowercase()}")
+                    .testTag("${tagPrefix}_chip_${item.key.lowercase()}"),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) {
+                                item.accentColor ?: ToskaPrimaryDeep
+                            } else {
+                                (item.accentColor ?: ToskaPrimary).copy(alpha = 0.12f)
+                            },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                if (item.icon != null) {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = null,
+                                        tint = if (isSelected) Color.White else (item.accentColor ?: ToskaPrimaryDeep),
+                                        modifier = Modifier.size(17.dp),
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!item.badge.isNullOrBlank()) {
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isSelected) ToskaPrimaryDeep else Color(0xFFFFECEC),
+                                modifier = Modifier.padding(start = 4.dp),
+                            ) {
+                                Text(
+                                    text = item.badge,
+                                    color = if (isSelected) Color.White else AlertCrimson,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        } else if (item.count != null && item.count > 0) {
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isSelected) ToskaPrimaryDeep.copy(alpha = 0.18f) else Color(0xFFF1F5F7),
+                                modifier = Modifier.padding(start = 4.dp),
+                            ) {
+                                Text(
+                                    text = "${item.count}",
+                                    color = if (isSelected) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Column {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                            color = if (isSelected) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (item.subtitle.isNotBlank()) {
+                            Text(
+                                text = item.subtitle,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                color = if (isSelected) ToskaPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

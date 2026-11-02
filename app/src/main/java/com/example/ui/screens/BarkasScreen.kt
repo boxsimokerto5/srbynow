@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -38,8 +39,11 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.Weekend
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import com.example.ui.components.CategoryCardItem
+import com.example.ui.components.CategoryCardRow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -242,7 +246,11 @@ fun BarkasScreen(
                         BarkasStatusFilter.ALL -> true
                         BarkasStatusFilter.MINE -> item.isOwnedBy(currentUserId)
                     }
-                    val matchesCategory = selectedCategory == "ALL" || item.category.equals(selectedCategory, ignoreCase = true)
+                    val matchesCategory = when (selectedCategory) {
+                        "ALL" -> true
+                        "GRATIS" -> item.price <= 0L
+                        else -> item.category.equals(selectedCategory, ignoreCase = true)
+                    }
                     val matchesSearch = q.isBlank() ||
                         item.title.lowercase().contains(q) ||
                         item.description.lowercase().contains(q) ||
@@ -251,6 +259,67 @@ fun BarkasScreen(
                         item.sellerName.lowercase().contains(q)
                     matchesStatus && matchesCategory && matchesSearch
                 }
+            }
+
+            val barkasCardCategories = remember(allItems) {
+                listOf(
+                    CategoryCardItem(
+                        key = "ALL",
+                        title = "Semua Lapak",
+                        subtitle = "Katalog Barkas",
+                        icon = Icons.Filled.Storefront,
+                        count = allItems.size,
+                    ),
+                    CategoryCardItem(
+                        key = "ELEKTRONIK",
+                        title = "Elektronik",
+                        subtitle = "HP & Gadget",
+                        icon = Icons.Filled.Devices,
+                        count = allItems.count { it.category.equals("ELEKTRONIK", ignoreCase = true) },
+                        accentColor = Color(0xFF1976D2),
+                    ),
+                    CategoryCardItem(
+                        key = "KENDARAAN",
+                        title = "Kendaraan",
+                        subtitle = "Sepeda & Motor",
+                        icon = Icons.Filled.TwoWheeler,
+                        count = allItems.count { it.category.equals("KENDARAAN", ignoreCase = true) },
+                        accentColor = Color(0xFFEF6C00),
+                    ),
+                    CategoryCardItem(
+                        key = "PERABOT",
+                        title = "Perabot Kos",
+                        subtitle = "Meja & Lemari",
+                        icon = Icons.Filled.Weekend,
+                        count = allItems.count { it.category.equals("PERABOT", ignoreCase = true) },
+                        accentColor = Color(0xFF6D4C41),
+                    ),
+                    CategoryCardItem(
+                        key = "PAKAIAN_HOBI",
+                        title = "Fashion & Hobi",
+                        subtitle = "Pakaian & Musik",
+                        icon = Icons.Filled.Checkroom,
+                        count = allItems.count { it.category.equals("PAKAIAN_HOBI", ignoreCase = true) },
+                        accentColor = Color(0xFF8E24AA),
+                    ),
+                    CategoryCardItem(
+                        key = "GRATIS",
+                        title = "Hibah Gratis",
+                        subtitle = "Ambil Free COD",
+                        icon = Icons.Filled.VolunteerActivism,
+                        count = allItems.count { it.price <= 0L },
+                        badge = "GRATIS",
+                        accentColor = Color(0xFF2E7D32),
+                    ),
+                    CategoryCardItem(
+                        key = "LAINNYA",
+                        title = "Lainnya",
+                        subtitle = "Serba-serbi",
+                        icon = Icons.Filled.ShoppingBag,
+                        count = allItems.count { it.category.equals("LAINNYA", ignoreCase = true) },
+                        accentColor = ToskaPrimaryDeep,
+                    ),
+                )
             }
 
             LazyColumn(
@@ -356,12 +425,58 @@ fun BarkasScreen(
                             .testTag("barkas_search_input"),
                     )
 
-                    CategoryFilterRow(
-                        categories = categories,
-                        selectedKey = selectedCategory,
-                        onSelect = { selectedCategory = it },
-                        tagPrefix = "barkas_category",
-                    )
+                }
+            }
+
+            item(key = "barkas_category_cards") {
+                CategoryCardRow(
+                    items = barkasCardCategories,
+                    selectedKey = selectedCategory,
+                    onSelect = { selectedCategory = it },
+                    tagPrefix = "barkas_category",
+                )
+            }
+
+            // Horizontal Featured Barkas Carousel (Just like Destinasi Cards)
+            if (filteredItems.isNotEmpty() && selectedCategory == "ALL" && searchQuery.isBlank() && statusFilter == BarkasStatusFilter.AVAILABLE) {
+                item(key = "barkas_featured_carousel") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp, bottom = 4.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "Lapak Paling Banyak Dilirik",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Geser ke samping",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ToskaPrimaryDeep,
+                            )
+                        }
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            items(filteredItems.take(6), key = { "feat_barkas_${it.id}" }) { barkas ->
+                                HorizontalBarkasFeaturedCard(
+                                    item = barkas,
+                                    onClick = { onOpenBarkasDetail(barkas.id) },
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -782,3 +897,98 @@ fun BarkasItemCard(
         }
     }
 }
+
+@Composable
+private fun HorizontalBarkasFeaturedCard(
+    item: BarkasItem,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.75f)),
+        shadowElevation = 2.dp,
+        modifier = Modifier
+            .width(210.dp)
+            .testTag("barkas_featured_${item.id}"),
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(115.dp),
+            ) {
+                val photoModel = item.firstPhotoUrl.ifBlank { null } ?: R.drawable.app_logo_mascot
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = item.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Surface(
+                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    color = if (item.price <= 0L) Color(0xFF2E7D32) else ToskaPrimaryDeep.copy(alpha = 0.92f),
+                    modifier = Modifier.align(Alignment.TopStart),
+                ) {
+                    Text(
+                        text = if (item.price <= 0L) "GRATIS" else item.formattedPrice,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+                ) {
+                    Text(
+                        text = item.conditionLabel,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = "${item.district} • COD: ${item.codLocation.ifBlank { "Surabaya" }}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ToskaPrimaryDeep,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+

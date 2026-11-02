@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -27,11 +28,17 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.ReportProblem
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import com.example.ui.components.CategoryCardItem
+import com.example.ui.components.CategoryCardRow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -110,49 +117,66 @@ fun MomenScreen(
                     .padding(horizontal = 14.dp, vertical = 6.dp),
             )
 
-            // Category Filter Bar (Semua, Momen Arek, Lensa Warga)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FilterChip(
-                    selected = selectedCategory == "ALL",
-                    onClick = { selectedCategory = "ALL" },
-                    label = { Text("Semua Foto", style = MaterialTheme.typography.labelSmall) },
-                    shape = CircleShape,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = ToskaPrimaryDeep,
-                        selectedLabelColor = Color.White,
+            val allMoments = (momentsState as? UiState.Success)?.data.orEmpty()
+            val momentCardCategories = remember(allMoments) {
+                listOf(
+                    CategoryCardItem(
+                        key = "ALL",
+                        title = "Semua Foto",
+                        subtitle = "Galeri Kota",
+                        icon = Icons.Filled.PhotoLibrary,
+                        count = allMoments.size,
                     ),
-                    modifier = Modifier.testTag("filter_chip_all_moments"),
-                )
-                FilterChip(
-                    selected = selectedCategory == "MOMEN",
-                    onClick = { selectedCategory = "MOMEN" },
-                    label = { Text("📸 Momen Arek", style = MaterialTheme.typography.labelSmall) },
-                    shape = CircleShape,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = ToskaPrimaryDeep,
-                        selectedLabelColor = Color.White,
+                    CategoryCardItem(
+                        key = "LENSA_WARGA",
+                        title = "Lensa Kota",
+                        subtitle = "Sudut Estetik",
+                        icon = Icons.Filled.LocationCity,
+                        count = allMoments.count { it.isLensaWarga },
+                        badge = "ESTETIK",
+                        accentColor = ToskaPrimaryDeep,
                     ),
-                    modifier = Modifier.testTag("filter_chip_momen_personal"),
-                )
-                FilterChip(
-                    selected = selectedCategory == "LENSA_WARGA",
-                    onClick = { selectedCategory = "LENSA_WARGA" },
-                    label = { Text("🏙️ Lensa Warga", style = MaterialTheme.typography.labelSmall) },
-                    shape = CircleShape,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = ToskaPrimaryDeep,
-                        selectedLabelColor = Color.White,
+                    CategoryCardItem(
+                        key = "MOMEN",
+                        title = "Momen Arek",
+                        subtitle = "Cerita Warga",
+                        icon = Icons.Filled.CameraAlt,
+                        count = allMoments.count { !it.isLensaWarga },
+                        badge = "HARIAN",
+                        accentColor = Color(0xFFE91E63),
                     ),
-                    modifier = Modifier.testTag("filter_chip_lensa_warga"),
+                    CategoryCardItem(
+                        key = "KULINER",
+                        title = "Spot Kuliner",
+                        subtitle = "Cafe & Warung",
+                        icon = Icons.Filled.Restaurant,
+                        count = allMoments.count {
+                            val c = it.caption.lowercase()
+                            c.contains("kuliner") || c.contains("makan") || c.contains("warung") || c.contains("kopi")
+                        },
+                        accentColor = Color(0xFFFF9800),
+                    ),
+                    CategoryCardItem(
+                        key = "KOMUNITAS",
+                        title = "Komunitas",
+                        subtitle = "Aksi & Kumpul",
+                        icon = Icons.Filled.Groups,
+                        count = allMoments.count {
+                            val c = it.caption.lowercase()
+                            c.contains("komunitas") || c.contains("arek") || c.contains("bareng") || c.contains("acara")
+                        },
+                        accentColor = Color(0xFF673AB7),
+                    ),
                 )
             }
+
+            // Category Card Row
+            CategoryCardRow(
+                items = momentCardCategories,
+                selectedKey = selectedCategory,
+                onSelect = { selectedCategory = it },
+                tagPrefix = "moment",
+            )
 
             if (selectedCategory == "LENSA_WARGA") {
                 Surface(
@@ -205,6 +229,14 @@ fun MomenScreen(
                         val matchCategory = when (selectedCategory) {
                             "LENSA_WARGA" -> moment.isLensaWarga
                             "MOMEN" -> !moment.isLensaWarga
+                            "KULINER" -> {
+                                val c = moment.caption.lowercase()
+                                c.contains("kuliner") || c.contains("makan") || c.contains("warung") || c.contains("kopi")
+                            }
+                            "KOMUNITAS" -> {
+                                val c = moment.caption.lowercase()
+                                c.contains("komunitas") || c.contains("arek") || c.contains("bareng") || c.contains("acara")
+                            }
                             else -> true
                         }
                         matchDistrict && matchCategory
@@ -224,6 +256,46 @@ fun MomenScreen(
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
+                            if (filtered.isNotEmpty() && selectedCategory == "ALL" && selectedDistrict == "ALL") {
+                                item(key = "moments_featured_carousel") {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 6.dp),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(bottom = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                        ) {
+                                            Text(
+                                                text = "Sorotan Foto Populer",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                            Text(
+                                                text = "Geser ke samping",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = ToskaPrimaryDeep,
+                                            )
+                                        }
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            items(filtered.take(6), key = { "feat_mom_${it.id}" }) { mom ->
+                                                HorizontalMomentFeaturedCard(
+                                                    moment = mom,
+                                                    onClick = { onOpenMomentDetail(mom.id) },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             items(filtered, key = { it.id }) { moment ->
                                 MomentFeedCard(
                                     moment = moment,
@@ -581,3 +653,100 @@ private fun MomentFeedCard(
         }
     }
 }
+
+@Composable
+private fun HorizontalMomentFeaturedCard(
+    moment: UserMoment,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.75f)),
+        shadowElevation = 2.dp,
+        modifier = Modifier
+            .width(200.dp)
+            .testTag("moment_featured_${moment.id}"),
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(115.dp),
+            ) {
+                val photoModel = moment.allPhotos.firstOrNull()?.ifBlank { null }
+                    ?: resolveImageDrawable(moment.imageKey)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = moment.caption,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Surface(
+                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    color = if (moment.isLensaWarga) ToskaPrimaryDeep else Color(0xFFE91E63),
+                    modifier = Modifier.align(Alignment.TopStart),
+                ) {
+                    Text(
+                        text = if (moment.isLensaWarga) "Lensa Kota" else "Momen Warga",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(5.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Favorite,
+                            contentDescription = null,
+                            tint = Color(0xFFFF5252),
+                            modifier = Modifier.size(11.dp),
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "${moment.likesCount}",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+            Column(modifier = Modifier.padding(9.dp)) {
+                Text(
+                    text = moment.caption.ifBlank { "Momen indah di Surabaya" },
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${moment.authorName} • ${moment.district}",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -37,9 +38,12 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Male
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import com.example.ui.components.CategoryCardItem
+import com.example.ui.components.CategoryCardRow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -252,8 +256,14 @@ fun KosKontrakScreen(
                         KosAvailabilityFilter.ALL -> true
                         KosAvailabilityFilter.MINE -> item.isOwnedBy(currentUserId)
                     }
-                    val matchesType = selectedPropertyType == "ALL" ||
-                        item.propertyType.equals(selectedPropertyType, ignoreCase = true)
+                    val matchesType = when (selectedPropertyType) {
+                        "ALL" -> true
+                        "DEKAT_KAMPUS" -> {
+                            val text = "${item.title} ${item.description} ${item.address}".lowercase()
+                            text.contains("its") || text.contains("unair") || text.contains("unesa") || text.contains("kampus") || text.contains("ubaya") || text.contains("upn")
+                        }
+                        else -> item.propertyType.equals(selectedPropertyType, ignoreCase = true)
+                    }
                     val matchesPeriod = selectedBillingPeriod == "ALL" ||
                         item.billingPeriod.equals(selectedBillingPeriod, ignoreCase = true)
                     val matchesDistrict = selectedDistrict == "ALL" ||
@@ -268,6 +278,62 @@ fun KosKontrakScreen(
                         item.facilities.any { it.lowercase().contains(q) }
                     matchesStatus && matchesType && matchesPeriod && matchesDistrict && matchesSearch
                 }
+            }
+
+            val kosCardCategories = remember(allItems) {
+                listOf(
+                    CategoryCardItem(
+                        key = "ALL",
+                        title = "Semua Hunian",
+                        subtitle = "Kos & Rumah",
+                        icon = Icons.Filled.Apartment,
+                        count = allItems.size,
+                    ),
+                    CategoryCardItem(
+                        key = "KOS_PUTRI",
+                        title = "Kos Putri",
+                        subtitle = "Aman & Nyaman",
+                        icon = Icons.Filled.Female,
+                        count = allItems.count { it.propertyType.equals("KOS_PUTRI", ignoreCase = true) },
+                        accentColor = Color(0xFFE91E63),
+                    ),
+                    CategoryCardItem(
+                        key = "KOS_PUTRA",
+                        title = "Kos Putra",
+                        subtitle = "Bebas Jam Malam",
+                        icon = Icons.Filled.Male,
+                        count = allItems.count { it.propertyType.equals("KOS_PUTRA", ignoreCase = true) },
+                        accentColor = Color(0xFF1976D2),
+                    ),
+                    CategoryCardItem(
+                        key = "KOS_CAMPUR",
+                        title = "Campur / Pasutri",
+                        subtitle = "Pasutri & Karyawan",
+                        icon = Icons.Filled.Groups,
+                        count = allItems.count { it.propertyType.equals("KOS_CAMPUR", ignoreCase = true) },
+                        accentColor = Color(0xFF7B1FA2),
+                    ),
+                    CategoryCardItem(
+                        key = "KONTRAKAN",
+                        title = "Kontrakan",
+                        subtitle = "Rumah & Paviliun",
+                        icon = Icons.Filled.HomeWork,
+                        count = allItems.count { it.propertyType.equals("KONTRAKAN", ignoreCase = true) },
+                        accentColor = Color(0xFFE65100),
+                    ),
+                    CategoryCardItem(
+                        key = "DEKAT_KAMPUS",
+                        title = "Dekat Kampus",
+                        subtitle = "ITS • UNAIR • UNESA",
+                        icon = Icons.Filled.School,
+                        count = allItems.count {
+                            val t = "${it.title} ${it.description} ${it.address}".lowercase()
+                            t.contains("its") || t.contains("unair") || t.contains("unesa") || t.contains("kampus") || t.contains("ubaya") || t.contains("upn")
+                        },
+                        badge = "KAMPUS",
+                        accentColor = ToskaPrimaryDeep,
+                    ),
+                )
             }
 
             LazyColumn(
@@ -409,12 +475,58 @@ fun KosKontrakScreen(
                         modifier = Modifier.padding(horizontal = 14.dp),
                     )
 
-                    CategoryFilterRow(
-                        categories = propertyTypes,
-                        selectedKey = selectedPropertyType,
-                        onSelect = { selectedPropertyType = it },
-                        tagPrefix = "kos_type_filter",
-                    )
+                }
+            }
+
+            item(key = "kos_category_cards") {
+                CategoryCardRow(
+                    items = kosCardCategories,
+                    selectedKey = selectedPropertyType,
+                    onSelect = { selectedPropertyType = it },
+                    tagPrefix = "kos_type_filter",
+                )
+            }
+
+            // Horizontal Featured Kos Carousel (Like Destinasi Cards)
+            if (filteredItems.isNotEmpty() && selectedPropertyType == "ALL" && selectedBillingPeriod == "ALL" && searchQuery.isBlank() && availabilityFilter == KosAvailabilityFilter.AVAILABLE) {
+                item(key = "kos_featured_carousel") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp, bottom = 4.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "Hunian Paling Diminati",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Geser ke samping",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ToskaPrimaryDeep,
+                            )
+                        }
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            items(filteredItems.take(6), key = { "feat_kos_${it.id}" }) { kos ->
+                                HorizontalKosFeaturedCard(
+                                    item = kos,
+                                    onClick = { onOpenKosDetail(kos.id) },
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -791,3 +903,98 @@ private fun KosListingCard(
         }
     }
 }
+
+@Composable
+private fun HorizontalKosFeaturedCard(
+    item: KosKontrakItem,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.75f)),
+        shadowElevation = 2.dp,
+        modifier = Modifier
+            .width(220.dp)
+            .testTag("kos_featured_${item.id}"),
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(115.dp),
+            ) {
+                val photoModel = item.firstPhotoUrl.ifBlank { null } ?: R.drawable.app_logo_mascot
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = item.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Surface(
+                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    color = ToskaPrimaryDeep.copy(alpha = 0.92f),
+                    modifier = Modifier.align(Alignment.TopStart),
+                ) {
+                    Text(
+                        text = item.priceWithPeriod,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+                ) {
+                    Text(
+                        text = item.propertyTypeLabel,
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = "Kec. ${item.district}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ToskaPrimaryDeep,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+

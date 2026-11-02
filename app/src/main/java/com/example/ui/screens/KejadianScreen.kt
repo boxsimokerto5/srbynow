@@ -69,6 +69,21 @@ import com.example.ui.components.EmptyFeedPlaceholder
 import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
 import com.example.ui.components.SurabayaDistrictFilterBar
 import com.example.ui.components.openEmergencyDialer112
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Construction
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Traffic
+import androidx.compose.material.icons.filled.WaterDamage
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.data.util.resolveImageDrawable
+import com.example.ui.components.CategoryCardItem
+import com.example.ui.components.CategoryCardRow
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OutlineVariantLight
@@ -116,6 +131,60 @@ fun KejadianScreen(
             title = activeViewer.first.title,
             initialPage = activeViewer.second,
             onDismiss = { viewerTarget = null },
+        )
+    }
+
+    val allIncidents = (incidentsState as? UiState.Success)?.data.orEmpty()
+    val incidentCardCategories = remember(allIncidents) {
+        listOf(
+            CategoryCardItem(
+                key = "ALL",
+                title = "Semua Info",
+                subtitle = "Pantau Kota",
+                icon = Icons.Filled.NotificationsActive,
+                count = allIncidents.size,
+            ),
+            CategoryCardItem(
+                key = "DARURAT",
+                title = "Darurat 112",
+                subtitle = "Laka & Damkar",
+                icon = Icons.Filled.Emergency,
+                count = allIncidents.count { it.category == "DARURAT" },
+                badge = if (allIncidents.any { it.category == "DARURAT" }) "MENDESAK" else null,
+                accentColor = AlertCrimson,
+            ),
+            CategoryCardItem(
+                key = "CUACA_BANJIR",
+                title = "Cuaca & Banjir",
+                subtitle = "Genangan Air",
+                icon = Icons.Filled.WaterDamage,
+                count = allIncidents.count { it.category == "CUACA_BANJIR" },
+                accentColor = Color(0xFF0288D1),
+            ),
+            CategoryCardItem(
+                key = "LALU_LINTAS",
+                title = "Lalu Lintas",
+                subtitle = "Macet & Rute",
+                icon = Icons.Filled.Traffic,
+                count = allIncidents.count { it.category == "LALU_LINTAS" },
+                accentColor = Color(0xFFF57C00),
+            ),
+            CategoryCardItem(
+                key = "FASILITAS",
+                title = "Fasilitas Kota",
+                subtitle = "PJU & Jalan",
+                icon = Icons.Filled.Construction,
+                count = allIncidents.count { it.category == "FASILITAS" },
+                accentColor = Color(0xFF5D4037),
+            ),
+            CategoryCardItem(
+                key = "INFO_WARGA",
+                title = "Info Warga",
+                subtitle = "Lingkungan",
+                icon = Icons.Filled.Campaign,
+                count = allIncidents.count { it.category == "INFO_WARGA" },
+                accentColor = ToskaPrimaryDeep,
+            ),
         )
     }
 
@@ -201,17 +270,17 @@ fun KejadianScreen(
                 }
             }
 
-            // Category Filter Chips
-            item(key = "incident_categories") {
-                CategoryFilterRow(
-                    categories = incidentCategories,
+            // 1. Horizontal Category Cards
+            item(key = "incident_category_cards") {
+                CategoryCardRow(
+                    items = incidentCardCategories,
                     selectedKey = selectedCategory,
                     onSelect = { selectedCategory = it },
                     tagPrefix = "incident",
                 )
             }
 
-            // Compact 31-Kecamatan Surabaya Dropdown Filter
+            // 2. Compact 31-Kecamatan Surabaya Dropdown Filter
             item(key = "incident_district_dropdown") {
                 SurabayaDistrictFilterBar(
                     selectedDistrict = selectedDistrict,
@@ -219,6 +288,49 @@ fun KejadianScreen(
                     testTag = "incident_district_filter_dropdown",
                     modifier = Modifier.padding(horizontal = 14.dp),
                 )
+            }
+
+            // 3. Featured / Top Incidents Carousel (Like Destinasi Cards)
+            if (allIncidents.isNotEmpty() && selectedCategory == "ALL" && selectedDistrict == "ALL") {
+                item(key = "incident_featured_carousel") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp, bottom = 4.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "Sorotan Kejadian Terkini",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Geser ke samping",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ToskaPrimaryDeep,
+                            )
+                        }
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            items(allIncidents.take(6), key = { "feat_inc_${it.id}" }) { inc ->
+                                HorizontalIncidentFeaturedCard(
+                                    incident = inc,
+                                    onClick = { onSelectIncident(inc) },
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             when (incidentsState) {
@@ -540,3 +652,99 @@ private fun IncidentCompactCard(
         }
     }
 }
+
+@Composable
+private fun HorizontalIncidentFeaturedCard(
+    incident: IncidentReport,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.75f)),
+        shadowElevation = 2.dp,
+        modifier = Modifier
+            .width(220.dp)
+            .testTag("incident_featured_${incident.id}"),
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp),
+            ) {
+                val photoModel = incident.allPhotos.firstOrNull()?.ifBlank { null }
+                    ?: resolveImageDrawable(incident.imageKey)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = incident.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Surface(
+                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    color = if (incident.category == "DARURAT") AlertCrimson else ToskaPrimaryDeep.copy(alpha = 0.9f),
+                    modifier = Modifier.align(Alignment.TopStart),
+                ) {
+                    Text(
+                        text = formatIncidentCategoryLabel(incident.category),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+                ) {
+                    Text(
+                        text = formatRelativeTimestamp(incident.createdAt),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(
+                    text = incident.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = incident.district,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ToskaPrimaryDeep,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
