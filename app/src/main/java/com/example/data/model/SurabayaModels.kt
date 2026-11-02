@@ -511,6 +511,23 @@ data class DestinationReview(
         get() = createdAt
 }
 
+data class DestinationDraft(
+    val title: String = "",
+    val category: String = "Wisata Sejarah",
+    val description: String = "",
+    val address: String = "",
+    val district: String = "Genteng",
+    val ticketPrice: String = "Gratis",
+    val operationalHours: String = "08.00 - 17.00 WIB",
+    val bestTimeToVisit: String = "Pagi / Sore Hari",
+    val mapsUrl: String = "",
+    val photoUris: List<String> = emptyList(),
+    val savedAt: Long = System.currentTimeMillis(),
+) {
+    fun hasContent(): Boolean =
+        title.isNotBlank() || description.isNotBlank() || address.isNotBlank() || mapsUrl.isNotBlank() || photoUris.isNotEmpty()
+}
+
 enum class AppNotificationType {
     CHAT,
     EVENT,

@@ -1291,6 +1291,9 @@ fun SurabayaMainHub(
                             },
                             onAddReview = { rev, rating -> viewModel.submitDestinationReview(found.id, rev, rating) },
                             onReport = { viewModel.reportDestinationContent(found) },
+                            onEditDestination = if (isAdmin) {
+                                { viewModel.openSheet(ActiveBottomSheet.EditDestination(found)) }
+                            } else null,
                             onAdminDelete = if (isAdmin) {
                                 { viewModel.adminDeletePost("destinations", found.id) }
                             } else null,
@@ -1301,8 +1304,11 @@ fun SurabayaMainHub(
                 ActiveBottomSheet.CreateDestination -> {
                     CreateDestinationSheetContent(
                         defaultDistrict = currentDistrict,
+                        initialDestination = null,
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
+                        onSaveDraft = { draft -> viewModel.saveDestinationDraft(context, draft) },
+                        onClearDraft = { viewModel.clearDestinationDraft(context) },
                         onSubmit = { title, cat, desc, addr, dist, price, hours, bestTime, mapsUrl, photos ->
                             viewModel.submitDestination(
                                 title = title,
@@ -1318,6 +1324,32 @@ fun SurabayaMainHub(
                                 context = context,
                             )
                         },
+                        onClose = { viewModel.dismissSheet() },
+                    )
+                }
+                is ActiveBottomSheet.EditDestination -> {
+                    CreateDestinationSheetContent(
+                        defaultDistrict = sheetTarget.destination.district,
+                        initialDestination = sheetTarget.destination,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        onSubmit = { title, cat, desc, addr, dist, price, hours, bestTime, mapsUrl, photos ->
+                            viewModel.updateDestination(
+                                destinationId = sheetTarget.destination.id,
+                                title = title,
+                                category = cat,
+                                description = desc,
+                                address = addr,
+                                district = dist,
+                                ticketPrice = price,
+                                operationalHours = hours,
+                                bestTimeToVisit = bestTime,
+                                mapsUrl = mapsUrl,
+                                newPhotoUris = photos,
+                                context = context,
+                            )
+                        },
+                        onClose = { viewModel.dismissSheet() },
                     )
                 }
                 ActiveBottomSheet.StartDirectChat -> {

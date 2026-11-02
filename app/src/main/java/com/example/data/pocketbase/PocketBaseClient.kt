@@ -494,8 +494,20 @@ class PocketBaseClient(
         recordId: String,
         fields: Map<String, String>,
         filePart: MultipartFilePart? = null,
+    ): JSONObject = updateRecordMultipartFiles(
+        collection = collection,
+        recordId = recordId,
+        fields = fields,
+        fileParts = listOfNotNull(filePart),
+    )
+
+    suspend fun updateRecordMultipartFiles(
+        collection: String,
+        recordId: String,
+        fields: Map<String, String>,
+        fileParts: List<MultipartFilePart>,
     ): JSONObject = withContext(Dispatchers.IO) {
-        val multipartBody = buildMultipartBody(fields, listOfNotNull(filePart))
+        val multipartBody = buildMultipartBody(fields, fileParts)
         val raw = executeRequestBody(
             method = "PATCH",
             path = "/api/collections/$collection/records/$recordId",

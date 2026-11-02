@@ -34,7 +34,9 @@ import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkRemove
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.ExpandLess
@@ -53,11 +55,15 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.TextButton
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -98,13 +104,16 @@ import androidx.compose.material.icons.filled.Female
 import androidx.compose.material.icons.filled.Male
 import androidx.compose.material3.minimumInteractiveComponentSize
 import com.example.data.model.BookmarkItem
+import com.example.data.model.DestinationDraft
 import com.example.data.model.NearbyProfile
+import com.example.data.model.SurabayaDestination
 import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.model.POST_TYPE_MOMEN
 import com.example.data.model.POST_TYPE_LENSA_WARGA
 import com.example.data.model.formatCitizenGenderLabel
 import com.example.data.pocketbase.PocketBaseClient
+import com.example.data.util.DestinationDraftManager
 import com.example.data.util.LinkSecurityValidator
 import com.example.data.util.LinkValidationResult
 import com.example.data.util.SafeLinkCategory
@@ -131,6 +140,7 @@ import com.example.data.location.LocationHelper
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaOnPrimaryContainer
+import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -3056,8 +3066,11 @@ fun CreateMomentSheetContent(
 @Composable
 fun CreateDestinationSheetContent(
     defaultDistrict: String,
+    initialDestination: SurabayaDestination? = null,
     isSubmitting: Boolean = false,
     isScanningPhoto: Boolean = false,
+    onSaveDraft: ((DestinationDraft) -> Unit)? = null,
+    onClearDraft: (() -> Unit)? = null,
     onSubmit: (
         title: String,
         category: String,
@@ -3070,17 +3083,37 @@ fun CreateDestinationSheetContent(
         mapsUrl: String,
         photoUris: List<Uri>,
     ) -> Unit,
+    onClose: (() -> Unit)? = null,
 ) {
-    var title by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Wisata Sejarah") }
-    var description by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var district by remember { mutableStateOf(defaultDistrict) }
-    var ticketPrice by remember { mutableStateOf("Gratis") }
-    var operationalHours by remember { mutableStateOf("08.00 - 17.00 WIB") }
-    var bestTimeToVisit by remember { mutableStateOf("Pagi / Sore Hari") }
-    var mapsUrl by remember { mutableStateOf("") }
-    var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val context = LocalContext.current
+    val isEditMode = initialDestination != null
+
+    val savedDraft = remember(initialDestination) {
+        if (initialDestination == null) DestinationDraftManager.loadDraft(context) else null
+    }
+    var hasLoadedDraft by remember { mutableStateOf(savedDraft != null) }
+
+    var title by remember { mutableStateOf(initialDestination?.title ?: savedDraft?.title.orEmpty()) }
+    var category by remember { mutableStateOf(initialDestination?.category ?: savedDraft?.category ?: "Wisata Sejarah") }
+    var description by remember { mutableStateOf(initialDestination?.description ?: savedDraft?.description.orEmpty()) }
+    var address by remember { mutableStateOf(initialDestination?.address ?: savedDraft?.address.orEmpty()) }
+    var district by remember { mutableStateOf(initialDestination?.district ?: savedDraft?.district ?: defaultDistrict) }
+    var ticketPrice by remember { mutableStateOf(initialDestination?.ticketPrice ?: savedDraft?.ticketPrice ?: "Gratis") }
+    var operationalHours by remember { mutableStateOf(initialDestination?.operationalHours ?: savedDraft?.operationalHours ?: "08.00 - 17.00 WIB") }
+    var bestTimeToVisit by remember { mutableStateOf(initialDestination?.bestTime ?: savedDraft?.bestTimeToVisit ?: "Pagi / Sore Hari") }
+    var mapsUrl by remember { mutableStateOf(initialDestination?.mapsUrl ?: savedDraft?.mapsUrl.orEmpty()) }
+    var selectedPhotoUris by remember {
+        mutableStateOf<List<Uri>>(
+            if (initialDestination == null && savedDraft != null) {
+                savedDraft.photoUris.mapNotNull {
+                    try { Uri.parse(it) } catch (_: Exception) { null }
+                }
+            } else emptyList()
+        )
+    }
+
+    var showDraftSavedNotice by remember { mutableStateOf(false) }
+    var showUnsavedDialog by remember { mutableStateOf(false) }
 
     val categories = listOf(
         "Wisata Sejarah",
@@ -3094,6 +3127,70 @@ fun CreateDestinationSheetContent(
         description.trim().length >= 10 &&
         address.trim().length >= 3
 
+    val currentDraft = remember(title, category, description, address, district, ticketPrice, operationalHours, bestTimeToVisit, mapsUrl, selectedPhotoUris) {
+        DestinationDraft(
+            title = title.trim(),
+            category = category,
+            description = description.trim(),
+            address = address.trim(),
+            district = district,
+            ticketPrice = ticketPrice.trim().ifBlank { "Gratis" },
+            operationalHours = operationalHours.trim().ifBlank { "24 Jam" },
+            bestTimeToVisit = bestTimeToVisit.trim().ifBlank { "Sepanjang Hari" },
+            mapsUrl = mapsUrl.trim(),
+            photoUris = selectedPhotoUris.map { it.toString() },
+        )
+    }
+
+    val handleAttemptClose: () -> Unit = {
+        if (!isEditMode && currentDraft.hasContent()) {
+            showUnsavedDialog = true
+        } else {
+            onClose?.invoke()
+        }
+    }
+
+    // Dialog Konfirmasi Pencegah Form Hilang Saat Tergeser / Ditutup
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("Simpan Draf Sebelum Keluar?") },
+            text = {
+                Text("Anda sudah mengisi rincian destinasi ini. Simpan sebagai draf agar dapat dilanjutkan saat mencari alamat atau tautan Maps.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        DestinationDraftManager.saveDraft(context, currentDraft)
+                        onSaveDraft?.invoke(currentDraft)
+                        showUnsavedDialog = false
+                        onClose?.invoke()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                ) {
+                    Text("Simpan Draf & Keluar")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = {
+                            DestinationDraftManager.clearDraft(context)
+                            onClearDraft?.invoke()
+                            showUnsavedDialog = false
+                            onClose?.invoke()
+                        }
+                    ) {
+                        Text("Buang", color = AlertCrimson)
+                    }
+                    TextButton(onClick = { showUnsavedDialog = false }) {
+                        Text("Lanjut Mengisi")
+                    }
+                }
+            },
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -3103,11 +3200,37 @@ fun CreateDestinationSheetContent(
             .padding(horizontal = 18.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        GoogleMapsSheetHandleHeader(
-            title = "Tambah Destinasi Surabaya (Khusus Admin)",
-            subtitle = "Publikasikan objek wisata, museum, atau cagar budaya resmi Kota Pahlawan.",
-        )
+        // Header with Close Action
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isEditMode) "Edit Destinasi Surabaya" else "Tambah Destinasi Surabaya",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = if (isEditMode) "Perbarui informasi destinasi wisata resmi Kota Pahlawan." else "Publikasikan objek wisata, museum, atau cagar budaya resmi Kota Pahlawan.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (onClose != null) {
+                IconButton(onClick = handleAttemptClose, modifier = Modifier.testTag("btn_close_destination_form")) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Tutup",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
 
+        // Admin Curator Badge
         Surface(
             shape = RoundedCornerShape(12.dp),
             color = ToskaPrimaryDeep,
@@ -3125,7 +3248,7 @@ fun CreateDestinationSheetContent(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Akses Kurator Admin: Data akan langsung tayang ke direktori resmi",
+                    text = if (isEditMode) "Mode Edit Kurator: Perubahan akan langsung diperbarui di direktori" else "Akses Kurator Admin: Data akan langsung tayang ke direktori resmi",
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
@@ -3133,12 +3256,91 @@ fun CreateDestinationSheetContent(
             }
         }
 
+        // Banner Melanjutkan Draf Tersimpan (Create Mode)
+        if (hasLoadedDraft && !isEditMode) {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ToskaPrimary.copy(alpha = 0.12f)),
+                border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = Icons.Filled.Bookmark,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Melanjutkan draf tersimpan",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ToskaPrimaryDeep,
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            DestinationDraftManager.clearDraft(context)
+                            onClearDraft?.invoke()
+                            hasLoadedDraft = false
+                            title = ""
+                            description = ""
+                            address = ""
+                            mapsUrl = ""
+                            selectedPhotoUris = emptyList()
+                            district = defaultDistrict
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text("Bersihkan Draf", color = AlertCrimson, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Notifikasi Draft Baru Saja Disimpan
+        if (showDraftSavedNotice) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = ToskaPrimary.copy(alpha = 0.15f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Draf destinasi berhasil disimpan! Anda aman mencari alamat/link di aplikasi lain.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ToskaPrimaryDeep,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
+
+        // Foto Picker
         FormMultiPhotoPickerSection(
             selectedPhotoUris = selectedPhotoUris,
             onPhotosChanged = { selectedPhotoUris = it },
             maxPhotos = 4,
             enabled = !isSubmitting,
-            subtitle = "Foto resmi destinasi (hingga 4 foto).",
+            subtitle = if (isEditMode) "Tambahkan foto baru untuk mengganti/melengkapi foto yang ada." else "Foto resmi destinasi (hingga 4 foto).",
         )
 
         OutlinedTextField(
@@ -3268,40 +3470,119 @@ fun CreateDestinationSheetContent(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        Button(
-            onClick = {
-                onSubmit(
-                    title.trim(),
-                    category,
-                    description.trim(),
-                    address.trim(),
-                    district,
-                    ticketPrice.trim().ifBlank { "Gratis" },
-                    operationalHours.trim().ifBlank { "24 Jam" },
-                    bestTimeToVisit.trim().ifBlank { "Sepanjang Hari" },
-                    mapsUrl.trim(),
-                    selectedPhotoUris,
-                )
-            },
-            enabled = isFormValid && !isSubmitting,
-            shape = CircleShape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .testTag("btn_submit_destination"),
-        ) {
-            if (isSubmitting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Menerbitkan Destinasi...")
-            } else {
-                Icon(Icons.Filled.Storefront, null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Terbitkan Destinasi", fontWeight = FontWeight.Bold)
+        // Tombol Aksi: Simpan Draf & Terbitkan / Simpan Perubahan
+        if (isEditMode) {
+            Button(
+                onClick = {
+                    onSubmit(
+                        title.trim(),
+                        category,
+                        description.trim(),
+                        address.trim(),
+                        district,
+                        ticketPrice.trim().ifBlank { "Gratis" },
+                        operationalHours.trim().ifBlank { "24 Jam" },
+                        bestTimeToVisit.trim().ifBlank { "Sepanjang Hari" },
+                        mapsUrl.trim(),
+                        selectedPhotoUris,
+                    )
+                },
+                enabled = isFormValid && !isSubmitting,
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .testTag("btn_submit_destination"),
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Menyimpan Perubahan...")
+                } else {
+                    Icon(Icons.Filled.Check, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Simpan Perubahan Destinasi", fontWeight = FontWeight.Bold)
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Tombol Simpan Draf
+                OutlinedButton(
+                    onClick = {
+                        DestinationDraftManager.saveDraft(context, currentDraft)
+                        onSaveDraft?.invoke(currentDraft)
+                        hasLoadedDraft = true
+                        showDraftSavedNotice = true
+                    },
+                    shape = CircleShape,
+                    border = BorderStroke(1.5.dp, ToskaPrimary),
+                    modifier = Modifier
+                        .weight(0.42f)
+                        .height(52.dp)
+                        .testTag("btn_save_destination_draft"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Bookmark,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Simpan Draf",
+                        fontWeight = FontWeight.Bold,
+                        color = ToskaPrimaryDeep,
+                        maxLines = 1,
+                    )
+                }
+
+                // Tombol Terbitkan Destinasi
+                Button(
+                    onClick = {
+                        onSubmit(
+                            title.trim(),
+                            category,
+                            description.trim(),
+                            address.trim(),
+                            district,
+                            ticketPrice.trim().ifBlank { "Gratis" },
+                            operationalHours.trim().ifBlank { "24 Jam" },
+                            bestTimeToVisit.trim().ifBlank { "Sepanjang Hari" },
+                            mapsUrl.trim(),
+                            selectedPhotoUris,
+                        )
+                    },
+                    enabled = isFormValid && !isSubmitting,
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                    modifier = Modifier
+                        .weight(0.58f)
+                        .height(52.dp)
+                        .testTag("btn_submit_destination"),
+                ) {
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Menerbitkan...")
+                    } else {
+                        Icon(Icons.Filled.Storefront, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Terbitkan", fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
 

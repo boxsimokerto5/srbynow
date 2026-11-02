@@ -20,6 +20,7 @@ import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
+import com.example.data.model.DestinationDraft
 import com.example.data.model.DestinationReview
 import com.example.data.model.EventComment
 import com.example.data.model.IncidentComment
@@ -44,6 +45,7 @@ import com.example.data.util.PollImageExporter
 import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.ImageSafetyScanResult
 import com.example.data.util.ChatMediaManager
+import com.example.data.util.DestinationDraftManager
 import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
 import com.example.data.util.PreparedPhoto
@@ -100,6 +102,7 @@ sealed interface ActiveBottomSheet {
     data class CreateMoment(val initialPostType: String = POST_TYPE_MOMEN) : ActiveBottomSheet
     data class DestinationDetail(val destinationId: String) : ActiveBottomSheet
     data object CreateDestination : ActiveBottomSheet
+    data class EditDestination(val destination: SurabayaDestination) : ActiveBottomSheet
     data object GpsPrivacySettings : ActiveBottomSheet
     data object BookmarksList : ActiveBottomSheet
     data object Notifications : ActiveBottomSheet
@@ -1953,12 +1956,97 @@ class SurabayaViewModel(
                     mapsUrl = mapsUrl,
                     photos = preparedPhotos,
                 )
+                if (appCtx != null) {
+                    DestinationDraftManager.clearDraft(appCtx)
+                }
                 dismissSheet()
                 notifyMessage("Destinasi Surabaya berhasil ditambahkan oleh Admin!")
             } catch (e: Exception) {
                 notifyMessage("Gagal menambahkan destinasi: ${e.message}")
             } finally {
                 _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun saveDestinationDraft(context: Context, draft: DestinationDraft) {
+        DestinationDraftManager.saveDraft(context, draft)
+        notifyMessage("Draf destinasi berhasil disimpan.")
+    }
+
+    fun clearDestinationDraft(context: Context) {
+        DestinationDraftManager.clearDraft(context)
+        notifyMessage("Draf destinasi dibersihkan.")
+    }
+
+    fun updateDestination(
+        destinationId: String,
+        title: String,
+        category: String,
+        description: String,
+        address: String,
+        district: String,
+        ticketPrice: String,
+        operationalHours: String,
+        bestTimeToVisit: String,
+        mapsUrl: String = "",
+        newPhotoUris: List<Uri> = emptyList(),
+        context: Context? = null,
+    ) {
+        if (!isAdmin.value) {
+            notifyMessage("Hanya Admin yang diizinkan mengedit destinasi!")
+            return
+        }
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val preparedPhotos: List<PreparedPhoto> = buildList {
+                    if (appCtx != null && newPhotoUris.isNotEmpty()) {
+                        _isScanningPhoto.value = true
+                        try {
+                            for ((idx, uri) in newPhotoUris.take(4).withIndex()) {
+                                val compressed = ImageUploadHelper.preparePhotoFromUri(
+                                    context = appCtx,
+                                    uri = uri,
+                                    prefix = "destinasi_edit_${idx + 1}",
+                                )
+                                if (compressed != null) {
+                                    add(compressed)
+                                }
+                            }
+                        } finally {
+                            _isScanningPhoto.value = false
+                        }
+                    }
+                }
+                if (newPhotoUris.isNotEmpty() && preparedPhotos.isNotEmpty()) {
+                    if (!verifyPhotosAreSafe(preparedPhotos)) {
+                        return@launch
+                    }
+                }
+
+                repository.updateDestination(
+                    destinationId = destinationId,
+                    title = title,
+                    category = category,
+                    description = description,
+                    district = district,
+                    address = address,
+                    ticketPrice = ticketPrice,
+                    operationalHours = operationalHours,
+                    bestTime = bestTimeToVisit,
+                    mapsUrl = mapsUrl,
+                    newPhotos = preparedPhotos,
+                )
+                dismissSheet()
+                notifyMessage("Destinasi Surabaya berhasil diperbarui!")
+            } catch (e: Exception) {
+                notifyMessage("Gagal memperbarui destinasi: ${e.message}")
+            } finally {
+                _isSubmitting.value = false
+                _isScanningPhoto.value = false
             }
         }
     }

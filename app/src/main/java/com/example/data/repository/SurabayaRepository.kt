@@ -3359,6 +3359,110 @@ class SurabayaRepository(
         return recordId
     }
 
+    suspend fun updateDestination(
+        destinationId: String,
+        title: String,
+        category: String,
+        description: String,
+        district: String,
+        address: String,
+        ticketPrice: String,
+        operationalHours: String,
+        bestTime: String,
+        mapsUrl: String = "",
+        newPhotos: List<PreparedPhoto> = emptyList(),
+    ): Boolean {
+        val uid = requireUserId()
+        val userRec = pb.getOneOrNull("users", uid)
+        val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
+        val isAdmin = isOfficialAdminEmail(email) ||
+            userRec?.optBoolean("is_admin", false) == true ||
+            (pb.currentSession?.isAdmin == true)
+        if (!isAdmin) {
+            throw IllegalStateException("Hanya akun Admin resmi Surabaya yang memiliki hak untuk memperbarui destinasi wisata.")
+        }
+
+        val cleanTitle = title.trim().take(140)
+        val cleanCategory = category.trim().take(50).ifEmpty { "WISATA_SEJARAH" }
+        val cleanDesc = description.trim().take(1200)
+        val cleanDistrict = district.trim().take(60).ifEmpty { "Genteng" }
+        val cleanAddress = address.trim().take(180)
+        val cleanPrice = ticketPrice.trim().take(50).ifEmpty { "Gratis" }
+        val cleanHours = operationalHours.trim().take(50).ifEmpty { "24 Jam" }
+        val cleanBestTime = bestTime.trim().take(50).ifEmpty { "Sore hari" }
+        val cleanMapsUrl = requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+        val (lat, lng) = extractLatLngFromMapsUrl(cleanMapsUrl) ?: SurabayaDistricts.coordinateFor(cleanDistrict)
+
+        val cur = inMemoryDestinations[destinationId]
+        val payload = JSONObject().apply {
+            put("title", cleanTitle)
+            put("category", cleanCategory)
+            put("description", cleanDesc)
+            put("district", cleanDistrict)
+            put("address", cleanAddress)
+            put("ticket_price", cleanPrice)
+            put("operational_hours", cleanHours)
+            put("best_time", cleanBestTime)
+            put("lat", lat)
+            put("lng", lng)
+            put("maps_url", cleanMapsUrl)
+            put("updated", System.currentTimeMillis())
+        }
+
+        val fields = mapOf(
+            "title" to cleanTitle,
+            "category" to cleanCategory,
+            "description" to cleanDesc,
+            "address" to cleanAddress,
+            "district" to cleanDistrict,
+            "ticket_price" to cleanPrice,
+            "operational_hours" to cleanHours,
+            "best_time" to cleanBestTime,
+            "lat" to lat.toString(),
+            "lng" to lng.toString(),
+            "maps_url" to cleanMapsUrl,
+        )
+
+        val multipartFiles = newPhotos.take(4).mapIndexed { idx, p ->
+            MultipartFilePart(
+                fieldName = "photo",
+                fileName = if (newPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                mimeType = p.mimeType,
+                bytes = p.bytes,
+            )
+        }
+
+        try {
+            if (multipartFiles.isNotEmpty()) {
+                pb.updateRecordMultipartFiles("destinations", destinationId, fields, multipartFiles)
+            } else {
+                pb.updateRecord("destinations", destinationId, payload)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "updateDestination PB update: ${e.message}, updating locally")
+        }
+
+        if (cur != null) {
+            val updatedDest = cur.copy(
+                title = cleanTitle,
+                category = cleanCategory,
+                description = cleanDesc,
+                district = cleanDistrict,
+                address = cleanAddress,
+                ticketPrice = cleanPrice,
+                operationalHours = cleanHours,
+                bestTime = cleanBestTime,
+                lat = lat,
+                lng = lng,
+                mapsUrl = cleanMapsUrl,
+                updatedAt = System.currentTimeMillis(),
+            )
+            inMemoryDestinations[destinationId] = updatedDest
+        }
+        bumpMutationTick()
+        return true
+    }
+
     fun observeDestinationReviews(destinationId: String): Flow<List<DestinationReview>> {
         return combine(
             pb.observeCollection("destination_reviews", pollIntervalMs = 6_000L) {

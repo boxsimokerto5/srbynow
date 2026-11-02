@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -3096,6 +3097,7 @@ fun DestinationDetailSheetContent(
     onToggleBookmark: () -> Unit,
     onAddReview: (review: String, rating: Int) -> Unit,
     onReport: () -> Unit,
+    onEditDestination: (() -> Unit)? = null,
     onAdminDelete: (() -> Unit)? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -3201,13 +3203,25 @@ fun DestinationDetailSheetContent(
                         }
                     }
 
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onToggleBookmark) {
                             Icon(
                                 imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                 contentDescription = "Simpan",
                                 tint = ToskaPrimaryDeep,
                             )
+                        }
+                        if (isAdmin && onEditDestination != null) {
+                            IconButton(
+                                onClick = onEditDestination,
+                                modifier = Modifier.testTag("btn_edit_destination"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Edit,
+                                    contentDescription = "Edit Destinasi",
+                                    tint = ToskaPrimaryDeep,
+                                )
+                            }
                         }
                         if (isAdmin && onAdminDelete != null) {
                             IconButton(onClick = onAdminDelete) {
