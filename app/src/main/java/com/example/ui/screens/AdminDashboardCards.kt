@@ -390,9 +390,11 @@ fun AdminFlaggedContentCard(
                     ) {
                         Text(
                             text = if (item.isQuarantined) {
-                                "KARANTINA (${item.contentReportCount}/3)"
+                                "KARANTINA (${item.contentReportCount}/10)"
+                            } else if (item.isBlurred) {
+                                "AUTO-BLUR (${item.contentReportCount}/5)"
                             } else if (item.contentReportCount > 0) {
-                                "AUTO-BLUR (${item.contentReportCount}/3)"
+                                "DILAPORKAN (${item.contentReportCount}/5)"
                             } else {
                                 "LINK DILAPORKAN (${item.linkReportCount}/3)"
                             },

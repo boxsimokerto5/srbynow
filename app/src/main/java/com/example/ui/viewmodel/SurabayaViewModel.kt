@@ -1701,11 +1701,13 @@ class SurabayaViewModel(
                     currentCount = report.contentReportCount,
                     currentReportedUids = report.contentReportedByUids,
                 )
-                if (nextCount >= 3) {
+                if (nextCount >= 10) {
                     if (!isAdmin.value) dismissSheet()
-                    notifyMessage("Konten mencapai 3 laporan warga dan otomatis dikarantina dari feed publik!")
+                    notifyMessage("Konten mencapai 10 laporan warga dan otomatis dikarantina dari feed publik!")
+                } else if (nextCount >= 5) {
+                    notifyMessage("Laporan diterima ($nextCount/5). Foto otomatis diburamkan demi kenyamanan warga.")
                 } else {
-                    notifyMessage("Laporan diterima ($nextCount/3). Foto otomatis diburamkan demi kenyamanan warga.")
+                    notifyMessage("Laporan dicatat ($nextCount/5). Foto otomatis diburamkan jika mencapai 5 laporan warga.")
                 }
             } catch (e: Exception) {
                 notifyMessage("Gagal melaporkan konten")
@@ -1726,11 +1728,13 @@ class SurabayaViewModel(
                     currentCount = event.contentReportCount,
                     currentReportedUids = event.contentReportedByUids,
                 )
-                if (nextCount >= 3) {
+                if (nextCount >= 10) {
                     if (!isAdmin.value) dismissSheet()
-                    notifyMessage("Event mencapai 3 laporan warga dan otomatis dikarantina dari feed publik!")
+                    notifyMessage("Event mencapai 10 laporan warga dan otomatis dikarantina dari feed publik!")
+                } else if (nextCount >= 5) {
+                    notifyMessage("Laporan diterima ($nextCount/5). Foto event otomatis diburamkan.")
                 } else {
-                    notifyMessage("Laporan diterima ($nextCount/3). Foto event otomatis diburamkan.")
+                    notifyMessage("Laporan dicatat ($nextCount/5). Foto akan diburamkan jika mencapai 5 laporan warga.")
                 }
             } catch (e: Exception) {
                 notifyMessage("Gagal melaporkan konten event")
@@ -1751,11 +1755,13 @@ class SurabayaViewModel(
                     currentCount = spot.contentReportCount,
                     currentReportedUids = spot.contentReportedByUids,
                 )
-                if (nextCount >= 3) {
+                if (nextCount >= 10) {
                     if (!isAdmin.value) dismissSheet()
-                    notifyMessage("Kuliner mencapai 3 laporan warga dan otomatis dikarantina dari feed publik!")
+                    notifyMessage("Kuliner mencapai 10 laporan warga dan otomatis dikarantina dari feed publik!")
+                } else if (nextCount >= 5) {
+                    notifyMessage("Laporan diterima ($nextCount/5). Foto kuliner otomatis diburamkan.")
                 } else {
-                    notifyMessage("Laporan diterima ($nextCount/3). Foto kuliner otomatis diburamkan.")
+                    notifyMessage("Laporan dicatat ($nextCount/5). Foto akan diburamkan jika mencapai 5 laporan warga.")
                 }
             } catch (e: Exception) {
                 notifyMessage("Gagal melaporkan konten kuliner")
@@ -1960,11 +1966,13 @@ class SurabayaViewModel(
                     currentCount = moment.contentReportCount,
                     currentReportedUids = moment.contentReportedByUids,
                 )
-                if (nextCount >= 3) {
+                if (nextCount >= 10) {
                     if (!isAdmin.value) dismissSheet()
-                    notifyMessage("Momen mencapai 3 laporan warga dan dikarantina!")
+                    notifyMessage("Momen mencapai 10 laporan warga dan dikarantina!")
+                } else if (nextCount >= 5) {
+                    notifyMessage("Laporan diterima ($nextCount/5). Foto otomatis diburamkan.")
                 } else {
-                    notifyMessage("Laporan diterima ($nextCount/3). Foto otomatis diburamkan.")
+                    notifyMessage("Laporan dicatat ($nextCount/5). Foto akan diburamkan jika mencapai 5 laporan warga.")
                 }
             } catch (e: Exception) {
                 notifyMessage("Gagal melaporkan momen")
@@ -1985,11 +1993,13 @@ class SurabayaViewModel(
                     currentCount = destination.contentReportCount,
                     currentReportedUids = destination.contentReportedByUids,
                 )
-                if (nextCount >= 3) {
+                if (nextCount >= 10) {
                     if (!isAdmin.value) dismissSheet()
-                    notifyMessage("Destinasi mencapai 3 laporan warga dan dikarantina!")
+                    notifyMessage("Destinasi mencapai 10 laporan warga dan dikarantina!")
+                } else if (nextCount >= 5) {
+                    notifyMessage("Laporan diterima ($nextCount/5). Foto destinasi otomatis diburamkan.")
                 } else {
-                    notifyMessage("Laporan diterima ($nextCount/3).")
+                    notifyMessage("Laporan dicatat ($nextCount/5). Foto akan diburamkan jika mencapai 5 laporan warga.")
                 }
             } catch (e: Exception) {
                 notifyMessage("Gagal melaporkan destinasi")

@@ -24,10 +24,10 @@ data class AdminFlaggedItem(
     val createdAt: Long? = null,
 ) {
     val isQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 
     val isBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isLinkFlagged: Boolean
         get() = linkReportCount >= 1

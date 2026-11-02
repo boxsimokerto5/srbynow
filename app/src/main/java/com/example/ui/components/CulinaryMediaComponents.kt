@@ -1566,7 +1566,7 @@ private fun DeliveryPlatformChip(
 
 /**
  * Layer 3 & Layer 4 UGC Safety Row:
- * - Citizen 1-tap "Lapor Asusila" (1 report = auto-blur, 3 reports = auto-quarantine)
+ * - Citizen 1-tap "Lapor Asusila" (5 reports = auto-blur, 10 reports = auto-quarantine)
  * - Citizen "Blokir Penulis" (Google Play UGC compliance)
  * - Admin 1-click "Hapus Permanen", "Pulihkan Blur", and "Bekukan Akun"
  */
@@ -1604,7 +1604,7 @@ fun PostContentSafetyRow(
             },
             text = {
                 Text(
-                    text = "1 laporan warga akan langsung menyamarkan (blur) foto kiriman ini, dan 3 laporan warga otomatis menyembunyikan kiriman dari feed publik sembari menunggu tindakan Admin.",
+                    text = "5 laporan warga akan otomatis menyamarkan (blur) foto kiriman ini, dan 10 laporan warga menyembunyikan kiriman dari feed publik sembari menunggu tindakan Admin.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("report_content_confirm_dialog"),
@@ -1756,7 +1756,7 @@ fun PostContentSafetyRow(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (isAdmin && contentReportCount >= 3) {
+        if (isAdmin && contentReportCount >= 10) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = Color(0xFFFFEBEE),
@@ -1814,9 +1814,9 @@ fun PostContentSafetyRow(
                     )
                     Text(
                         text = if (isContentReportedByMe) {
-                            "${stringResource(R.string.btn_reported_inappropriate_content)} ($contentReportCount/3)"
+                            "${stringResource(R.string.btn_reported_inappropriate_content)} ($contentReportCount/5)"
                         } else if (contentReportCount > 0) {
-                            "${stringResource(R.string.btn_report_inappropriate_content)} ($contentReportCount/3)"
+                            "${stringResource(R.string.btn_report_inappropriate_content)} ($contentReportCount/5)"
                         } else {
                             stringResource(R.string.btn_report_inappropriate_content)
                         },

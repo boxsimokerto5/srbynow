@@ -440,13 +440,13 @@ class ExampleRobolectricTest {
       authorId = "usr_offender_99",
       authorName = "Akun Mencurigakan",
       title = "Kiriman Dilaporkan Warga",
-      description = "Foto kiriman ini telah dilaporkan 1 warga sehingga otomatis diburamkan.",
+      description = "Foto kiriman ini telah dilaporkan 5 warga sehingga otomatis diburamkan.",
       category = "INFO_WARGA",
       district = "Tegalsari",
       address = "Jl. Basuki Rahmat",
       photoUrl = "https://173.249.59.183:8091/api/files/incidents/inc_blur_1/test.jpg",
-      contentReportCount = 1,
-      contentReportedByUids = listOf("other_user_1"),
+      contentReportCount = 5,
+      contentReportedByUids = listOf("u1", "u2", "u3", "u4", "u5"),
     )
 
     composeTestRule.setContent {

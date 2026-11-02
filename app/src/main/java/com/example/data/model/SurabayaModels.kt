@@ -130,10 +130,10 @@ data class IncidentReport(
         get() = if (isLinkQuarantined) "" else mapsUrl
 
     val isContentBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isContentQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 }
 
 data class IncidentComment(
@@ -198,10 +198,10 @@ data class SurabayaEvent(
         get() = if (isLinkQuarantined) "" else mapsUrl
 
     val isContentBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isContentQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 }
 
 data class PbOAuth2Provider(
@@ -269,10 +269,10 @@ data class CulinarySpot(
         get() = if (isLinkQuarantined) "" else shopeefoodUrl
 
     val isContentBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isContentQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 }
 
 data class CulinaryReview(
@@ -406,10 +406,10 @@ data class UserMoment(
         }
 
     val isContentBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isContentQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 
     val imageResName: String
         get() = imageKey
@@ -489,10 +489,10 @@ data class SurabayaDestination(
         get() = if (isLinkQuarantined) "" else mapsUrl
 
     val isContentBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isContentQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 }
 
 data class DestinationReview(
@@ -570,10 +570,10 @@ data class CitizenService(
         get() = if (price <= 0) "Tarif Negosiasi / Survei Gratis" else "$formattedPrice / $priceUnit"
 
     val isContentBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isContentQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 }
 
 data class PollOption(

@@ -51,10 +51,10 @@ data class BarkasItem(
         get() = formatBarkasCategoryLabel(category)
 
     val isContentBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isContentQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 
     fun isOwnedBy(userId: String): Boolean = userId.isNotBlank() && sellerId == userId
 }

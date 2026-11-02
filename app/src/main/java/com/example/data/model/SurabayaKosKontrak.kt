@@ -88,10 +88,10 @@ data class KosKontrakItem(
         get() = mapsUrl.isNotBlank()
 
     val isContentBlurred: Boolean
-        get() = contentReportCount >= 1
+        get() = contentReportCount >= 5
 
     val isContentQuarantined: Boolean
-        get() = contentReportCount >= 3
+        get() = contentReportCount >= 10
 
     fun isOwnedBy(userId: String): Boolean = userId.isNotBlank() && ownerId == userId
 }

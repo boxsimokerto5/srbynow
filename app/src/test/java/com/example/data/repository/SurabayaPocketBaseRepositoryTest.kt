@@ -376,7 +376,7 @@ class SurabayaPocketBaseRepositoryTest {
     }
 
     @Test
-    fun `four layer anti pornography system blocks explicit upload blurs at 1 report quarantines at 3 blocks user and allows admin delete`() = runBlocking {
+    fun `four layer anti pornography system blocks explicit upload blurs at 5 reports blocks user and allows admin delete`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
 
         // Prepare a real temporary JPEG image file in Robolectric cacheDir
@@ -392,16 +392,25 @@ class SurabayaPocketBaseRepositoryTest {
         val cOffender = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
         val cCitizen1 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
         val cCitizen2 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val cCitizen3 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val cCitizen4 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val cCitizen5 = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
         val cAdmin = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
 
         val rOffender = SurabayaRepository(cOffender)
         val rCitizen1 = SurabayaRepository(cCitizen1)
         val rCitizen2 = SurabayaRepository(cCitizen2)
+        val rCitizen3 = SurabayaRepository(cCitizen3)
+        val rCitizen4 = SurabayaRepository(cCitizen4)
+        val rCitizen5 = SurabayaRepository(cCitizen5)
         val rAdmin = SurabayaRepository(cAdmin)
 
         val sOffender = cOffender.registerAndSignIn("Pelanggar", "pelanggar@sby.id", "password123", "Genteng")
         cCitizen1.registerAndSignIn("Warga Satu", "warga1@sby.id", "password123", "Gubeng")
         cCitizen2.registerAndSignIn("Warga Dua", "warga2@sby.id", "password123", "Wonokromo")
+        cCitizen3.registerAndSignIn("Warga Tiga", "warga3@sby.id", "password123", "Tegalsari")
+        cCitizen4.registerAndSignIn("Warga Empat", "warga4@sby.id", "password123", "Rungkut")
+        cCitizen5.registerAndSignIn("Warga Lima", "warga5@sby.id", "password123", "Mulyorejo")
         val sAdmin = cAdmin.registerAndSignIn("Admin SBY", "nabilalailatus12@gmail.com", "password123", "Genteng")
         assertTrue(sAdmin.isAdmin)
 
@@ -489,20 +498,25 @@ class SurabayaPocketBaseRepositoryTest {
         assertTrue("Safe photo upload must create 'Laporan Jalan Basah'", createdPost != null)
         val postId = createdPost!!.id
 
-        // LAYER 2: 1st citizen report immediately triggers Auto-Blur (isContentBlurred = true)
+        // LAYER 2: Reports below 5 do not activate blur yet
         rCitizen1.reportInappropriateContent("incidents", postId, 0, emptyList())
-        var postAfter1 = rCitizen2.observeIncidents().first().first { it.id == postId }
+        val postAfter1 = rCitizen2.observeIncidents().first().first { it.id == postId }
         assertEquals(1, postAfter1.contentReportCount)
-        assertTrue("1 content report must activate sensitive photo blur", postAfter1.isContentBlurred)
+        assertFalse("1 content report must not activate sensitive photo blur yet", postAfter1.isContentBlurred)
         assertFalse("1 content report must not quarantine yet", postAfter1.isContentQuarantined)
 
-        // LAYER 3: 3 distinct reports trigger Auto-Quarantine (isContentQuarantined = true)
+        // Reach 5 distinct reports to activate Auto-Blur (isContentBlurred = true)
         rCitizen2.reportInappropriateContent("incidents", postId, postAfter1.contentReportCount, postAfter1.contentReportedByUids)
-        val postAfter2 = rAdmin.observeIncidents().first().first { it.id == postId }
-        rAdmin.reportInappropriateContent("incidents", postId, postAfter2.contentReportCount, postAfter2.contentReportedByUids)
-        val postAfter3 = rCitizen1.observeIncidents().first().first { it.id == postId }
-        assertEquals(3, postAfter3.contentReportCount)
-        assertTrue("3 content reports must quarantine post from public feed", postAfter3.isContentQuarantined)
+        val postAfter2 = rCitizen3.observeIncidents().first().first { it.id == postId }
+        rCitizen3.reportInappropriateContent("incidents", postId, postAfter2.contentReportCount, postAfter2.contentReportedByUids)
+        val postAfter3 = rCitizen4.observeIncidents().first().first { it.id == postId }
+        rCitizen4.reportInappropriateContent("incidents", postId, postAfter3.contentReportCount, postAfter3.contentReportedByUids)
+        val postAfter4 = rCitizen5.observeIncidents().first().first { it.id == postId }
+        rCitizen5.reportInappropriateContent("incidents", postId, postAfter4.contentReportCount, postAfter4.contentReportedByUids)
+        val postAfter5 = rCitizen1.observeIncidents().first().first { it.id == postId }
+        assertEquals(5, postAfter5.contentReportCount)
+        assertTrue("5 content reports must activate sensitive photo blur", postAfter5.isContentBlurred)
+        assertFalse("5 content reports must not quarantine yet (quarantine threshold is 10)", postAfter5.isContentQuarantined)
 
         // Admin can restore false-positive blur if needed
         rAdmin.adminRestoreContentReports("incidents", postId)
