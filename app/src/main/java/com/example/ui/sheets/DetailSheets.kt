@@ -135,6 +135,7 @@ import com.example.data.model.MessageDeliveryStatus
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
 import com.example.data.model.DestinationReview
+import com.example.data.model.EventComment
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.MomentComment
@@ -703,6 +704,7 @@ fun IncidentDetailSheetContent(
 @Composable
 fun EventDetailSheetContent(
     event: SurabayaEvent,
+    comments: List<EventComment> = emptyList(),
     isAdmin: Boolean,
     isSaved: Boolean,
     isInterested: Boolean,
@@ -711,6 +713,8 @@ fun EventDetailSheetContent(
     onToggleInterest: () -> Unit,
     onToggleBookmark: () -> Unit,
     onModerate: (approve: Boolean, note: String) -> Unit,
+    onSendComment: (String) -> Unit = {},
+    onOpenCitizenProfile: (authorId: String, authorName: String) -> Unit = { _, _ -> },
     onReportLink: () -> Unit = {},
     onAdminClearLinks: () -> Unit = {},
     onReportContent: () -> Unit = {},
@@ -724,6 +728,8 @@ fun EventDetailSheetContent(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    var commentInput by remember(event.id) { mutableStateOf("") }
+    var pendingScrollToBottom by remember(event.id) { mutableStateOf(false) }
     var adminNoteInput by remember(event.id) { mutableStateOf(event.adminNote) }
     var isDescriptionExpanded by remember(event.id) { mutableStateOf(false) }
     var hasDescriptionOverflow by remember(event.id, event.description) { mutableStateOf(false) }
@@ -757,6 +763,13 @@ fun EventDetailSheetContent(
     }
 
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(comments.size, pendingScrollToBottom) {
+        if (pendingScrollToBottom) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+            pendingScrollToBottom = false
+        }
+    }
 
     // Gaya 2: Base photo height (140.dp) that smoothly shrinks to 84.dp as content scrolls
     val maxImageHeight = 140.dp
@@ -797,6 +810,17 @@ fun EventDetailSheetContent(
         }
     }
 
+    val submitCommentAction = {
+        val trimmed = commentInput.trim()
+        if (trimmed.isNotEmpty()) {
+            pendingScrollToBottom = true
+            onSendComment(trimmed)
+            commentInput = ""
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+    }
+
     val isImeVisible = WindowInsets.ime.getBottom(density) > 0
 
     BoxWithConstraints(
@@ -824,12 +848,12 @@ fun EventDetailSheetContent(
                 .fillMaxWidth()
                 .heightIn(max = sheetMaxHeight)
                 .padding(horizontal = 18.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // ================= ZONA 1: ATAS (TETAP DI POSISI, FOTO ADAPTIF GAYA 2) =================
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 6.dp else 10.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 4.dp else 8.dp),
             ) {
                 AnimatedVisibility(
                     visible = !isKeyboardOpen,
@@ -890,7 +914,7 @@ fun EventDetailSheetContent(
                 )
             }
 
-            // ================= ZONA 2: TENGAH (SCROLL DETAIL, VENUE, & ADMIN PANEL) =================
+            // ================= ZONA 2: TENGAH (SCROLL DETAIL, VENUE, & DISKUSI JANJIAN BARENG) =================
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -904,196 +928,409 @@ fun EventDetailSheetContent(
                         .testTag("event_details_scroll"),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Icon(Icons.Filled.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                Text("${event.eventDateText} • ${event.timeText}", style = MaterialTheme.typography.labelLarge)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(event.venueName, style = MaterialTheme.typography.titleSmall)
+                                    Text("${event.address}, Kec. ${event.district}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                FilledTonalButton(
+                                    onClick = {
+                                        openEventMapsDirection(context, event) { pendingExternalLink = it }
+                                    },
+                                    shape = CircleShape,
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.testTag("sheet_event_maps_btn"),
+                                ) {
+                                    Icon(Icons.Filled.Directions, null, modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Maps", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                            Text(
+                                text = "Tiket: ${event.priceLabel} • Pengusul: ${event.proposerName}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+
+                    PostExternalLinkSecurityStrip(
+                        hasActiveExternalLinks = event.safeMapsUrl.isNotBlank(),
+                        isQuarantined = event.isLinkQuarantined,
+                        linkReportCount = event.linkReportCount,
+                        isReportedByMe = currentUserId in event.linkReportedByUids,
+                        isAdmin = isAdmin,
+                        onReportLink = onReportLink,
+                        onAdminClearLinks = onAdminClearLinks,
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = event.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = when {
+                                isKeyboardOpen -> 2
+                                isDescriptionExpanded -> 12
+                                else -> 3
+                            },
+                            overflow = TextOverflow.Ellipsis,
+                            onTextLayout = { layoutResult ->
+                                if (!isDescriptionExpanded && !isKeyboardOpen) {
+                                    hasDescriptionOverflow = layoutResult.hasVisualOverflow
+                                }
+                            },
+                        )
+                        if (!isKeyboardOpen && (hasDescriptionOverflow || isDescriptionExpanded)) {
+                            Text(
+                                text = stringResource(
+                                    if (isDescriptionExpanded) R.string.incident_desc_show_less else R.string.incident_desc_read_more,
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { isDescriptionExpanded = !isDescriptionExpanded }
+                                    .padding(vertical = 2.dp),
+                            )
+                        }
+                    }
+
+                    if (event.status == "APPROVED") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = onToggleInterest,
+                                enabled = !isInterestPending,
+                                shape = CircleShape,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    if (isInterestPending) "Menyimpan…"
+                                    else if (isInterested) "Ikut Hadir (${event.interestedCount})"
+                                    else "Tertarik (${event.interestedCount})"
+                                )
+                            }
+                            OutlinedButton(onClick = onToggleBookmark, shape = CircleShape) {
+                                Icon(if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(if (isSaved) "Tersimpan" else "Simpan")
+                            }
+                        }
+                    }
+
+                    PostContentSafetyRow(
+                        authorId = event.proposerId,
+                        authorName = event.proposerName,
+                        currentUserId = currentUserId,
+                        contentReportCount = event.contentReportCount,
+                        isContentReportedByMe = currentUserId in event.contentReportedByUids,
+                        isAdmin = isAdmin,
+                        onReportContent = onReportContent,
+                        onBlockAuthor = onBlockAuthor,
+                        onAdminDeletePost = onAdminDeletePost,
+                        onAdminRestoreBlur = onAdminRestoreBlur,
+                        onAdminBanAuthor = onAdminBanAuthor,
+                    )
+
+                    if (isAdmin && event.status != "APPROVED") {
+                        HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.8f))
+                        Text(
+                            text = "Panel Persetujuan Admin Surabaya",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        AdminRawLinkPreviewBadge(
+                            rawUrl = event.safeMapsUrl,
+                            reportCount = event.linkReportCount,
+                            onClearLink = onAdminClearLinks,
+                        )
+                        OutlinedTextField(
+                            value = adminNoteInput,
+                            onValueChange = { adminNoteInput = it },
+                            label = { Text("Catatan Admin (opsional)") },
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("event_admin_note_input"),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    onModerate(false, adminNoteInput.ifBlank { "Belum memenuhi kriteria jadwal kota." })
+                                },
+                                shape = CircleShape,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("sheet_reject_event_btn"),
+                            ) {
+                                Text(stringResource(R.string.btn_reject_event))
+                            }
+                            Button(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    onModerate(true, adminNoteInput.ifBlank { "Disetujui tayang oleh Admin Surabaya." })
+                                },
+                                shape = CircleShape,
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .testTag("sheet_approve_event_btn"),
+                            ) {
+                                Text(stringResource(R.string.btn_approve_event))
+                            }
+                        }
+                    }
+
+                    // ================= BAGIAN DISKUSI & JANJIAN BARENG WARGA =================
+                    HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.8f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Icon(Icons.Filled.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                            Text("${event.eventDateText} • ${event.timeText}", style = MaterialTheme.typography.labelLarge)
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(event.venueName, style = MaterialTheme.typography.titleSmall)
-                                Text("${event.address}, Kec. ${event.district}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            FilledTonalButton(
-                                onClick = {
-                                    openEventMapsDirection(context, event) { pendingExternalLink = it }
-                                },
-                                shape = CircleShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.testTag("sheet_event_maps_btn"),
-                            ) {
-                                Icon(Icons.Filled.Directions, null, modifier = Modifier.size(15.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Maps", style = MaterialTheme.typography.labelMedium)
-                            }
-                        }
-                        Text(
-                            text = "Tiket: ${event.priceLabel} • Pengusul: ${event.proposerName}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-
-                PostExternalLinkSecurityStrip(
-                    hasActiveExternalLinks = event.safeMapsUrl.isNotBlank(),
-                    isQuarantined = event.isLinkQuarantined,
-                    linkReportCount = event.linkReportCount,
-                    isReportedByMe = currentUserId in event.linkReportedByUids,
-                    isAdmin = isAdmin,
-                    onReportLink = onReportLink,
-                    onAdminClearLinks = onAdminClearLinks,
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = event.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = when {
-                            isKeyboardOpen -> 2
-                            isDescriptionExpanded -> 12
-                            else -> 3
-                        },
-                        overflow = TextOverflow.Ellipsis,
-                        onTextLayout = { layoutResult ->
-                            if (!isDescriptionExpanded && !isKeyboardOpen) {
-                                hasDescriptionOverflow = layoutResult.hasVisualOverflow
-                            }
-                        },
-                    )
-                    if (!isKeyboardOpen && (hasDescriptionOverflow || isDescriptionExpanded)) {
-                        Text(
-                            text = stringResource(
-                                if (isDescriptionExpanded) R.string.incident_desc_show_less else R.string.incident_desc_read_more,
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { isDescriptionExpanded = !isDescriptionExpanded }
-                                .padding(vertical = 2.dp),
-                        )
-                    }
-                }
-
-                if (event.status == "APPROVED") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Button(
-                            onClick = onToggleInterest,
-                            enabled = !isInterestPending,
-                            shape = CircleShape,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Filled.Groups,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
+                            )
                             Text(
-                                if (isInterestPending) "Menyimpan…"
-                                else if (isInterested) "Ikut Hadir (${event.interestedCount})"
-                                else "Tertarik (${event.interestedCount})"
+                                text = "Diskusi & Janjian Bareng Warga (${comments.size})",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
-                        OutlinedButton(onClick = onToggleBookmark, shape = CircleShape) {
-                            Icon(if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(if (isSaved) "Tersimpan" else "Simpan")
+                        if (comments.isNotEmpty()) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                            ) {
+                                Text(
+                                    text = "Klik nama utk profil",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                )
+                            }
                         }
                     }
+
+                    if (comments.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ChatBubble,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                                Text(
+                                    text = "Belum ada diskusi janjian bareng",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = "Tulis komentar di bawah untuk mengajak warga lain berangkat barengan ke event ini!",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                )
+                            }
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("event_comments_list"),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            comments.forEach { cmt ->
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                                    border = BorderStroke(0.5.dp, OutlineVariantLight.copy(alpha = 0.65f)),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalAlignment = Alignment.Top,
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .clickable { onOpenCitizenProfile(cmt.authorId, cmt.authorName) }
+                                                .testTag("event_comment_avatar_${cmt.id}"),
+                                        ) {
+                                            InitialsAvatar(
+                                                name = cmt.authorName,
+                                                colorHex = "#006B5E",
+                                                sizeDp = 36,
+                                            )
+                                        }
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Text(
+                                                    text = cmt.authorName,
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .clickable { onOpenCitizenProfile(cmt.authorId, cmt.authorName) }
+                                                        .testTag("event_comment_author_${cmt.id}"),
+                                                )
+                                                Text(
+                                                    text = formatRelativeTimestamp(cmt.createdAt),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                            Text(
+                                                text = cmt.text,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                            if (cmt.authorId.isNotBlank() && cmt.authorId != currentUserId) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .padding(top = 2.dp)
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .clickable { onOpenCitizenProfile(cmt.authorId, cmt.authorName) }
+                                                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.ChatBubble,
+                                                        contentDescription = null,
+                                                        tint = ToskaPrimary,
+                                                        modifier = Modifier.size(12.dp),
+                                                    )
+                                                    Text(
+                                                        text = "Lihat Profil & Ajak Chat",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = ToskaPrimary,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
                 }
+            }
 
-                PostContentSafetyRow(
-                    authorId = event.proposerId,
-                    authorName = event.proposerName,
-                    currentUserId = currentUserId,
-                    contentReportCount = event.contentReportCount,
-                    isContentReportedByMe = currentUserId in event.contentReportedByUids,
-                    isAdmin = isAdmin,
-                    onReportContent = onReportContent,
-                    onBlockAuthor = onBlockAuthor,
-                    onAdminDeletePost = onAdminDeletePost,
-                    onAdminRestoreBlur = onAdminRestoreBlur,
-                    onAdminBanAuthor = onAdminBanAuthor,
-                )
-
-                if (isAdmin && event.status != "APPROVED") {
-                    HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.8f))
-                    Text(
-                        text = "Panel Persetujuan Admin Surabaya",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    AdminRawLinkPreviewBadge(
-                        rawUrl = event.safeMapsUrl,
-                        reportCount = event.linkReportCount,
-                        onClearLink = onAdminClearLinks,
-                    )
+            // ================= ZONA 3: BAWAH (STICKY COMMENT INPUT BAR) =================
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.6f))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     OutlinedTextField(
-                        value = adminNoteInput,
-                        onValueChange = { adminNoteInput = it },
-                        label = { Text("Catatan Admin (opsional)") },
-                        shape = RoundedCornerShape(16.dp),
+                        value = commentInput,
+                        onValueChange = { commentInput = it },
+                        placeholder = {
+                            Text(
+                                text = "Ajak janjian atau tanya info event...",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        shape = CircleShape,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { submitCommentAction() }),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("event_admin_note_input"),
+                            .weight(1f)
+                            .testTag("event_comment_input"),
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    IconButton(
+                        onClick = submitCommentAction,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                            .testTag("event_comment_send_btn"),
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                onModerate(false, adminNoteInput.ifBlank { "Belum memenuhi kriteria jadwal kota." })
-                            },
-                            shape = CircleShape,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("sheet_reject_event_btn"),
-                        ) {
-                            Text(stringResource(R.string.btn_reject_event))
-                        }
-                        Button(
-                            onClick = {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                onModerate(true, adminNoteInput.ifBlank { "Disetujui tayang oleh Admin Surabaya." })
-                            },
-                            shape = CircleShape,
-                            modifier = Modifier
-                                .weight(1.3f)
-                                .testTag("sheet_approve_event_btn"),
-                        ) {
-                            Text(stringResource(R.string.btn_approve_event))
-                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Kirim Komentar Event",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(10.dp))
             }
         }
     }
-}
 }
 
 @Composable

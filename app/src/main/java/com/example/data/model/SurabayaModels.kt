@@ -145,6 +145,15 @@ data class IncidentComment(
     val createdAt: Long? = null,
 )
 
+data class EventComment(
+    val id: String = "",
+    val eventId: String = "",
+    val authorId: String = "",
+    val authorName: String = "",
+    val text: String = "",
+    val createdAt: Long? = null,
+)
+
 data class SurabayaEvent(
     val id: String = "",
     val proposerId: String = "",

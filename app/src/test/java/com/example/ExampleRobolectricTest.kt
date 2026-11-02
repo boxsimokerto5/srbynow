@@ -33,6 +33,7 @@ import com.example.data.audio.RadioPlaybackState
 import com.example.data.audio.RadioStationInfo
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
+import com.example.data.model.EventComment
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaEvent
@@ -1447,5 +1448,78 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("chat_peer_profile_header").performClick()
     composeTestRule.waitForIdle()
     assertTrue("Expected profileOpened callback when chat header is clicked", profileOpened)
+  }
+
+  @Test
+  fun `event detail sheet displays comments, submits new comment, and opens commenter citizen profile on click`() {
+    val sampleEvent = SurabayaEvent(
+      id = "event_test_bungkul",
+      title = "Festival Malam Akustik Taman Bungkul",
+      category = "FESTIVAL",
+      eventDateText = "Sabtu, 14 Nov 2026",
+      timeText = "18.30 - 22.00 WIB",
+      venueName = "Amphitheater Taman Bungkul",
+      district = "Wonokromo",
+      address = "Jl. Taman Bungkul",
+      status = "APPROVED",
+      interestedCount = 42,
+    )
+
+    val sampleComments = listOf(
+      EventComment(
+        id = "cmt_101",
+        eventId = "event_test_bungkul",
+        authorId = "user_nadia_wonokromo",
+        authorName = "Nadia Kusuma",
+        text = "Ada yang mau budhal bareng jam 7 malam rek?",
+        createdAt = System.currentTimeMillis() - 1000 * 60 * 30,
+      )
+    )
+
+    var sentComment = ""
+    var openedAuthorId = ""
+    var openedAuthorName = ""
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(860.dp)) {
+          EventDetailSheetContent(
+            event = sampleEvent,
+            comments = sampleComments,
+            isAdmin = false,
+            isSaved = false,
+            isInterested = false,
+            currentUserId = "my_uid",
+            onToggleInterest = {},
+            onToggleBookmark = {},
+            onModerate = { _, _ -> },
+            onSendComment = { sentComment = it },
+            onOpenCitizenProfile = { uid, name ->
+              openedAuthorId = uid
+              openedAuthorName = name
+            },
+          )
+        }
+      }
+    }
+    composeTestRule.waitForIdle()
+
+    // 1. Verify event title and comment section
+    composeTestRule.onNodeWithText("Festival Malam Akustik Taman Bungkul", substring = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Diskusi & Janjian Bareng Warga (1)", substring = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Nadia Kusuma", substring = true, useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Ada yang mau budhal bareng jam 7 malam rek?", substring = true, useUnmergedTree = true).assertIsDisplayed()
+
+    // 2. Click author name to open their citizen profile
+    composeTestRule.onNodeWithTag("event_comment_author_cmt_101", useUnmergedTree = true).performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("user_nadia_wonokromo", openedAuthorId)
+    assertEquals("Nadia Kusuma", openedAuthorName)
+
+    // 3. Send a new comment
+    composeTestRule.onNodeWithTag("event_comment_input").performTextInput("Aku budhal bareng mbak!")
+    composeTestRule.onNodeWithTag("event_comment_send_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("Aku budhal bareng mbak!", sentComment)
   }
 }

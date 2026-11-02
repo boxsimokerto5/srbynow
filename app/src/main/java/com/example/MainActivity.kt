@@ -294,6 +294,7 @@ fun SurabayaMainHub(
 
     val incidentsState by viewModel.incidentsState.collectAsStateWithLifecycle()
     val incidentComments by viewModel.activeIncidentComments.collectAsStateWithLifecycle()
+    val eventComments by viewModel.activeEventComments.collectAsStateWithLifecycle()
 
     val approvedEventsState by viewModel.approvedEventsState.collectAsStateWithLifecycle()
     val pendingEvents by viewModel.pendingEvents.collectAsStateWithLifecycle()
@@ -928,6 +929,7 @@ fun SurabayaMainHub(
                         val isSaved = bookmarks.any { it.targetId == found.id && it.targetType == "EVENT" }
                         EventDetailSheetContent(
                             event = found,
+                            comments = eventComments,
                             isAdmin = isAdmin,
                             isSaved = isSaved,
                             isInterested = currentUserId in found.interestedUids,
@@ -938,6 +940,16 @@ fun SurabayaMainHub(
                                 viewModel.toggleBookmark(found.id, "EVENT", found.title, "${found.eventDateText} • ${found.venueName}", found.district)
                             },
                             onModerate = { approve, note -> viewModel.moderateEvent(found.id, approve, note) },
+                            onSendComment = { text -> viewModel.sendEventComment(found, text) },
+                            onOpenCitizenProfile = { authorId, authorName ->
+                                viewModel.openSheet(
+                                    ActiveBottomSheet.CitizenProfile(
+                                        userId = authorId,
+                                        initialDisplayName = authorName,
+                                        returnSheet = sheetTarget,
+                                    )
+                                )
+                            },
                             onReportLink = { viewModel.reportEventLink(found) },
                             onAdminClearLinks = { viewModel.adminClearExternalLinks("events", found.id) },
                             onReportContent = { viewModel.reportEventContent(found) },

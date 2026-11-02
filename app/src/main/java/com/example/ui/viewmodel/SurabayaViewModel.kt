@@ -21,6 +21,7 @@ import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
 import com.example.data.model.DestinationReview
+import com.example.data.model.EventComment
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.KosComment
@@ -288,6 +289,22 @@ class SurabayaViewModel(
             emit(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    private val selectedEventIdFlow = _activeSheet.map { (it as? ActiveBottomSheet.EventDetail)?.eventId }
+
+    val activeEventComments: StateFlow<List<EventComment>> = combine(
+        selectedEventIdFlow.flatMapLatest { eventId ->
+            if (eventId.isNullOrBlank()) {
+                flowOf(emptyList())
+            } else {
+                repository.observeEventComments(eventId)
+                    .catch { emit(emptyList()) }
+            }
+        },
+        blockedUserIds,
+    ) { comments, blockedSet ->
+        comments.filter { it.authorId !in blockedSet }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
 
     // 3. Kuliner Surabaya (selalu diurutkan otomatis berdasarkan jarak GPS terdekat warga)
     val culinaryState: StateFlow<UiState<List<CulinarySpot>>> = combine(
@@ -1244,6 +1261,18 @@ class SurabayaViewModel(
             }
         }
         activeInterestJobs[event.id] = job
+    }
+
+    fun sendEventComment(event: SurabayaEvent, text: String) {
+        val clean = text.trim()
+        if (clean.isBlank() || isCurrentUserFrozen()) return
+        viewModelScope.launch {
+            try {
+                repository.addEventComment(event.id, currentDisplayName(), clean)
+            } catch (e: Exception) {
+                notifyMessage("Gagal mengirim komentar event: ${e.message}")
+            }
+        }
     }
 
     fun submitCulinarySpot(

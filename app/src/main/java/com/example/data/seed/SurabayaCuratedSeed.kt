@@ -1,6 +1,7 @@
 package com.example.data.seed
 
 import com.example.data.model.CitizenPoll
+import com.example.data.model.EventComment
 import com.example.data.model.PollComment
 import com.example.data.model.PollOption
 import com.example.data.model.TambalBanComment
@@ -910,6 +911,72 @@ object SurabayaCuratedSeed {
                     createdAt = now - 1000L * 60 * 60 * 16,
                 )
             )
+        )
+    }
+
+    fun starterEventComments(): Map<String, List<EventComment>> {
+        val now = System.currentTimeMillis()
+        val bungkulEventId = PocketBaseClient.deterministicPbId("seed_ev_approved_bungkul")
+        val tunjunganEventId = PocketBaseClient.deterministicPbId("seed_ev_approved_tunjungan")
+        val bungkulFallbackId = "seed_ev_approved_bungkul"
+        val tunjunganFallbackId = "seed_ev_approved_tunjungan"
+
+        val nadiaUid = PocketBaseClient.deterministicPbId("peer_nadia_wonokromo")
+        val bimaUid = PocketBaseClient.deterministicPbId("peer_bima_gubeng")
+        val rezaUid = PocketBaseClient.deterministicPbId("peer_reza_rungkut")
+        val sariUid = PocketBaseClient.deterministicPbId("peer_sari_genteng")
+
+        val bungkulComments = listOf(
+            EventComment(
+                id = "ev_c_bungkul_1",
+                eventId = bungkulEventId,
+                authorId = nadiaUid,
+                authorName = "Nadia Kusuma",
+                text = "Ada yang mau budhal bareng dari sekitaran Wonokromo? Aku standby jam 18.30 di depan gapura Bungkul ya rek! Klik profilku kalau mau janjian bareng.",
+                createdAt = now - 1000L * 60 * 60 * 5,
+            ),
+            EventComment(
+                id = "ev_c_bungkul_2",
+                eventId = bungkulEventId,
+                authorId = bimaUid,
+                authorName = "Bima Pratama",
+                text = "Ayo mbak Nadia barengan! Aku bawa kamera mau motret penampilan band akustik, yuk janjian ngopi dhisik.",
+                createdAt = now - 1000L * 60 * 60 * 3,
+            ),
+            EventComment(
+                id = "ev_c_bungkul_3",
+                eventId = bungkulEventId,
+                authorId = rezaUid,
+                authorName = "Reza Mahendra",
+                text = "Gowes tipis-tipis teko Rungkut langsung merapat mrene. Sampe ketemu di venue rek!",
+                createdAt = now - 1000L * 60 * 45,
+            ),
+        )
+
+        val tunjunganComments = listOf(
+            EventComment(
+                id = "ev_c_tunjungan_1",
+                eventId = tunjunganEventId,
+                authorId = sariUid,
+                authorName = "Sari Wulandari",
+                text = "Pameran kriya Siola iki apik pol rek. Lek onok sing arep mlaku bareng hunting oleh-oleh seni, monggo klik profilku & chat langsung!",
+                createdAt = now - 1000L * 60 * 60 * 8,
+            ),
+            EventComment(
+                id = "ev_c_tunjungan_2",
+                eventId = tunjunganEventId,
+                authorId = bimaUid,
+                authorName = "Bima Pratama",
+                text = "Aku melu mbak Sari! Jam 4 sore wes nang Siola lantai 1.",
+                createdAt = now - 1000L * 60 * 60 * 2,
+            ),
+        )
+
+        return mapOf(
+            bungkulEventId to bungkulComments,
+            bungkulFallbackId to bungkulComments,
+            tunjunganEventId to tunjunganComments,
+            tunjunganFallbackId to tunjunganComments,
         )
     }
 }

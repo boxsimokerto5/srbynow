@@ -18,6 +18,7 @@ import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
 import com.example.data.model.DestinationReview
+import com.example.data.model.EventComment
 import com.example.data.model.IncidentComment
 import com.example.data.model.IncidentReport
 import com.example.data.model.MomentComment
@@ -109,6 +110,7 @@ class SurabayaRepository(
     private val inMemoryBarkasComments = ConcurrentHashMap<String, CopyOnWriteArrayList<BarkasComment>>()
     private val inMemoryKos = ConcurrentHashMap<String, KosKontrakItem>()
     private val inMemoryKosComments = ConcurrentHashMap<String, CopyOnWriteArrayList<KosComment>>()
+    private val inMemoryEventComments = ConcurrentHashMap<String, CopyOnWriteArrayList<EventComment>>()
     private val cachedIncidents = ConcurrentHashMap<String, IncidentReport>()
     private val cachedEvents = ConcurrentHashMap<String, SurabayaEvent>()
     private val cachedCulinary = ConcurrentHashMap<String, CulinarySpot>()
@@ -205,6 +207,10 @@ class SurabayaRepository(
         }
         for ((kosId, comments) in SurabayaKosSeed.starterComments()) {
             inMemoryKosComments[kosId] = CopyOnWriteArrayList(comments)
+        }
+        // Initialize rich starter event comments & citizen buddies
+        for ((eventId, comments) in SurabayaCuratedSeed.starterEventComments()) {
+            inMemoryEventComments[eventId] = CopyOnWriteArrayList(comments)
         }
     }
 
@@ -1327,6 +1333,69 @@ class SurabayaRepository(
             logBackendError(e, OperationType.UPDATE, "events/${event.id}")
             throw e
         }
+    }
+
+    fun observeEventComments(eventId: String): Flow<List<EventComment>> {
+        val safeEventId = escapePbValue(eventId)
+        return combine(
+            pb.observeCollection("event_comments", pollIntervalMs = 5_000L) {
+                try {
+                    pb.getList(
+                        collection = "event_comments",
+                        filter = "event_id = '$safeEventId'",
+                        sort = "+created",
+                    ).map(::mapEventComment)
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
+            localMutationTick,
+        ) { remoteList, _ ->
+            val localList = inMemoryEventComments[eventId]?.toList() ?: emptyList()
+            (remoteList + localList).distinctBy { it.id }.sortedBy { it.createdAt ?: 0L }
+        }.catch {
+            emit(inMemoryEventComments[eventId]?.toList()?.sortedBy { it.createdAt ?: 0L } ?: emptyList())
+        }
+    }
+
+    suspend fun addEventComment(
+        eventId: String,
+        authorName: String,
+        text: String,
+    ): String {
+        val uid = requireUserId()
+        val cleanText = text.trim().take(500)
+        if (cleanText.isBlank()) {
+            throw IllegalArgumentException("Komentar event tidak boleh kosong.")
+        }
+        val commentId = PocketBaseClient.deterministicPbId("evc_${UUID.randomUUID()}")
+        val now = System.currentTimeMillis()
+        val newComment = EventComment(
+            id = commentId,
+            eventId = eventId,
+            authorId = uid,
+            authorName = authorName.ifBlank { "Warga Surabaya" },
+            text = cleanText,
+            createdAt = now,
+        )
+
+        val list = inMemoryEventComments.computeIfAbsent(eventId) { CopyOnWriteArrayList() }
+        list.add(newComment)
+        bumpMutationTick()
+
+        try {
+            val payload = JSONObject().apply {
+                put("id", commentId)
+                put("event_id", eventId)
+                put("author_id", uid)
+                put("author_name", authorName.trim().take(80).ifEmpty { "Warga Surabaya" })
+                put("text", cleanText)
+            }
+            pb.createRecord("event_comments", payload)
+        } catch (e: Exception) {
+            Log.w(TAG, "addEventComment PB sync fallback: ${e.message}")
+        }
+        return commentId
     }
 
     // --- 5. KULINER SURABAYA & REVIEWS ---
@@ -2630,6 +2699,15 @@ class SurabayaRepository(
     private fun mapIncidentComment(j: JSONObject): IncidentComment = IncidentComment(
         id = j.optString("id"),
         incidentId = j.optString("incident_id"),
+        authorId = j.optString("author_id"),
+        authorName = j.optString("author_name", "Warga Surabaya"),
+        text = j.optString("text"),
+        createdAt = parsePocketBaseTimestamp(j.optString("created")),
+    )
+
+    private fun mapEventComment(j: JSONObject): EventComment = EventComment(
+        id = j.optString("id"),
+        eventId = j.optString("event_id"),
         authorId = j.optString("author_id"),
         authorName = j.optString("author_name", "Warga Surabaya"),
         text = j.optString("text"),
