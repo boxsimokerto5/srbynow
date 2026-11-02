@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Female
@@ -48,6 +49,8 @@ import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -122,6 +125,7 @@ fun CitizenProfileSheetContent(
     onGreetCitizen: (NearbyProfile) -> Unit,
     onBlockCitizen: (uid: String, name: String) -> Unit,
     onEditMyProfile: () -> Unit,
+    onDeleteAccount: (() -> Unit)? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -154,6 +158,8 @@ fun CitizenProfileSheetContent(
 
     var showBlockConfirmDialog by remember { mutableStateOf(false) }
     var showAvatarZoomDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var userConfirmedDeleteCheckbox by remember { mutableStateOf(false) }
 
     if (showAvatarZoomDialog) {
         val subtitleParts = buildList {
@@ -167,6 +173,96 @@ fun CitizenProfileSheetContent(
             avatarUrl = resolvedAvatarUrl,
             avatarColorHex = resolvedAvatarColorHex,
             onDismiss = { showAvatarZoomDialog = false },
+        )
+    }
+
+    if (showDeleteAccountDialog && onDeleteAccount != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.DeleteForever,
+                    contentDescription = null,
+                    tint = AlertCrimson,
+                    modifier = Modifier.size(36.dp),
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.delete_account_dialog_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete_account_dialog_desc, resolvedName),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFFF0F0),
+                        border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    userConfirmedDeleteCheckbox = !userConfirmedDeleteCheckbox
+                                }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Checkbox(
+                                checked = userConfirmedDeleteCheckbox,
+                                onCheckedChange = { userConfirmedDeleteCheckbox = it },
+                                colors = CheckboxDefaults.colors(checkedColor = AlertCrimson),
+                                modifier = Modifier.testTag("dialog_delete_checkbox"),
+                            )
+                            Text(
+                                text = stringResource(R.string.delete_account_confirm_checkbox),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteAccountDialog = false
+                        onDeleteAccount()
+                        onClose()
+                    },
+                    enabled = userConfirmedDeleteCheckbox,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AlertCrimson,
+                        contentColor = Color.White,
+                    ),
+                    modifier = Modifier.testTag("dialog_confirm_delete_btn"),
+                ) {
+                    Text(stringResource(R.string.delete_account_dialog_confirm_btn))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteAccountDialog = false },
+                    modifier = Modifier.testTag("dialog_cancel_delete_btn"),
+                ) {
+                    Text(stringResource(R.string.delete_account_dialog_cancel_btn))
+                }
+            },
         )
     }
 
@@ -243,6 +339,7 @@ fun CitizenProfileSheetContent(
                 },
                 onBlock = { showBlockConfirmDialog = true },
                 onEditProfile = onEditMyProfile,
+                onDeleteAccount = if (onDeleteAccount != null) { { showDeleteAccountDialog = true } } else null,
             )
         }
 
@@ -413,6 +510,7 @@ fun InstagramProfileHeaderCard(
     onGreet: () -> Unit,
     onBlock: () -> Unit,
     onEditProfile: () -> Unit,
+    onDeleteAccount: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     genderLabel: String = "",
     estimatedDistanceText: String = "",
@@ -679,21 +777,44 @@ fun InstagramProfileHeaderCard(
 
             // Row 5: Action Buttons
             if (isMyOwnProfile) {
-                OutlinedButton(
-                    onClick = onEditProfile,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                        .testTag("profile_edit_btn"),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Edit Profil & Pengaturan", fontWeight = FontWeight.SemiBold)
+                    OutlinedButton(
+                        onClick = onEditProfile,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .testTag("profile_edit_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Edit Profil & Pengaturan", fontWeight = FontWeight.SemiBold)
+                    }
+
+                    if (onDeleteAccount != null) {
+                        OutlinedButton(
+                            onClick = onDeleteAccount,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AlertCrimson),
+                            border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.45f)),
+                            modifier = Modifier
+                                .height(44.dp)
+                                .testTag("profile_delete_account_btn"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DeleteForever,
+                                contentDescription = "Hapus Akun Warga",
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
                 }
             } else {
                 Row(

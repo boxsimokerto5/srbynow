@@ -319,5 +319,14 @@
     <string name="kos_comments_title">Tanya Jawab &amp; Komentar (%1$d)</string>
     <string name="kos_comments_empty">Belum ada pertanyaan. Tanyakan sisa kamar, daya listrik, akses jalan mobil, atau jadwal survei di sini!</string>
     <string name="kos_comment_hint">Tanyakan sisa kamar, parkir, listrik, atau jadwal survei…</string>
+    <string name="delete_account_title">Hapus Akun Warga &amp; Seluruh Data</string>
+    <string name="delete_account_subtitle">Zona Bahaya • Menghapus akun permanen sesuai Kebijakan Data Pengguna Google Play Store</string>
+    <string name="delete_account_btn">Hapus Akun Warga Permanen</string>
+    <string name="delete_account_dialog_title">Hapus Akun Permanen?</string>
+    <string name="delete_account_dialog_desc">Tindakan ini tidak dapat dibatalkan. Seluruh data Anda meliputi profil warga (@%1$s), foto profil, postingan momen &amp; lensa warga, lapak jual beli barkas, info kos, dan riwayat pesan akan dihapus selamanya dari server.</string>
+    <string name="delete_account_confirm_checkbox">Saya memahami bahwa seluruh akun dan data saya akan dihapus secara permanen dan tidak dapat dipulihkan.</string>
+    <string name="delete_account_dialog_confirm_btn">Ya, Hapus Akun Saya</string>
+    <string name="delete_account_dialog_cancel_btn">Batal</string>
+    <string name="delete_account_support_notice">Sesuai kebijakan Google Play Store, pengajuan penghapusan akun dan data melalui web juga dapat dikirimkan ke tim kami: support@areksurabaya.id</string>
 </resources>
 

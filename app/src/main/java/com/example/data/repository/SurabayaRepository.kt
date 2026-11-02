@@ -580,7 +580,58 @@ class SurabayaRepository(
         }
     }
 
+    /**
+     * Google Play Store Compliance: Menghapus akun warga dan seluruh data terkait
+     * (profil, nearby, postingan, dan sesi).
+     */
+    suspend fun deleteUserAccount(userId: String) = withContext(Dispatchers.IO) {
+        val safeUid = escapePbValue(userId)
+
+        // 1. Hapus profil publik warga dari nearby_profiles
+        runCatching {
+            val nearby = pb.getOneOrNull("nearby_profiles", userId)
+                ?: pb.getList("nearby_profiles", filter = "user_id = '$safeUid'", perPage = 1).firstOrNull()
+            val nearbyId = nearby?.optString("id")?.takeIf { it.isNotBlank() } ?: userId
+            pb.deleteRecord("nearby_profiles", nearbyId)
+        }
+
+        // 2. Bersihkan konten yang diunggah oleh warga jika ada (Momen, Barkas, Kos, Jasa Warga)
+        runCatching {
+            val moments = pb.getList("moments", filter = "author_id = '$safeUid'", perPage = 50)
+            moments.forEach { m ->
+                val mid = m.optString("id")
+                if (mid.isNotBlank()) pb.deleteRecord("moments", mid)
+            }
+        }
+        runCatching {
+            val barkas = pb.getList("barkas_items", filter = "seller_id = '$safeUid'", perPage = 50)
+            barkas.forEach { b ->
+                val bid = b.optString("id")
+                if (bid.isNotBlank()) pb.deleteRecord("barkas_items", bid)
+            }
+        }
+        runCatching {
+            val kos = pb.getList("kos_listings", filter = "owner_id = '$safeUid'", perPage = 50)
+            kos.forEach { k ->
+                val kid = k.optString("id")
+                if (kid.isNotBlank()) pb.deleteRecord("kos_listings", kid)
+            }
+        }
+        runCatching {
+            val services = pb.getList("services", filter = "provider_id = '$safeUid'", perPage = 50)
+            services.forEach { s ->
+                val sid = s.optString("id")
+                if (sid.isNotBlank()) pb.deleteRecord("services", sid)
+            }
+        }
+
+        // 3. Hapus akun pengguna PocketBase dan bersihkan sesi dataStore lokal
+        pb.deleteAccount()
+        bumpMutationTick()
+    }
+
     // --- 2. BOOKMARKS ---
+
 
     fun observeBookmarks(userId: String): Flow<List<BookmarkItem>> {
         val safeUid = escapePbValue(userId)

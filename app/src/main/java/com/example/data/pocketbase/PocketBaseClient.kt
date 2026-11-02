@@ -351,6 +351,24 @@ class PocketBaseClient(
         }
     }
 
+    /**
+     * Google Play Store Compliance: Menghapus akun user secara permanen dari server
+     * dan membersihkan seluruh sesi lokal pada perangkat.
+     */
+    suspend fun deleteAccount(): Boolean = withContext(Dispatchers.IO) {
+        val uid = _sessionFlow.value?.userId
+        if (uid.isNullOrBlank()) return@withContext false
+        try {
+            executeRaw("DELETE", "/api/collections/users/records/$uid", null, includeAuth = true)
+        } catch (e: Exception) {
+            Log.w("PocketBaseClient", "Warning while deleting user record remotely: ${e.message}")
+        } finally {
+            signOut()
+        }
+        true
+    }
+
+
     private suspend fun saveSession(session: PbUserSession) {
         _sessionFlow.value = session
         dataStore?.edit { prefs ->

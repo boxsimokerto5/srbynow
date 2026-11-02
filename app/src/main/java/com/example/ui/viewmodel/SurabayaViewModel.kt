@@ -926,6 +926,33 @@ class SurabayaViewModel(
         }
     }
 
+    /**
+     * Google Play Store Compliance: Menghapus akun pengguna permanen dari backend PocketBase
+     * dan mengosongkan sesi autentikasi lokal.
+     */
+    fun deleteUserAccount(
+        context: Context? = null,
+        onSuccess: () -> Unit = {},
+    ) {
+        if (_isSubmitting.value) return
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                repository.deleteUserAccount(currentUserId)
+                dismissSheet()
+                notifyMessage("Akun Warga berhasil dihapus secara permanen.")
+                onSuccess()
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                Log.e(TAG, "Gagal menghapus akun: ${e.message}", e)
+                notifyMessage("Gagal menghapus akun: ${e.localizedMessage ?: "Terjadi kesalahan"}")
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
     fun toggleAdminMode(enabled: Boolean) {
         viewModelScope.launch {
             try {

@@ -50,6 +50,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.TextButton
 import androidx.core.content.ContextCompat
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -116,6 +122,7 @@ import com.example.ui.components.SupportMenuRow
 import com.example.ui.components.SurabayaDistrictDropdown
 import com.example.ui.components.rateArekSurabayaOnPlayStore
 import com.example.ui.components.shareArekSurabayaApp
+import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1454,6 +1461,7 @@ fun ProfileAndPrivacySheetContent(
         avatarUri: Uri?,
     ) -> Unit,
     onSignOut: () -> Unit,
+    onDeleteAccount: () -> Unit = {},
     onSaveProfileWithGender: (
         (
             name: String,
@@ -1492,6 +1500,8 @@ fun ProfileAndPrivacySheetContent(
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showPermissionOverviewSheet by remember { mutableStateOf(false) }
     var showOwnAvatarZoom by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var userConfirmedDeleteCheckbox by remember { mutableStateOf(false) }
 
     val existingAvatarUrl = userAccount?.avatarUrl.orEmpty().ifBlank { nearbyProfile?.avatarUrl.orEmpty() }
     val previewOrExistingAvatarUrl = selectedAvatarUri?.toString()?.ifBlank { existingAvatarUrl } ?: existingAvatarUrl
@@ -2395,10 +2405,224 @@ fun ProfileAndPrivacySheetContent(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.btn_sign_out))
             }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Danger Zone: Hapus Akun & Seluruh Data Warga (Google Play Store Compliance)
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFFFFF5F5),
+                border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("danger_zone_card"),
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = AlertCrimson,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.delete_account_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = AlertCrimson,
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.delete_account_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = "Data yang dihapus permanen:",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = "• Identitas profil & foto avatar warga",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "• Momen pribadi, foto lensa warga & komentar pantauan",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "• Lapak jual beli barkas, info kos & direktori jasa",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = "• Ruang obrolan chat & seluruh sesi masuk lokal",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            userConfirmedDeleteCheckbox = false
+                            showDeleteAccountDialog = true
+                        },
+                        enabled = !isSubmitting,
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AlertCrimson,
+                            contentColor = Color.White,
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("delete_account_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DeleteForever,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.delete_account_btn),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.delete_account_support_notice),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isSubmitting) showDeleteAccountDialog = false
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.DeleteForever,
+                    contentDescription = null,
+                    tint = AlertCrimson,
+                    modifier = Modifier.size(36.dp),
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.delete_account_dialog_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete_account_dialog_desc, displayName),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFFF0F0),
+                        border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isSubmitting) {
+                                    userConfirmedDeleteCheckbox = !userConfirmedDeleteCheckbox
+                                }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Checkbox(
+                                checked = userConfirmedDeleteCheckbox,
+                                onCheckedChange = { userConfirmedDeleteCheckbox = it },
+                                enabled = !isSubmitting,
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = AlertCrimson,
+                                ),
+                                modifier = Modifier.testTag("delete_account_confirm_checkbox"),
+                            )
+                            Text(
+                                text = stringResource(R.string.delete_account_confirm_checkbox),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteAccount()
+                    },
+                    enabled = userConfirmedDeleteCheckbox && !isSubmitting,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AlertCrimson,
+                        contentColor = Color.White,
+                    ),
+                    modifier = Modifier.testTag("confirm_delete_account_btn"),
+                ) {
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Menghapus...")
+                    } else {
+                        Text(stringResource(R.string.delete_account_dialog_confirm_btn))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteAccountDialog = false },
+                    enabled = !isSubmitting,
+                    modifier = Modifier.testTag("cancel_delete_account_btn"),
+                ) {
+                    Text(stringResource(R.string.delete_account_dialog_cancel_btn))
+                }
+            },
+        )
     }
 
     if (showAboutDialog) {

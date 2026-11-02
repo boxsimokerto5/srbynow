@@ -1119,6 +1119,9 @@ fun SurabayaMainHub(
                                 scope = scope,
                             )
                         },
+                        onDeleteAccount = {
+                            viewModel.deleteUserAccount(context)
+                        },
                     )
                 }
                 is ActiveBottomSheet.CitizenProfile -> {
@@ -1148,6 +1151,7 @@ fun SurabayaMainHub(
                         onGreetCitizen = { profile -> viewModel.greetNearbyPeer(profile) },
                         onBlockCitizen = { uid, name -> viewModel.blockCitizen(uid, name) },
                         onEditMyProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
+                        onDeleteAccount = { viewModel.deleteUserAccount(context) },
                         onClose = {
                             if (sheetTarget.returnSheet != null) {
                                 viewModel.openSheet(sheetTarget.returnSheet)
