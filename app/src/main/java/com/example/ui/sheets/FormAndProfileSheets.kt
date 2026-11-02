@@ -43,7 +43,7 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.animation.AnimatedVisibility
@@ -1502,6 +1502,7 @@ fun ProfileAndPrivacySheetContent(
     var showOwnAvatarZoom by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var userConfirmedDeleteCheckbox by remember { mutableStateOf(false) }
+    var userToUnblock by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     val existingAvatarUrl = userAccount?.avatarUrl.orEmpty().ifBlank { nearbyProfile?.avatarUrl.orEmpty() }
     val previewOrExistingAvatarUrl = selectedAvatarUri?.toString()?.ifBlank { existingAvatarUrl } ?: existingAvatarUrl
@@ -1517,6 +1518,55 @@ fun ProfileAndPrivacySheetContent(
             avatarUrl = previewOrExistingAvatarUrl,
             avatarColorHex = nearbyProfile?.avatarColorHex ?: "#006B5E",
             onDismiss = { showOwnAvatarZoom = false },
+        )
+    }
+
+    if (userToUnblock != null) {
+        val (targetUid, targetName) = userToUnblock!!
+        AlertDialog(
+            onDismissRequest = { userToUnblock = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.LockOpen,
+                    contentDescription = null,
+                    tint = ToskaPrimaryDeep,
+                    modifier = Modifier.size(28.dp),
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.dialog_unblock_user_title, targetName),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.dialog_unblock_user_body, targetName),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onUnblockUser(targetUid)
+                        userToUnblock = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimaryDeep),
+                    modifier = Modifier.testTag("dialog_confirm_unblock_btn"),
+                ) {
+                    Text(stringResource(R.string.btn_confirm_unblock_user))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { userToUnblock = null },
+                    modifier = Modifier.testTag("dialog_cancel_unblock_btn"),
+                ) {
+                    Text(stringResource(R.string.btn_cancel_action))
+                }
+            },
         )
     }
 
@@ -2201,68 +2251,217 @@ fun ProfileAndPrivacySheetContent(
         }
 
         val blockedUids = userAccount?.blockedUids.orEmpty()
-        if (blockedUids.isNotEmpty()) {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = Color(0xFFFFF8F6),
-                border = BorderStroke(1.dp, Color(0xFFFFCDD2)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("blocked_users_card"),
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = if (blockedUids.isNotEmpty()) Color(0xFFFFF9F8) else Color(0xFFF7FBF9),
+            border = BorderStroke(1.dp, if (blockedUids.isNotEmpty()) Color(0xFFFFCDD2) else OutlineVariantLight),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("blocked_users_card"),
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f),
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Block,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp),
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    if (blockedUids.isNotEmpty()) Color(0xFFFFEBEE) else ToskaPrimaryDeep.copy(alpha = 0.1f),
+                                    CircleShape,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = if (blockedUids.isNotEmpty()) Icons.Filled.Block else Icons.Filled.Shield,
+                                contentDescription = null,
+                                tint = if (blockedUids.isNotEmpty()) AlertCrimson else ToskaPrimaryDeep,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = stringResource(R.string.blocked_users_section_title, blockedUids.size),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = stringResource(R.string.blocked_users_section_subtitle),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = CircleShape,
+                        color = if (blockedUids.isNotEmpty()) Color(0xFFFFEBEE) else Color(0xFFE8F5E9),
+                    ) {
                         Text(
-                            text = stringResource(R.string.blocked_users_section_title, blockedUids.size),
-                            style = MaterialTheme.typography.titleSmall,
+                            text = if (blockedUids.isNotEmpty()) "${blockedUids.size} Diblokir" else "0 Diblokir",
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = if (blockedUids.isNotEmpty()) AlertCrimson else Color(0xFF2E7D32),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     }
-                    Text(
-                        text = stringResource(R.string.blocked_users_section_subtitle),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    blockedUids.forEach { uid ->
-                        val resolvedName = knownCitizens
-                            .firstOrNull { it.userId == uid || it.id == uid }
-                            ?.displayName
-                            ?.takeIf { it.isNotBlank() }
-                            ?: "Warga (${uid.take(6)})"
+                }
+
+                if (blockedUids.isEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color.White.copy(alpha = 0.85f),
+                        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.6f)),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Text(
-                                text = resolvedName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(1f),
+                            Icon(
+                                imageVector = Icons.Filled.VerifiedUser,
+                                contentDescription = null,
+                                tint = OpenGreenText,
+                                modifier = Modifier.size(26.dp),
                             )
-                            OutlinedButton(
-                                onClick = { onUnblockUser(uid) },
-                                shape = CircleShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.testTag("unblock_user_btn_$uid"),
-                            ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = stringResource(R.string.btn_unblock_user),
+                                    text = stringResource(R.string.blocked_users_empty_title),
                                     style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
+                                Text(
+                                    text = stringResource(R.string.blocked_users_empty_subtitle),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        blockedUids.forEach { uid ->
+                            val citizen = knownCitizens.firstOrNull { it.userId == uid || it.id == uid }
+                            val resolvedName = citizen?.displayName?.takeIf { it.isNotBlank() }
+                                ?: "Warga (${uid.take(6)})"
+                            val resolvedDistrict = citizen?.district?.takeIf { it.isNotBlank() } ?: "Surabaya"
+                            val avatarColorHex = citizen?.avatarColorHex ?: "#006B5E"
+                            val avatarUrl = citizen?.avatarUrl.orEmpty()
+
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFFFEBEE)),
+                                shadowElevation = 1.dp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("blocked_user_item_$uid"),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            InitialsAvatar(
+                                                name = resolvedName,
+                                                colorHex = avatarColorHex,
+                                                sizeDp = 40,
+                                                avatarUrl = avatarUrl,
+                                            )
+                                        }
+
+                                        Column {
+                                            Text(
+                                                text = resolvedName,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            ) {
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = Color(0xFFF1F5F9),
+                                                ) {
+                                                    Text(
+                                                        text = "Kec. $resolvedDistrict",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    )
+                                                }
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = Color(0xFFFFEBEE),
+                                                ) {
+                                                    Text(
+                                                        text = "Diblokir",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = AlertCrimson,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { userToUnblock = uid to resolvedName },
+                                        shape = CircleShape,
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = ToskaPrimaryDeep,
+                                        ),
+                                        border = BorderStroke(1.dp, ToskaPrimaryDeep.copy(alpha = 0.5f)),
+                                        modifier = Modifier
+                                            .height(38.dp)
+                                            .testTag("unblock_user_btn_$uid"),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.LockOpen,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.btn_unblock_user),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

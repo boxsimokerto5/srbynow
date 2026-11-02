@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Female
@@ -127,6 +128,8 @@ fun CitizenProfileSheetContent(
     onEditMyProfile: () -> Unit,
     onDeleteAccount: (() -> Unit)? = null,
     onClose: () -> Unit,
+    isBlocked: Boolean = false,
+    onUnblockCitizen: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val isMyOwnProfile = citizenUserId == currentUserId
@@ -157,6 +160,7 @@ fun CitizenProfileSheetContent(
     val displayedMoments = if (selectedCategoryIndex == 0) personalMoments else lensaWargaMoments
 
     var showBlockConfirmDialog by remember { mutableStateOf(false) }
+    var showUnblockConfirmDialog by remember { mutableStateOf(false) }
     var showAvatarZoomDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var userConfirmedDeleteCheckbox by remember { mutableStateOf(false) }

@@ -120,7 +120,13 @@
     <string name="btn_cancel_action">Batal</string>
     <string name="btn_block_chat_peer">Blokir</string>
     <string name="blocked_users_section_title">Pengguna Diblokir (%1$d)</string>
-    <string name="blocked_users_section_subtitle">Kiriman, profil sekitar, dan pesan dari akun di bawah ini disembunyikan.</string>
+    <string name="blocked_users_section_subtitle">Kiriman, cerita momen, dan obrolan dari akun ini dibatasi</string>
+    <string name="blocked_users_empty_title">Belum Ada Warga yang Diblokir</string>
+    <string name="blocked_users_empty_subtitle">Daftar warga yang Anda batasi akan muncul di sini. Anda dapat membuka blokir kapan saja.</string>
+    <string name="dialog_unblock_user_title">Buka Blokir %1$s?</string>
+    <string name="dialog_unblock_user_body">Kiriman momen, status, dan pesan chat dari %1$s akan kembali dapat Anda lihat di aplikasi.</string>
+    <string name="btn_confirm_unblock_user">Buka Blokir</string>
+    <string name="blocked_user_profile_banner">Warga ini sedang dalam daftar blokir Anda. Kiriman dan pesannya disembunyikan.</string>
     <string name="btn_unblock_user">Buka Blokir</string>
     <string name="nav_home">Beranda</string>
     <string name="nav_momen">Momen</string>
