@@ -170,31 +170,31 @@ fun PollingScreen(
             // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 1.dp,
+                shadowElevation = 0.5.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
                         onClick = onBackToHome,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .testTag("btn_back_polling"),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali ke Beranda",
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(19.dp),
                         )
                     }
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 6.dp),
+                            .padding(horizontal = 4.dp),
                     ) {
                         Text(
                             text = stringResource(R.string.polling_page_title),
@@ -214,7 +214,7 @@ fun PollingScreen(
                         IconButton(
                             onClick = onOpenAdminPending,
                             modifier = Modifier
-                                .size(38.dp)
+                                .size(36.dp)
                                 .testTag("btn_admin_pending_polls_screen"),
                         ) {
                             BadgedBox(
@@ -231,7 +231,7 @@ fun PollingScreen(
                                     imageVector = Icons.Default.Security,
                                     contentDescription = "Moderasi Usulan Polling",
                                     tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(19.dp),
                                 )
                             }
                         }
@@ -240,14 +240,14 @@ fun PollingScreen(
                     IconButton(
                         onClick = onOpenCreatePoll,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .testTag("btn_header_create_poll"),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Usulkan Polling",
                             tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(22.dp),
+                            modifier = Modifier.size(21.dp),
                         )
                     }
                 }
@@ -257,36 +257,39 @@ fun PollingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+                contentPadding = PaddingValues(top = 6.dp, bottom = 84.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // 1. Hero / Header Banner
+                // 1. Compact Hero Banner ala Kejadian 112 Bar
                 item(key = "poll_hero_banner") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 4.dp)
+                            .padding(horizontal = 14.dp)
                             .clip(RoundedCornerShape(14.dp))
                             .background(HeaderMintGradient)
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .border(1.dp, ToskaPrimary.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
                             Surface(
                                 shape = CircleShape,
                                 color = ToskaPrimary.copy(alpha = 0.2f),
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(32.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.HowToVote,
                                         contentDescription = null,
                                         tint = ToskaPrimaryDeep,
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(18.dp),
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Aspirasi & Suara Warga Kota",
                                     style = MaterialTheme.typography.titleSmall,
@@ -297,12 +300,13 @@ fun PollingScreen(
                                     text = "Transparan, terbuka, dan dapat dibagikan sebagai infografis JPG",
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
                     }
                 }
-            }
 
             // 2. Admin Notice Banner (If any pending)
             if (isAdmin && pendingCount > 0) {
@@ -313,13 +317,13 @@ fun PollingScreen(
                         border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.4f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .padding(horizontal = 14.dp)
                             .clickable { onOpenAdminPending() },
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -328,7 +332,7 @@ fun PollingScreen(
                                     imageVector = Icons.Default.Security,
                                     contentDescription = null,
                                     tint = AlertCrimson,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -351,7 +355,7 @@ fun PollingScreen(
 
             // 3. Search Bar
             item(key = "poll_search_bar") {
-                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                Box(modifier = Modifier.padding(horizontal = 14.dp)) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -443,7 +447,7 @@ fun PollingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     POLL_CATEGORIES.forEach { (catKey, catLabel) ->
@@ -481,7 +485,7 @@ fun PollingScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp),
+                                .height(160.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             CircularProgressIndicator(
@@ -498,12 +502,12 @@ fun PollingScreen(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 14.dp),
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(20.dp),
+                                    .padding(16.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Text(
@@ -547,7 +551,9 @@ fun PollingScreen(
                                 onShareJpg = { onShareJpg(poll) },
                                 onDownloadJpg = { onDownloadJpg(poll) },
                                 onDelete = { onDeletePoll(poll.id) },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp),
                             )
                         }
                     }

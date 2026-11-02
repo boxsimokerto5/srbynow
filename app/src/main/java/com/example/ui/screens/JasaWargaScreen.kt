@@ -136,31 +136,31 @@ fun JasaWargaScreen(
             // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 1.dp,
+                shadowElevation = 0.5.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
                         onClick = onBackToHome,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .testTag("jasa_back_btn"),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali ke Home",
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(19.dp),
                         )
                     }
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 6.dp),
+                            .padding(horizontal = 4.dp),
                     ) {
                         Text(
                             text = stringResource(R.string.services_page_title),
@@ -183,8 +183,8 @@ fun JasaWargaScreen(
                             containerColor = ToskaPrimary,
                             contentColor = Color.White,
                         ),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier
                             .padding(end = 4.dp)
                             .testTag("btn_top_create_service"),
@@ -208,7 +208,8 @@ fun JasaWargaScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+                contentPadding = PaddingValues(top = 6.dp, bottom = 84.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
             // 1. MANDATORY SAFETY WARNING BANNER AT THE VERY TOP
             item(key = "safety_warning_banner") {
@@ -220,7 +221,7 @@ fun JasaWargaScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                        .padding(horizontal = 14.dp),
                 ) {
                     OutlinedTextField(
                         value = searchQuery,
@@ -241,7 +242,7 @@ fun JasaWargaScreen(
                                 tint = ToskaPrimaryDeep,
                             )
                         },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = ToskaPrimary,
@@ -249,7 +250,7 @@ fun JasaWargaScreen(
                         ),
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // Category Chips (Horizontal Scrollable)
                     Row(
@@ -376,13 +377,13 @@ fun ServiceSafetyWarningBanner(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp)
             .testTag("jasa_safety_warning_banner"),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent,
         ),
-        border = BorderStroke(1.5.dp, AlertCrimson.copy(alpha = 0.4f)),
+        border = BorderStroke(1.2.dp, AlertCrimson.copy(alpha = 0.4f)),
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -392,7 +393,7 @@ fun ServiceSafetyWarningBanner(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(SoftEmergencyLightGradient)
-                    .padding(14.dp)
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -569,7 +570,7 @@ fun CitizenServiceCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp)
             .clickable { onClick() }
             .testTag("service_card_${service.id}"),
         shape = RoundedCornerShape(20.dp),
