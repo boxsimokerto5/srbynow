@@ -158,41 +158,56 @@ fun KosKontrakScreen(
         )
     }
 
-    Scaffold(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .testTag("kos_kontrak_screen"),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = onBackToHome,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("kos_back_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali ke Beranda",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 6.dp),
+                    ) {
                         Text(
                             text = stringResource(R.string.kos_page_title),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
                         )
                         Text(
                             text = stringResource(R.string.kos_page_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBackToHome,
-                        modifier = Modifier.testTag("kos_back_btn"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali ke Beranda",
-                        )
-                    }
-                },
-                actions = {
                     Button(
                         onClick = onOpenCreateKos,
                         colors = ButtonDefaults.buttonColors(
@@ -200,9 +215,9 @@ fun KosKontrakScreen(
                             contentColor = Color.White,
                         ),
                         shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier
-                            .padding(end = 8.dp)
+                            .padding(end = 4.dp)
                             .minimumInteractiveComponentSize()
                             .testTag("kos_top_create_btn"),
                     ) {
@@ -214,70 +229,53 @@ fun KosKontrakScreen(
                             fontWeight = FontWeight.Bold,
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onOpenCreateKos,
-                containerColor = ToskaPrimary,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier.testTag("kos_fab_create"),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.kos_btn_post),
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        },
-    ) { innerPadding ->
-        val allItems = (kosState as? UiState.Success)?.data.orEmpty()
-        val availableCount = remember(allItems) { allItems.count { !it.isFull } }
-        val myItemsCount = remember(allItems, currentUserId) { allItems.count { it.isOwnedBy(currentUserId) } }
-
-        val filteredItems = remember(
-            allItems,
-            availabilityFilter,
-            selectedPropertyType,
-            selectedBillingPeriod,
-            selectedDistrict,
-            searchQuery,
-            currentUserId,
-        ) {
-            val q = searchQuery.trim().lowercase()
-            allItems.filter { item ->
-                val matchesStatus = when (availabilityFilter) {
-                    KosAvailabilityFilter.AVAILABLE -> !item.isFull
-                    KosAvailabilityFilter.ALL -> true
-                    KosAvailabilityFilter.MINE -> item.isOwnedBy(currentUserId)
                 }
-                val matchesType = selectedPropertyType == "ALL" ||
-                    item.propertyType.equals(selectedPropertyType, ignoreCase = true)
-                val matchesPeriod = selectedBillingPeriod == "ALL" ||
-                    item.billingPeriod.equals(selectedBillingPeriod, ignoreCase = true)
-                val matchesDistrict = selectedDistrict == "ALL" ||
-                    selectedDistrict.isBlank() ||
-                    item.district.equals(selectedDistrict, ignoreCase = true)
-                val matchesSearch = q.isBlank() ||
-                    item.title.lowercase().contains(q) ||
-                    item.description.lowercase().contains(q) ||
-                    item.address.lowercase().contains(q) ||
-                    item.district.lowercase().contains(q) ||
-                    item.ownerName.lowercase().contains(q) ||
-                    item.facilities.any { it.lowercase().contains(q) }
-                matchesStatus && matchesType && matchesPeriod && matchesDistrict && matchesSearch
             }
-        }
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 96.dp),
-        ) {
+            val allItems = (kosState as? UiState.Success)?.data.orEmpty()
+            val availableCount = remember(allItems) { allItems.count { !it.isFull } }
+            val myItemsCount = remember(allItems, currentUserId) { allItems.count { it.isOwnedBy(currentUserId) } }
+
+            val filteredItems = remember(
+                allItems,
+                availabilityFilter,
+                selectedPropertyType,
+                selectedBillingPeriod,
+                selectedDistrict,
+                searchQuery,
+                currentUserId,
+            ) {
+                val q = searchQuery.trim().lowercase()
+                allItems.filter { item ->
+                    val matchesStatus = when (availabilityFilter) {
+                        KosAvailabilityFilter.AVAILABLE -> !item.isFull
+                        KosAvailabilityFilter.ALL -> true
+                        KosAvailabilityFilter.MINE -> item.isOwnedBy(currentUserId)
+                    }
+                    val matchesType = selectedPropertyType == "ALL" ||
+                        item.propertyType.equals(selectedPropertyType, ignoreCase = true)
+                    val matchesPeriod = selectedBillingPeriod == "ALL" ||
+                        item.billingPeriod.equals(selectedBillingPeriod, ignoreCase = true)
+                    val matchesDistrict = selectedDistrict == "ALL" ||
+                        selectedDistrict.isBlank() ||
+                        item.district.equals(selectedDistrict, ignoreCase = true)
+                    val matchesSearch = q.isBlank() ||
+                        item.title.lowercase().contains(q) ||
+                        item.description.lowercase().contains(q) ||
+                        item.address.lowercase().contains(q) ||
+                        item.district.lowercase().contains(q) ||
+                        item.ownerName.lowercase().contains(q) ||
+                        item.facilities.any { it.lowercase().contains(q) }
+                    matchesStatus && matchesType && matchesPeriod && matchesDistrict && matchesSearch
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+            ) {
             item(key = "kos_safety_banner") {
                 Card(
                     modifier = Modifier
@@ -475,6 +473,25 @@ fun KosKontrakScreen(
                     }
                 }
             }
+        }
+    }
+
+        // Floating Action Button mepet & rapat tepat di atas footer ala KejadianScreen
+        FloatingActionButton(
+            onClick = onOpenCreateKos,
+            containerColor = ToskaPrimary,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("kos_fab_create"),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = stringResource(R.string.kos_btn_post),
+                modifier = Modifier.size(28.dp),
+            )
         }
     }
 }

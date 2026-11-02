@@ -150,41 +150,56 @@ fun BarkasScreen(
         )
     }
 
-    Scaffold(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .testTag("barkas_screen"),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = onBackToHome,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("barkas_back_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali ke Beranda",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 6.dp),
+                    ) {
                         Text(
                             text = stringResource(R.string.barkas_page_title),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
                         )
                         Text(
                             text = stringResource(R.string.barkas_page_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBackToHome,
-                        modifier = Modifier.testTag("barkas_back_btn"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali ke Beranda",
-                        )
-                    }
-                },
-                actions = {
                     Button(
                         onClick = onOpenCreateBarkas,
                         colors = ButtonDefaults.buttonColors(
@@ -192,9 +207,9 @@ fun BarkasScreen(
                             contentColor = Color.White,
                         ),
                         shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier
-                            .padding(end = 8.dp)
+                            .padding(end = 4.dp)
                             .minimumInteractiveComponentSize()
                             .testTag("barkas_top_create_btn"),
                     ) {
@@ -210,59 +225,40 @@ fun BarkasScreen(
                             fontWeight = FontWeight.Bold,
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onOpenCreateBarkas,
-                containerColor = ToskaPrimary,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier.testTag("barkas_fab_create"),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.barkas_btn_post),
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        },
-    ) { innerPadding ->
-        val allItems = (barkasState as? UiState.Success)?.data.orEmpty()
-        val availableCount = remember(allItems) { allItems.count { !it.isSold } }
-        val myItemsCount = remember(allItems, currentUserId) {
-            allItems.count { it.isOwnedBy(currentUserId) }
-        }
-
-        val filteredItems = remember(allItems, statusFilter, selectedCategory, searchQuery, currentUserId) {
-            val q = searchQuery.trim().lowercase()
-            allItems.filter { item ->
-                val matchesStatus = when (statusFilter) {
-                    BarkasStatusFilter.AVAILABLE -> !item.isSold
-                    BarkasStatusFilter.ALL -> true
-                    BarkasStatusFilter.MINE -> item.isOwnedBy(currentUserId)
                 }
-                val matchesCategory = selectedCategory == "ALL" || item.category.equals(selectedCategory, ignoreCase = true)
-                val matchesSearch = q.isBlank() ||
-                    item.title.lowercase().contains(q) ||
-                    item.description.lowercase().contains(q) ||
-                    item.district.lowercase().contains(q) ||
-                    item.codLocation.lowercase().contains(q) ||
-                    item.sellerName.lowercase().contains(q)
-                matchesStatus && matchesCategory && matchesSearch
             }
-        }
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 96.dp),
-        ) {
+            val allItems = (barkasState as? UiState.Success)?.data.orEmpty()
+            val availableCount = remember(allItems) { allItems.count { !it.isSold } }
+            val myItemsCount = remember(allItems, currentUserId) {
+                allItems.count { it.isOwnedBy(currentUserId) }
+            }
+
+            val filteredItems = remember(allItems, statusFilter, selectedCategory, searchQuery, currentUserId) {
+                val q = searchQuery.trim().lowercase()
+                allItems.filter { item ->
+                    val matchesStatus = when (statusFilter) {
+                        BarkasStatusFilter.AVAILABLE -> !item.isSold
+                        BarkasStatusFilter.ALL -> true
+                        BarkasStatusFilter.MINE -> item.isOwnedBy(currentUserId)
+                    }
+                    val matchesCategory = selectedCategory == "ALL" || item.category.equals(selectedCategory, ignoreCase = true)
+                    val matchesSearch = q.isBlank() ||
+                        item.title.lowercase().contains(q) ||
+                        item.description.lowercase().contains(q) ||
+                        item.district.lowercase().contains(q) ||
+                        item.codLocation.lowercase().contains(q) ||
+                        item.sellerName.lowercase().contains(q)
+                    matchesStatus && matchesCategory && matchesSearch
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+            ) {
             item(key = "barkas_cod_banner") {
                 BarkasCodSafetyBanner()
             }
@@ -424,6 +420,25 @@ fun BarkasScreen(
                     }
                 }
             }
+        }
+    }
+
+        // Floating Action Button mepet & rapat tepat di atas footer ala KejadianScreen
+        FloatingActionButton(
+            onClick = onOpenCreateBarkas,
+            containerColor = ToskaPrimary,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("barkas_fab_create"),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = stringResource(R.string.barkas_btn_post),
+                modifier = Modifier.size(28.dp),
+            )
         }
     }
 }

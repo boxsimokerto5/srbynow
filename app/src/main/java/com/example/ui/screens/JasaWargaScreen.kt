@@ -127,41 +127,56 @@ fun JasaWargaScreen(
         "LAINNYA" to "Lainnya",
     )
 
-    Scaffold(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .testTag("jasa_warga_screen"),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = onBackToHome,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("jasa_back_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali ke Home",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 6.dp),
+                    ) {
                         Text(
                             text = stringResource(R.string.services_page_title),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
                         )
                         Text(
                             text = "Promosi Jasa & Tukang Terpercaya Arek Surabaya",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBackToHome,
-                        modifier = Modifier.testTag("jasa_back_btn"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali ke Home",
-                        )
-                    }
-                },
-                actions = {
                     Button(
                         onClick = onOpenCreateService,
                         colors = ButtonDefaults.buttonColors(
@@ -169,9 +184,9 @@ fun JasaWargaScreen(
                             contentColor = Color.White,
                         ),
                         shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier
-                            .padding(end = 8.dp)
+                            .padding(end = 4.dp)
                             .testTag("btn_top_create_service"),
                     ) {
                         Icon(
@@ -186,34 +201,15 @@ fun JasaWargaScreen(
                             fontWeight = FontWeight.Bold,
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onOpenCreateService,
-                containerColor = ToskaPrimary,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier.testTag("btn_fab_create_service"),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.services_create_button),
-                    modifier = Modifier.size(28.dp),
-                )
+                }
             }
-        },
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 96.dp),
-        ) {
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+            ) {
             // 1. MANDATORY SAFETY WARNING BANNER AT THE VERY TOP
             item(key = "safety_warning_banner") {
                 ServiceSafetyWarningBanner()
@@ -344,6 +340,25 @@ fun JasaWargaScreen(
                     }
                 }
             }
+        }
+    }
+
+        // Floating Action Button mepet & rapat tepat di atas footer ala KejadianScreen
+        FloatingActionButton(
+            onClick = onOpenCreateService,
+            containerColor = ToskaPrimary,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("btn_fab_create_service"),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = stringResource(R.string.services_create_button),
+                modifier = Modifier.size(28.dp),
+            )
         }
     }
 }

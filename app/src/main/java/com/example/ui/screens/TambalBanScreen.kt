@@ -136,82 +136,77 @@ fun TambalBanScreen(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.tambal_ban_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                        )
-                        Text(
-                            text = "Salam Satu Aspal • Solusi Ban Bocor",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.85f),
-                        )
-                    }
-                },
-                navigationIcon = {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .testTag("tambal_ban_screen"),
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     IconButton(
                         onClick = onBackToHome,
-                        modifier = Modifier.testTag("btn_back_tambal_ban"),
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("btn_back_tambal_ban"),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali ke Beranda",
-                            tint = Color.White,
+                            modifier = Modifier.size(20.dp),
                         )
                     }
-                },
-                actions = {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 6.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.tambal_ban_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = "Salam Satu Aspal • Solusi Ban Bocor",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     IconButton(
                         onClick = requestOrRefreshGps,
-                        modifier = Modifier.testTag("btn_refresh_tambal_gps"),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("btn_refresh_tambal_gps"),
                     ) {
                         Icon(
                             imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.MyLocation,
                             contentDescription = "Perbarui Lokasi GPS",
-                            tint = Color.White,
+                            tint = if (isLiveGpsActive) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ToskaPrimary,
-                    titleContentColor = Color.White,
-                ),
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onCreateSpot,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = null,
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Tambah Lokasi",
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                containerColor = ToskaPrimary,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier.testTag("fab_create_tambal_ban"),
-            )
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
             when (spotsState) {
                 is UiState.Loading -> {
                     Box(
@@ -263,8 +258,8 @@ fun TambalBanScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .testTag("tambal_ban_list"),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(start = 14.dp, top = 4.dp, end = 14.dp, bottom = 80.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         // --- 1. SALAM SATU ASPAL CALLOUT CARD ---
                         item(key = "salam_satu_aspal_banner") {
@@ -584,14 +579,35 @@ fun TambalBanScreen(
                             }
                         }
 
-                        // Bottom space so FAB doesn't obscure last item
-                        item(key = "bottom_spacer") {
-                            Spacer(modifier = Modifier.height(72.dp))
-                        }
                     }
                 }
             }
         }
+    }
+
+        // Floating Action Button mepet & rapat tepat di atas footer ala KejadianScreen
+        ExtendedFloatingActionButton(
+            onClick = onCreateSpot,
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = null,
+                )
+            },
+            text = {
+                Text(
+                    text = "Tambah Lokasi",
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            containerColor = ToskaPrimary,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("fab_create_tambal_ban"),
+        )
     }
 }
 

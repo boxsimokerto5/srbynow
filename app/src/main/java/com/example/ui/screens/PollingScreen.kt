@@ -161,18 +161,46 @@ fun PollingScreen(
         }
     }
 
-    Scaffold(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .testTag("polling_screen"),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = onBackToHome,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("btn_back_polling"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali ke Beranda",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 6.dp),
+                    ) {
                         Text(
                             text = stringResource(R.string.polling_page_title),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
                         )
                         Text(
                             text = stringResource(R.string.polling_page_subtitle),
@@ -182,23 +210,12 @@ fun PollingScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBackToHome,
-                        modifier = Modifier.testTag("btn_back_polling"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali ke Beranda",
-                        )
-                    }
-                },
-                actions = {
                     if (isAdmin && pendingCount > 0) {
                         IconButton(
                             onClick = onOpenAdminPending,
-                            modifier = Modifier.testTag("btn_admin_pending_polls_screen"),
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("btn_admin_pending_polls_screen"),
                         ) {
                             BadgedBox(
                                 badge = {
@@ -214,6 +231,7 @@ fun PollingScreen(
                                     imageVector = Icons.Default.Security,
                                     contentDescription = "Moderasi Usulan Polling",
                                     tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
@@ -221,63 +239,36 @@ fun PollingScreen(
 
                     IconButton(
                         onClick = onOpenCreatePoll,
-                        modifier = Modifier.testTag("btn_header_create_poll"),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("btn_header_create_poll"),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Usulkan Polling",
                             tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(22.dp),
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onOpenCreatePoll,
-                containerColor = ToskaPrimary,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier.testTag("fab_create_poll"),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.HowToVote,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Usulkan Polling",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                    )
                 }
             }
-        },
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 96.dp),
-        ) {
-            // 1. Hero / Header Banner
-            item(key = "poll_hero_banner") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(HeaderMintGradient)
-                        .padding(16.dp),
-                ) {
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+            ) {
+                // 1. Hero / Header Banner
+                item(key = "poll_hero_banner") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(HeaderMintGradient)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                    ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
@@ -561,6 +552,36 @@ fun PollingScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+
+        // Floating Action Button mepet & rapat tepat di atas footer ala KejadianScreen
+        FloatingActionButton(
+            onClick = onOpenCreatePoll,
+            containerColor = ToskaPrimary,
+            contentColor = Color.White,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("fab_create_poll"),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.HowToVote,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Usulkan Polling",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                )
             }
         }
     }
