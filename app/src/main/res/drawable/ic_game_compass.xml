@@ -1,0 +1,52 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Top Attachment Loop -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="2.5"
+        android:pathData="M24,4 A4,4 0 1 0 24,12 A4,4 0 1 0 24,4" />
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M22,10 L26,10 L26,13 L22,13 Z" />
+    <!-- Outer Brass Casing Ring -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="2"
+        android:pathData="M24,12 A16,16 0 1 0 24,44 A16,16 0 1 0 24,12" />
+    <!-- Inner Dark Bezel Ring -->
+    <path
+        android:fillColor="#FEF3C7"
+        android:strokeColor="#92400E"
+        android:strokeWidth="1.2"
+        android:pathData="M24,15 A13,13 0 1 0 24,41 A13,13 0 1 0 24,15" />
+    <!-- Degree Ticks -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M24,16 L24,18 M24,38 L24,40 M13,28 L15,28 M33,28 L35,28" />
+    <!-- North Needle (Crimson Red with Point) -->
+    <path
+        android:fillColor="#EF4444"
+        android:strokeColor="#991B1B"
+        android:strokeWidth="1"
+        android:pathData="M24,28 L21,28 L24,17 L27,28 Z" />
+    <!-- South Needle (Steel Blue with Point) -->
+    <path
+        android:fillColor="#3B82F6"
+        android:strokeColor="#1E3A8A"
+        android:strokeWidth="1"
+        android:pathData="M24,28 L21,28 L24,39 L27,28 Z" />
+    <!-- Center Pivot Pin -->
+    <path
+        android:fillColor="#F59E0B"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1"
+        android:pathData="M24,26 A2.5,2.5 0 1 0 24,30 A2.5,2.5 0 1 0 24,26" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M23.5,27 A0.8,0.8 0 1 0 23.5,28 A0.8,0.8 0 1 0 23.5,27" />
+</vector>

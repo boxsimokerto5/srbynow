@@ -1,0 +1,65 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Cute Adventurer Boy Cheering (Agenda Event Kota) -->
+    <!-- Open Cheering Arms -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M11,27 L16,29 M37,27 L32,29" />
+    <path
+        android:fillColor="#FDE047"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M7,24 C6,22 8,19 10,21 L13,24 L11,27 Z" />
+    <path
+        android:fillColor="#FDE047"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M41,24 C42,22 40,19 38,21 L35,24 L37,27 Z" />
+    <!-- Yellow Shirt Torso with Blue Suspenders -->
+    <path
+        android:fillColor="#FACC15"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M17,29 L31,29 L32,42 L16,42 Z" />
+    <path
+        android:strokeColor="#2563EB"
+        android:strokeWidth="2.5"
+        android:pathData="M20,29 L20,42 M28,29 L28,42" />
+    <!-- Red Bowtie -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M21,29 L27,29 L25,32 L27,35 L21,35 L23,32 Z" />
+    <!-- Happy Face -->
+    <path
+        android:fillColor="#FED7AA"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M24,10 C18,10 16,14 16,20 C16,26 19,28 24,28 C29,28 32,26 32,20 C32,14 30,10 24,10 Z" />
+    <!-- Cute Ears -->
+    <path
+        android:fillColor="#FED7AA"
+        android:pathData="M14,19 A2.5,2.5 0 1 0 16.5,21.5 Z M34,19 A2.5,2.5 0 1 0 31.5,21.5 Z" />
+    <!-- Fluffy Brown Adventurer Hair -->
+    <path
+        android:fillColor="#78350F"
+        android:pathData="M15,18 C14,13 18,7 24,7 C30,7 34,13 33,18 C31,16 28,14 24,14 C20,14 17,16 15,18 Z" />
+    <!-- Big Sparkling Eyes & Rosy Cheeks -->
+    <path
+        android:fillColor="#1F2937"
+        android:pathData="M20,19 A1.5,1.5 0 1 0 20,22 A1.5,1.5 0 1 0 20,19 M28,19 A1.5,1.5 0 1 0 28,22 A1.5,1.5 0 1 0 28,19" />
+    <path
+        android:fillColor="#F87171"
+        android:fillAlpha="0.7"
+        android:pathData="M17.5,22.5 A2,1.2 0 1 0 17.5,25 A2,1.2 0 1 0 17.5,22.5 M30.5,22.5 A2,1.2 0 1 0 30.5,25 A2,1.2 0 1 0 30.5,22.5" />
+    <!-- Big Grin -->
+    <path
+        android:fillColor="#DC2626"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M21,23 Q24,27 27,23 Z" />
+</vector>

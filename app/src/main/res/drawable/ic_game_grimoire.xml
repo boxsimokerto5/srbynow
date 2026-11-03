@@ -1,0 +1,50 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Book Shadow -->
+    <path
+        android:fillColor="#1F2937"
+        android:fillAlpha="0.3"
+        android:pathData="M9,37 C15,35 24,36 24,38 C24,36 33,35 39,37 L41,39 L7,39 Z" />
+    <!-- Book Spine & Pages Block Left & Right -->
+    <path
+        android:fillColor="#F3E8FF"
+        android:strokeColor="#581C87"
+        android:strokeWidth="1.2"
+        android:pathData="M10,12 C16,10 24,12 24,14 C24,12 32,10 38,12 L39,34 C33,32 24,34 24,36 C24,34 15,32 9,34 Z" />
+    <!-- Yellowed Antique Pages Layer -->
+    <path
+        android:fillColor="#FEF3C7"
+        android:pathData="M11,13 C16,11 23,13 23,15 L23,35 C16,33 11,35 11,35 Z" />
+    <path
+        android:fillColor="#FFFBEB"
+        android:pathData="M25,15 C25,13 32,11 37,13 L37,35 C32,33 25,35 25,35 Z" />
+    <!-- Leather Cover Border -->
+    <path
+        android:fillColor="#7C2D12"
+        android:strokeColor="#451A03"
+        android:strokeWidth="1.5"
+        android:pathData="M8,12 L8,36 C14,33 23,35 24,37 C25,35 34,33 40,36 L40,12 C34,10 25,12 24,14 C23,12 14,10 8,12 Z" />
+    <!-- Left & Right Page Lines (Ancient Script) -->
+    <path
+        android:strokeColor="#92400E"
+        android:strokeWidth="1.2"
+        android:pathData="M13,17 L21,17 M13,21 L21,21 M13,25 L19,25 M13,29 L20,29" />
+    <path
+        android:strokeColor="#92400E"
+        android:strokeWidth="1.2"
+        android:pathData="M27,17 L35,17 M27,21 L35,21 M27,25 L33,25 M27,29 L34,29" />
+    <!-- Golden Cover Filigree Corner -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M8,12 L13,12 L8,17 Z" />
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M40,12 L35,12 L40,17 Z" />
+    <!-- Hanging Crimson Silk Bookmark -->
+    <path
+        android:fillColor="#DC2626"
+        android:pathData="M23,12 L25,12 L25,40 L24,37 L23,40 Z" />
+</vector>

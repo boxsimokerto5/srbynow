@@ -1,0 +1,37 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- WiraWiri Surabaya Bus Trans (Transit / Salinpasi) -->
+    <!-- Red Bus Body -->
+    <path
+        android:fillColor="#E11D48"
+        android:strokeColor="#881337"
+        android:strokeWidth="1.5"
+        android:pathData="M11,14 C11,11 15,10 24,10 C33,10 37,11 37,14 L37,34 C37,36 35,37 33,37 L15,37 C13,37 11,36 11,34 Z" />
+    <!-- Large Front Windshield -->
+    <path
+        android:fillColor="#BAE6FD"
+        android:strokeColor="#0284C7"
+        android:strokeWidth="1.2"
+        android:pathData="M14,14 L34,14 L34,24 L14,24 Z" />
+    <!-- Twin Headlights (Bright Yellow) -->
+    <path
+        android:fillColor="#FEF08A"
+        android:strokeColor="#CA8A04"
+        android:strokeWidth="1"
+        android:pathData="M14,30 A2.5,2.5 0 1 0 14,35 A2.5,2.5 0 1 0 14,30 M34,30 A2.5,2.5 0 1 0 34,35 A2.5,2.5 0 1 0 34,30" />
+    <!-- Destination Sign Board (SBY) -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M18,11 L30,11 L30,13 L18,13 Z" />
+    <!-- Wheels -->
+    <path
+        android:fillColor="#334155"
+        android:pathData="M13,37 L17,37 L17,40 L13,40 Z M31,37 L35,37 L35,40 L31,40 Z" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:pathData="M19,29 L29,29" />
+</vector>

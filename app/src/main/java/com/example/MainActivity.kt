@@ -10,8 +10,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -31,8 +34,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.DirectionsBus
 import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.Pause
@@ -85,6 +90,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -240,6 +246,8 @@ private data class NavDestinationItem(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
     val testTag: String,
+    val gameIconRes: Int? = null,
+    val customLabel: String? = null,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -549,11 +557,51 @@ fun SurabayaMainHub(
 
     val destinations = remember {
         listOf(
-            NavDestinationItem(MainTab.HOME, R.string.nav_home, Icons.Filled.Home, Icons.Outlined.Home, "nav_tab_home"),
-            NavDestinationItem(MainTab.MOMEN, R.string.nav_momen, Icons.Filled.PhotoCamera, Icons.Outlined.PhotoCamera, "nav_tab_momen"),
-            NavDestinationItem(MainTab.KEJADIAN, R.string.nav_kejadian, Icons.Filled.Newspaper, Icons.Outlined.Newspaper, "nav_tab_kejadian"),
-            NavDestinationItem(MainTab.DESTINASI, R.string.nav_destinasi, Icons.Filled.Place, Icons.Outlined.Place, "nav_tab_destinasi"),
-            NavDestinationItem(MainTab.CHAT, R.string.nav_chat, Icons.Filled.ChatBubble, Icons.Outlined.ChatBubbleOutline, "nav_tab_chat"),
+            NavDestinationItem(
+                tab = MainTab.HOME,
+                labelRes = R.string.nav_home,
+                selectedIcon = Icons.Filled.Home,
+                unselectedIcon = Icons.Outlined.Home,
+                testTag = "nav_tab_home",
+                gameIconRes = R.drawable.ic_game_sword,
+                customLabel = "Beranda",
+            ),
+            NavDestinationItem(
+                tab = MainTab.MOMEN,
+                labelRes = R.string.nav_momen,
+                selectedIcon = Icons.Filled.PhotoCamera,
+                unselectedIcon = Icons.Outlined.PhotoCamera,
+                testTag = "nav_tab_momen",
+                gameIconRes = R.drawable.ic_game_lantern,
+                customLabel = "Momen",
+            ),
+            NavDestinationItem(
+                tab = MainTab.KEJADIAN,
+                labelRes = R.string.nav_kejadian,
+                selectedIcon = Icons.Filled.Newspaper,
+                unselectedIcon = Icons.Outlined.Newspaper,
+                testTag = "nav_tab_kejadian",
+                gameIconRes = R.drawable.ic_game_grimoire,
+                customLabel = "Kejarian",
+            ),
+            NavDestinationItem(
+                tab = MainTab.TRANSIT,
+                labelRes = R.string.nav_transit,
+                selectedIcon = Icons.Filled.DirectionsBus,
+                unselectedIcon = Icons.Outlined.DirectionsBus,
+                testTag = "nav_tab_transit",
+                gameIconRes = R.drawable.ic_game_compass,
+                customLabel = "Salinpasi",
+            ),
+            NavDestinationItem(
+                tab = MainTab.CHAT,
+                labelRes = R.string.nav_chat,
+                selectedIcon = Icons.Filled.ChatBubble,
+                unselectedIcon = Icons.Outlined.ChatBubbleOutline,
+                testTag = "nav_tab_chat",
+                gameIconRes = R.drawable.ic_game_scroll,
+                customLabel = "Chat",
+            ),
         )
     }
 
@@ -607,12 +655,12 @@ fun SurabayaMainHub(
                         }
 
                         Surface(
-                            color = androidx.compose.ui.graphics.Color.White,
-                            border = BorderStroke(0.6.dp, com.example.ui.theme.SuperAppBorder),
+                            color = androidx.compose.ui.graphics.Color(0xFFFFF0F3),
+                            border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFFFD1DC)),
                         ) {
                             NavigationBar(
                                 windowInsets = WindowInsets.navigationBars,
-                                containerColor = androidx.compose.ui.graphics.Color.White,
+                                containerColor = androidx.compose.ui.graphics.Color(0xFFFFF0F3),
                                 tonalElevation = 0.dp,
                             ) {
                                 destinations.forEach { dest ->
@@ -621,25 +669,35 @@ fun SurabayaMainHub(
                                         selected = selected,
                                         onClick = { viewModel.selectTab(dest.tab) },
                                         icon = {
-                                            Icon(
-                                                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                                contentDescription = stringResource(dest.labelRes),
-                                            )
+                                            if (dest.gameIconRes != null) {
+                                                Image(
+                                                    painter = painterResource(id = dest.gameIconRes),
+                                                    contentDescription = dest.customLabel ?: stringResource(dest.labelRes),
+                                                    modifier = Modifier.size(28.dp),
+                                                    contentScale = ContentScale.Fit,
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                                    contentDescription = dest.customLabel ?: stringResource(dest.labelRes),
+                                                )
+                                            }
                                         },
                                         label = {
                                             Text(
-                                                text = stringResource(dest.labelRes),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                                text = dest.customLabel ?: stringResource(dest.labelRes),
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                                                color = if (selected) androidx.compose.ui.graphics.Color(0xFF111827) else androidx.compose.ui.graphics.Color(0xFF6B7280),
                                                 maxLines = 1,
                                             )
                                         },
                                         colors = NavigationBarItemDefaults.colors(
-                                            indicatorColor = com.example.ui.theme.SuperAppGreenContainer,
-                                            selectedIconColor = com.example.ui.theme.SuperAppGreenDeep,
-                                            selectedTextColor = com.example.ui.theme.SuperAppGreenDeep,
-                                            unselectedIconColor = com.example.ui.theme.SuperAppMutedText,
-                                            unselectedTextColor = com.example.ui.theme.SuperAppMutedText,
+                                            indicatorColor = androidx.compose.ui.graphics.Color(0xFFFFDDE4),
+                                            selectedIconColor = androidx.compose.ui.graphics.Color(0xFF111827),
+                                            selectedTextColor = androidx.compose.ui.graphics.Color(0xFF111827),
+                                            unselectedIconColor = androidx.compose.ui.graphics.Color(0xFF6B7280),
+                                            unselectedTextColor = androidx.compose.ui.graphics.Color(0xFF6B7280),
                                         ),
                                         modifier = Modifier.testTag(dest.testTag),
                                     )
@@ -666,12 +724,21 @@ fun SurabayaMainHub(
                                 selected = selected,
                                 onClick = { viewModel.selectTab(dest.tab) },
                                 icon = {
-                                    Icon(
-                                        imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                        contentDescription = stringResource(dest.labelRes),
-                                    )
+                                    if (dest.gameIconRes != null) {
+                                        Image(
+                                            painter = painterResource(id = dest.gameIconRes),
+                                            contentDescription = dest.customLabel ?: stringResource(dest.labelRes),
+                                            modifier = Modifier.size(28.dp),
+                                            contentScale = ContentScale.Fit,
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                            contentDescription = dest.customLabel ?: stringResource(dest.labelRes),
+                                        )
+                                    }
                                 },
-                                label = { Text(stringResource(dest.labelRes), style = MaterialTheme.typography.labelSmall) },
+                                label = { Text(dest.customLabel ?: stringResource(dest.labelRes), style = MaterialTheme.typography.labelSmall) },
                                 modifier = Modifier.testTag(dest.testTag),
                             )
                         }

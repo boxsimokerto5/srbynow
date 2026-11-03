@@ -1,0 +1,42 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Cozy Adventurer Inn / Cottage (Info Kos) -->
+    <!-- Chimney with Smoke -->
+    <path
+        android:fillColor="#991B1B"
+        android:pathData="M31,10 L35,10 L35,18 L31,18 Z" />
+    <path
+        android:strokeColor="#CBD5E1"
+        android:strokeWidth="1.5"
+        android:pathData="M33,9 C32,6 35,5 34,3" />
+    <!-- Roof with Shingles -->
+    <path
+        android:fillColor="#0D9488"
+        android:strokeColor="#115E59"
+        android:strokeWidth="1.5"
+        android:pathData="M24,9 L40,22 L8,22 Z" />
+    <!-- House Body (Warm Cream Wood) -->
+    <path
+        android:fillColor="#FEF3C7"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M12,22 L36,22 L36,41 L12,41 Z" />
+    <!-- Cozy Arched Door -->
+    <path
+        android:fillColor="#92400E"
+        android:strokeColor="#451A03"
+        android:strokeWidth="1.2"
+        android:pathData="M20,41 L20,30 C20,27 28,27 28,30 L28,41 Z" />
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M26.5,35 A1,1 0 1 0 26.5,37 A1,1 0 1 0 26.5,35" />
+    <!-- Glowing Window -->
+    <path
+        android:fillColor="#FEF08A"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M14,26 L18,26 L18,30 L14,30 Z M30,26 L34,26 L34,30 L30,30 Z" />
+</vector>

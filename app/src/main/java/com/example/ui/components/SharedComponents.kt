@@ -21,11 +21,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -339,12 +341,37 @@ fun SurabayaCompactTopBar(
                 }
             }
 
-            // Row 2: Gojek-style Search Capsule Pill
+            // Row 2: Gojek/Game-style Search Capsule Pill with Tiger & Shark Mascots
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 3.dp),
+                    .padding(horizontal = 12.dp)
+                    .padding(top = 16.dp, bottom = 4.dp),
             ) {
+                // Left Mascot: Adorable Chibi Tiger Cub Peeking Over Search Bar
+                Image(
+                    painter = painterResource(id = R.drawable.img_game_tiger_mascot),
+                    contentDescription = "Maskot Harimau",
+                    modifier = Modifier
+                        .size(46.dp)
+                        .align(Alignment.TopStart)
+                        .offset(x = 6.dp, y = (-22).dp)
+                        .zIndex(2f),
+                    contentScale = ContentScale.Fit,
+                )
+
+                // Right Mascot: Cheerful Blue Shark (Suro) Leaping Over Search Bar
+                Image(
+                    painter = painterResource(id = R.drawable.img_game_shark_mascot),
+                    contentDescription = "Maskot Ikan Hiu Suro",
+                    modifier = Modifier
+                        .size(46.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-8).dp, y = (-22).dp)
+                        .zIndex(2f),
+                    contentScale = ContentScale.Fit,
+                )
+
                 Surface(
                     shape = CircleShape,
                     color = SuperAppSearchBg,
@@ -366,17 +393,19 @@ fun SurabayaCompactTopBar(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 34.dp, end = 28.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Search,
                                 contentDescription = "Cari",
                                 tint = SuperAppMutedText,
-                                modifier = Modifier.size(19.dp),
+                                modifier = Modifier.size(18.dp),
                             )
                             Text(
-                                text = "Cari kuliner, info warga, rute bus...",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = "Cari kuliner, info warga, rute bus, jargon Bonek",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
                                 color = SuperAppMutedText,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,

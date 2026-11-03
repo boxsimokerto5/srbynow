@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -90,6 +92,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -208,140 +211,162 @@ fun HomeScreen(
 
     val shortcuts = listOf(
         HomeShortcutItem(
-            id = HomeShortcutIds.KULINER,
-            title = stringResource(R.string.nav_kuliner),
-            subtitle = "GPS Terdekat",
-            icon = Icons.Filled.Restaurant,
-            badge = "Terdekat",
-            testTag = "home_shortcut_kuliner",
-            onClick = { onNavigateTab(MainTab.KULINER) },
-        ),
-        HomeShortcutItem(
-            id = HomeShortcutIds.POLLING,
-            title = "Polling Warga",
-            subtitle = "Suara Rakyat",
-            icon = Icons.Filled.HowToVote,
-            badge = "Baru",
-            testTag = "home_shortcut_polling",
-            onClick = { onNavigateTab(MainTab.POLLING) },
-        ),
-        HomeShortcutItem(
-            id = HomeShortcutIds.MOMEN,
-            title = stringResource(R.string.nav_momen),
-            subtitle = "Foto Warga",
-            icon = Icons.Filled.PhotoCamera,
-            badge = "Baru",
-            testTag = "home_shortcut_momen",
-            onClick = { onNavigateTab(MainTab.MOMEN) },
-        ),
-        HomeShortcutItem(
-            id = HomeShortcutIds.LENSA_WARGA,
-            title = stringResource(R.string.lensa_warga_title),
-            subtitle = "Potret Kota",
-            icon = Icons.Filled.CameraAlt,
-            badge = "Estetika",
-            testTag = "home_shortcut_lensa_warga",
-            onClick = { onNavigateTab(MainTab.MOMEN) },
-        ),
-        HomeShortcutItem(
-            id = HomeShortcutIds.RADIO_SS,
-            title = stringResource(R.string.radio_ss_title),
-            subtitle = "Streaming Live",
-            icon = Icons.Filled.Radio,
-            badge = "LIVE",
-            testTag = "home_shortcut_radio_ss",
-            onClick = onOpenRadio,
-        ),
-        HomeShortcutItem(
-            id = HomeShortcutIds.KEJADIAN,
-            title = stringResource(R.string.nav_kejadian),
-            subtitle = "Lapor & Pantau",
-            icon = Icons.Filled.WarningAmber,
-            testTag = "home_shortcut_kejadian",
-            onClick = { onNavigateTab(MainTab.KEJADIAN) },
-        ),
-        HomeShortcutItem(
-            id = HomeShortcutIds.DESTINASI,
-            title = stringResource(R.string.nav_destinasi),
-            subtitle = "Wisata Resmi",
-            icon = Icons.Filled.Place,
-            badge = "Pilihan",
-            testTag = "home_shortcut_destinasi",
-            onClick = { onNavigateTab(MainTab.DESTINASI) },
-        ),
-        HomeShortcutItem(
             id = HomeShortcutIds.EVENT,
             title = stringResource(R.string.nav_event),
-            subtitle = "Agenda Kota",
+            subtitle = "Agenda",
             icon = Icons.Filled.CalendarMonth,
+            badge = null,
+            drawableRes = R.drawable.ic_game_event_boy,
             testTag = "home_shortcut_event",
             onClick = { onNavigateTab(MainTab.EVENT) },
         ),
         HomeShortcutItem(
             id = HomeShortcutIds.SEKITAR,
             title = stringResource(R.string.nav_sekitar),
-            subtitle = "Cak & Ning",
+            subtitle = "Arek",
             icon = Icons.Filled.People,
+            badge = null,
+            drawableRes = R.drawable.ic_game_party_citizens,
             testTag = "home_shortcut_sekitar",
             onClick = { onNavigateTab(MainTab.SEKITAR) },
         ),
         HomeShortcutItem(
-            id = HomeShortcutIds.CHAT,
-            title = stringResource(R.string.nav_chat),
-            subtitle = "Ngobrol Warga",
-            icon = Icons.Filled.ChatBubble,
-            testTag = "home_shortcut_chat",
-            onClick = { onNavigateTab(MainTab.CHAT) },
+            id = HomeShortcutIds.KULINER,
+            title = stringResource(R.string.nav_kuliner),
+            subtitle = "Sentra",
+            icon = Icons.Filled.Restaurant,
+            badge = "Terkedat",
+            drawableRes = R.drawable.ic_game_steaming_bowl,
+            testTag = "home_shortcut_kuliner",
+            onClick = { onNavigateTab(MainTab.KULINER) },
         ),
         HomeShortcutItem(
-            id = HomeShortcutIds.JASA,
-            title = "Jasa Warga",
-            subtitle = "Tukang & Usaha",
-            icon = Icons.Filled.Build,
-            testTag = "home_shortcut_jasa",
-            onClick = { onNavigateTab(MainTab.JASA) },
+            id = HomeShortcutIds.POLLING,
+            title = "Polling SBY",
+            subtitle = "Suara",
+            icon = Icons.Filled.HowToVote,
+            badge = "Baru",
+            drawableRes = R.drawable.ic_game_golden_lamp,
+            testTag = "home_shortcut_polling",
+            onClick = { onNavigateTab(MainTab.POLLING) },
+        ),
+        HomeShortcutItem(
+            id = HomeShortcutIds.MOMEN,
+            title = stringResource(R.string.nav_momen),
+            subtitle = "Cerita",
+            icon = Icons.Filled.PhotoCamera,
+            badge = "Baru",
+            drawableRes = R.drawable.ic_game_vintage_camera,
+            testTag = "home_shortcut_momen",
+            onClick = { onNavigateTab(MainTab.MOMEN) },
+        ),
+        HomeShortcutItem(
+            id = HomeShortcutIds.KEJADIAN,
+            title = "Lapor 112",
+            subtitle = "Siaga",
+            icon = Icons.Filled.WarningAmber,
+            badge = null,
+            drawableRes = R.drawable.ic_game_alarm_sos,
+            testTag = "home_shortcut_kejadian",
+            onClick = { onNavigateTab(MainTab.KEJADIAN) },
+        ),
+        HomeShortcutItem(
+            id = HomeShortcutIds.LENSA_WARGA,
+            title = stringResource(R.string.lensa_warga_title),
+            subtitle = "Visual",
+            icon = Icons.Filled.CameraAlt,
+            badge = "Estetika",
+            drawableRes = R.drawable.ic_game_enchanted_mirror,
+            testTag = "home_shortcut_lensa_warga",
+            onClick = { onNavigateTab(MainTab.MOMEN) },
+        ),
+        HomeShortcutItem(
+            id = HomeShortcutIds.DESTINASI,
+            title = stringResource(R.string.nav_destinasi),
+            subtitle = "Ikon",
+            icon = Icons.Filled.Place,
+            badge = "Pilihan",
+            drawableRes = R.drawable.ic_game_treasure_map,
+            testTag = "home_shortcut_destinasi",
+            onClick = { onNavigateTab(MainTab.DESTINASI) },
         ),
         HomeShortcutItem(
             id = HomeShortcutIds.BARKAS,
-            title = "Barkas Warga",
-            subtitle = "Jual Beli Bekas",
+            title = "Barkas SBY",
+            subtitle = "Jual Beli",
             icon = Icons.Filled.Storefront,
             badge = "COD SBY",
+            drawableRes = R.drawable.ic_game_merchant_barkas,
             testTag = "home_shortcut_barkas",
             onClick = { onNavigateTab(MainTab.BARKAS) },
         ),
         HomeShortcutItem(
             id = HomeShortcutIds.KOS,
-            title = "Info Kos & Kontrak",
-            subtitle = "Bulanan & Tahunan",
+            title = "Info Kos",
+            subtitle = "Hunian",
             icon = Icons.Filled.HomeWork,
             badge = "Surabaya",
+            drawableRes = R.drawable.ic_game_inn_kos,
             testTag = "home_shortcut_kos",
             onClick = { onNavigateTab(MainTab.KOS_KONTRAK) },
         ),
         HomeShortcutItem(
             id = HomeShortcutIds.TAMBAL_BAN,
             title = "Tambal Ban",
-            subtitle = "Salam 1 Aspal",
+            subtitle = "Darurat",
             icon = Icons.Filled.TwoWheeler,
             badge = "24 Jam",
+            drawableRes = R.drawable.ic_game_wrench_tire,
             testTag = "home_shortcut_tambal_ban",
             onClick = { onNavigateTab(MainTab.TAMBAL_BAN) },
         ),
         HomeShortcutItem(
             id = HomeShortcutIds.TRANSIT,
-            title = "Rute Bis & Feeder",
-            subtitle = "WiraWiri & Bus",
+            title = "WiraWiri",
+            subtitle = "Rute Bus",
             icon = Icons.Filled.DirectionsBus,
             badge = "22 Rute",
+            drawableRes = R.drawable.ic_game_bus_transit,
             testTag = "home_shortcut_transit",
             onClick = { onNavigateTab(MainTab.TRANSIT) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.RADIO_SS,
+            title = stringResource(R.string.radio_ss_title),
+            subtitle = "Live",
+            icon = Icons.Filled.Radio,
+            badge = "LIVE",
+            drawableRes = R.drawable.ic_game_magic_radio,
+            testTag = "home_shortcut_radio_ss",
+            onClick = onOpenRadio,
+        ),
+        HomeShortcutItem(
+            id = HomeShortcutIds.CHAT,
+            title = stringResource(R.string.nav_chat),
+            subtitle = "Kongkow",
+            icon = Icons.Filled.ChatBubble,
+            badge = null,
+            drawableRes = R.drawable.ic_game_scroll,
+            testTag = "home_shortcut_chat",
+            onClick = { onNavigateTab(MainTab.CHAT) },
+        ),
+        HomeShortcutItem(
+            id = HomeShortcutIds.JASA,
+            title = "Jasa Warga",
+            subtitle = "Layanan",
+            icon = Icons.Filled.Build,
+            badge = null,
+            drawableRes = R.drawable.ic_game_craftsman_tools,
+            testTag = "home_shortcut_jasa",
+            onClick = { onNavigateTab(MainTab.JASA) },
+        ),
+        HomeShortcutItem(
             id = HomeShortcutIds.BOOKMARKS,
             title = stringResource(R.string.btn_bookmarks),
-            subtitle = "Favorit Saya",
+            subtitle = "Favorit",
             icon = Icons.Filled.Bookmark,
+            badge = null,
+            drawableRes = R.drawable.ic_game_golden_bookmark,
             testTag = "home_shortcut_bookmarks",
             onClick = onOpenBookmarks,
         ),
@@ -538,18 +563,30 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = SuperAppCoralBg,
-                border = BorderStroke(1.dp, SuperAppCoralBorder),
+                color = Color(0xFFFFEFF2),
+                border = BorderStroke(1.dp, Color(0xFFFFD1DC)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp)
                     .testTag("home_culinary_container"),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Vintage Golden Crest Watermark of Surabaya & Persebaya
+                    Image(
+                        painter = painterResource(id = R.drawable.img_game_watermark_sby),
+                        contentDescription = null,
+                        alpha = 0.22f,
+                        modifier = Modifier
+                            .size(130.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 10.dp, y = (-4).dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                    ) {
                     // Header inside card
                     Row(
                         modifier = Modifier
@@ -718,6 +755,7 @@ fun HomeScreen(
                 }
             }
         }
+    }
 
         // 3b. Ruang Promosi Jasa Warga (Featured Community Services Showcase)
         item(key = "home_services_section") {

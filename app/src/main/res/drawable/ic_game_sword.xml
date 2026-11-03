@@ -1,0 +1,60 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- RPG Crossed Hero Swords -->
+    <!-- Blade 1 Shadow -->
+    <path
+        android:fillColor="#374151"
+        android:pathData="M11,37 L14,40 L18,36 L15,33 Z" />
+    <!-- Blade 1 (Diagonal top-right to bottom-left) -->
+    <path
+        android:fillColor="#E5E7EB"
+        android:strokeColor="#1F2937"
+        android:strokeWidth="1.5"
+        android:pathData="M14,34 L36,12 L38,8 L34,10 L12,32 Z" />
+    <path
+        android:fillColor="#9CA3AF"
+        android:pathData="M14,34 L36,12 L38,8 Z" />
+    <!-- Golden Crossguard 1 -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#B45309"
+        android:strokeWidth="1.2"
+        android:pathData="M9,29 L17,37 L19,35 L11,27 Z" />
+    <!-- Ruby Pommel Gem -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M8,40 A3,3 0 1 0 14,40 A3,3 0 1 0 8,40" />
+
+    <!-- Blade 2 (Diagonal top-left to bottom-right) -->
+    <path
+        android:fillColor="#F3F4F6"
+        android:strokeColor="#1F2937"
+        android:strokeWidth="1.5"
+        android:pathData="M34,34 L12,12 L10,8 L14,10 L36,32 Z" />
+    <path
+        android:fillColor="#9CA3AF"
+        android:pathData="M34,34 L12,12 L10,8 Z" />
+    <!-- Golden Crossguard 2 -->
+    <path
+        android:fillColor="#F59E0B"
+        android:strokeColor="#B45309"
+        android:strokeWidth="1.2"
+        android:pathData="M39,29 L31,37 L29,35 L37,27 Z" />
+    <!-- Ruby Pommel Gem 2 -->
+    <path
+        android:fillColor="#DC2626"
+        android:pathData="M34,40 A3,3 0 1 0 40,40 A3,3 0 1 0 34,40" />
+
+    <!-- Center Golden Emblem Shield -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M24,19 L29,23 L27,29 L24,31 L21,29 L19,23 Z" />
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M24,22 L27,25 L25,28 L24,29 L23,28 L21,25 Z" />
+</vector>

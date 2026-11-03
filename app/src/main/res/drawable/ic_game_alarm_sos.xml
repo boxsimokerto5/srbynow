@@ -1,0 +1,65 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Red Alarm Clock with Twin Bells & SOS (Siaga Lapor 112) -->
+    <!-- Metal Peg Feet -->
+    <path
+        android:strokeColor="#7F1D1D"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M16,39 L12,44 M32,39 L36,44" />
+
+    <!-- Twin Alarm Bells on Top -->
+    <path
+        android:fillColor="#EF4444"
+        android:strokeColor="#7F1D1D"
+        android:strokeWidth="1.5"
+        android:pathData="M10,8 C10,5 17,9 17,14 C13,14 10,12 10,8 Z" />
+    <path
+        android:fillColor="#EF4444"
+        android:strokeColor="#7F1D1D"
+        android:strokeWidth="1.5"
+        android:pathData="M38,8 C38,5 31,9 31,14 C35,14 38,12 38,8 Z" />
+    <path
+        android:strokeColor="#7F1D1D"
+        android:strokeWidth="2"
+        android:pathData="M24,7 L24,12" />
+
+    <!-- Clock Outer Red Body -->
+    <path
+        android:fillColor="#DC2626"
+        android:strokeColor="#7F1D1D"
+        android:strokeWidth="2"
+        android:pathData="M24,11 A15,15 0 1 0 24,41 A15,15 0 1 0 24,11" />
+
+    <!-- Clock White Dial Face -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#991B1B"
+        android:strokeWidth="1.2"
+        android:pathData="M24,14 A12,12 0 1 0 24,38 A12,12 0 1 0 24,14" />
+
+    <!-- Clock Hands (Alarm Time) -->
+    <path
+        android:strokeColor="#1F2937"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M24,26 L24,18 M24,26 L29,29" />
+    <path
+        android:fillColor="#DC2626"
+        android:pathData="M24,24.5 A1.5,1.5 0 1 0 24,27.5 A1.5,1.5 0 1 0 24,24.5" />
+
+    <!-- Red SOS Badge at Bottom Right of Clock -->
+    <path
+        android:fillColor="#EF4444"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M26,30 L40,30 C42,30 43,31 43,33 L43,39 C43,41 42,42 40,42 L26,42 C24,42 23,41 23,39 L23,33 C23,31 24,30 26,30 Z" />
+    <!-- SOS Lettering Indicator -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:pathData="M27,33 C26,33 26,34 27,35 C28,36 28,37 27,38 M33,33 A2.5,2.5 0 1 0 33,38 A2.5,2.5 0 1 0 33,33 M39,33 C38,33 38,34 39,35 C40,36 40,37 39,38" />
+</vector>

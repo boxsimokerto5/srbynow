@@ -6,11 +6,14 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -138,21 +141,21 @@ object HomeShortcutIds {
     const val COLUMNS_PER_ROW = 4
 
     val DEFAULT_ORDER: List<String> = listOf(
+        EVENT,
+        SEKITAR,
         KULINER,
         POLLING,
         MOMEN,
-        LENSA_WARGA,
-        RADIO_SS,
         KEJADIAN,
+        LENSA_WARGA,
         DESTINASI,
-        EVENT,
-        SEKITAR,
-        CHAT,
-        JASA,
         BARKAS,
         KOS,
         TAMBAL_BAN,
         TRANSIT,
+        RADIO_SS,
+        CHAT,
+        JASA,
         BOOKMARKS,
     )
 
@@ -197,6 +200,7 @@ data class HomeShortcutItem(
     val icon: ImageVector,
     val badge: String? = null,
     val testTag: String,
+    val drawableRes: Int? = null,
     val onClick: () -> Unit,
 )
 
@@ -578,13 +582,13 @@ private fun HomeShortcutButton(
     }
 
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(18.dp),
         color = Color.White,
-        border = BorderStroke(1.dp, SuperAppBorder),
+        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
         shadowElevation = 0.8.dp,
         modifier = modifier
-            .height(104.dp)
-            .clip(RoundedCornerShape(22.dp))
+            .height(112.dp)
+            .clip(RoundedCornerShape(18.dp))
             .combinedClickable(
                 onClick = item.onClick,
                 onLongClick = onAdminLongPress,
@@ -596,11 +600,11 @@ private fun HomeShortcutButton(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 4.dp, vertical = 7.dp),
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                // Top Text (Like "Win MacBook", "Main Ruby Zone", "GoCats Dapet 500rb", "Diskon terus PLUS")
+                // Top Text: Subtitle / Tag and Title
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth(),
@@ -625,46 +629,57 @@ private fun HomeShortcutButton(
                     )
                 }
 
-                // Vibrant Gojek Illustrated Graphic Badge
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(theme.gradient)
-                        .padding(1.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
+                // Game Illustration or Vibrant Badge
+                if (item.drawableRes != null) {
+                    Image(
+                        painter = painterResource(id = item.drawableRes),
+                        contentDescription = item.title,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .padding(bottom = 2.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                } else {
                     Box(
                         modifier = Modifier
-                            .matchParentSize()
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color.White.copy(alpha = 0.28f), Color.Transparent),
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(theme.gradient)
+                            .padding(1.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color.White.copy(alpha = 0.28f), Color.Transparent),
+                                    ),
                                 ),
-                            ),
-                    )
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.title,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp),
-                    )
+                        )
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.title,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
             }
 
             if (item.badge != null) {
                 Surface(
-                    shape = RoundedCornerShape(bottomStart = 7.dp, topEnd = 21.dp),
-                    color = SuperAppCoral,
+                    shape = RoundedCornerShape(bottomStart = 8.dp, topEnd = 18.dp),
+                    color = Color(0xFFA855F7),
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Text(
                         text = item.badge,
                         color = Color.White,
-                        fontSize = 8.sp,
+                        fontSize = 8.5.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(horizontal = 4.5.dp, vertical = 1.5.dp),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                     )
                 }
             }
@@ -674,7 +689,7 @@ private fun HomeShortcutButton(
 
 @Composable
 fun GojekStyleTicketBanner(
-    title: String = "Besok klaim hadiah yang lebih...",
+    title: String = "Besok klaim hadiah poin warga yang lebih...",
     badgeText: String = "1/7 Hari",
     subText: String = "Berakhir dalam 6 Hari",
     onClick: () -> Unit = {},
@@ -693,90 +708,115 @@ fun GojekStyleTicketBanner(
                 onClick()
             },
             shape = RoundedCornerShape(18.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, SuperAppBorder),
+            color = Color.Transparent,
+            border = BorderStroke(1.dp, Color(0xFFE9D5FF)),
             shadowElevation = 0.5.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 5.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFFFFDDE5),
+                            Color(0xFFF5E8FF),
+                            Color(0xFFEDE9FE),
+                        ),
+                    ),
+                )
                 .testTag("home_ticket_banner"),
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Filled.Info,
-                        contentDescription = "Info Hadiah",
-                        tint = Color(0xFF9CA3AF),
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
+                // 3D RPG Treasure Chest
+                Image(
+                    painter = painterResource(id = R.drawable.img_game_treasure_chest),
+                    contentDescription = "Peti Hadiah Warga",
+                    modifier = Modifier.size(46.dp),
+                    contentScale = ContentScale.Fit,
+                )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFF2563EB),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.CalendarMonth,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp),
-                                )
-                                Text(
-                                    text = badgeText,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                        }
-
                         Text(
-                            text = subText,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                            color = Color(0xFF374151),
-                            fontWeight = FontWeight.Medium,
+                            text = title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2937),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Info Hadiah",
+                            tint = Color(0xFF9333EA),
+                            modifier = Modifier.size(16.dp),
                         )
                     }
 
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = Color(0xFF6B7280),
-                        modifier = Modifier.size(18.dp),
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFFEF3C7),
+                                border = BorderStroke(1.dp, Color(0xFFFBBF24)),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CalendarMonth,
+                                        contentDescription = null,
+                                        tint = Color(0xFFB45309),
+                                        modifier = Modifier.size(12.dp),
+                                    )
+                                    Text(
+                                        text = badgeText,
+                                        color = Color(0xFF92400E),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = subText,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                color = Color(0xFF4B5563),
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFF6B7280),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
         }

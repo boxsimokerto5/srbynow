@@ -1,0 +1,42 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Ornate Antique Bronze/Gold Frame Mirror with Scenic Surabaya (Lensa SBY) -->
+    <!-- Outer Ornate Baroque Crest Points -->
+    <path
+        android:fillColor="#D97706"
+        android:pathData="M24,4 L27,9 L32,6 L33,11 L39,11 L37,16 L42,19 L38,23 L43,27 L37,29 L40,35 L34,35 L33,40 L28,38 L24,43 L20,38 L15,40 L14,35 L8,35 L11,29 L5,27 L10,23 L6,19 L11,16 L9,11 L15,11 L16,6 L21,9 Z" />
+
+    <!-- Polished Gold Inner Frame Ring -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M24,9 A15,15 0 1 0 24,39 A15,15 0 1 0 24,9" />
+
+    <!-- Inside Scenic Landscape (Sky, Sun, Hills) -->
+    <!-- Sky -->
+    <path
+        android:fillColor="#7DD3FC"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M24,12 A12,12 0 1 0 24,36 A12,12 0 1 0 24,12" />
+    <!-- Golden Morning Sun -->
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M29,17 A3,3 0 1 0 29,23 A3,3 0 1 0 29,17" />
+    <!-- Surabaya Green Hills & Mangrove Horizon -->
+    <path
+        android:fillColor="#15803D"
+        android:pathData="M13,29 C17,25 21,27 25,24 C29,22 33,26 35,28 L35,35 C32,36 16,36 13,33 Z" />
+    <path
+        android:fillColor="#22C55E"
+        android:pathData="M12,32 C16,28 22,30 27,27 C31,25 34,29 36,31 L34,36 C29,38 19,38 12,35 Z" />
+    <!-- Glass Highlight Reflection -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.5"
+        android:pathData="M16,14 C19,13 22,13 25,14 L17,28 C16,25 15,22 16,14 Z" />
+</vector>

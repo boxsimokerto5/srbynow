@@ -1,0 +1,44 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Parchment Scroll Body -->
+    <path
+        android:fillColor="#FEF3C7"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M12,12 C10,12 8,14 8,17 L8,31 C8,34 10,36 12,36 L36,36 C38,36 40,34 40,31 L40,17 C40,14 38,12 36,12 Z" />
+    <!-- Top & Bottom Curl Cylinders -->
+    <path
+        android:fillColor="#FDE68A"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M10,10 C8,10 7,12 7,14 C7,16 8,17 10,17 L38,17 C40,17 41,16 41,14 C41,12 40,10 38,10 Z" />
+    <path
+        android:fillColor="#FDE68A"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M10,31 C8,31 7,33 7,35 C7,37 8,38 10,38 L38,38 C40,38 41,37 41,35 C41,33 40,31 38,31 Z" />
+    <!-- Scroll Handles (Wooden Rods) -->
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M5,12 A2,2 0 1 0 7,14 A2,2 0 0 0 5,12 M43,12 A2,2 0 1 0 41,14 A2,2 0 0 0 43,12" />
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M5,33 A2,2 0 1 0 7,35 A2,2 0 0 0 5,33 M43,33 A2,2 0 1 0 41,35 A2,2 0 0 0 43,33" />
+    <!-- Written Message Lines -->
+    <path
+        android:strokeColor="#B45309"
+        android:strokeWidth="1.5"
+        android:pathData="M14,21 L34,21 M14,25 L34,25 M14,29 L26,29" />
+    <!-- Red Wax Seal with Ribbon -->
+    <path
+        android:fillColor="#DC2626"
+        android:strokeColor="#991B1B"
+        android:strokeWidth="1"
+        android:pathData="M32,27 A3.5,3.5 0 1 0 32,34 A3.5,3.5 0 1 0 32,27" />
+    <path
+        android:fillColor="#B91C1C"
+        android:pathData="M32,32 L30,36 L32,34 L34,36 Z" />
+</vector>

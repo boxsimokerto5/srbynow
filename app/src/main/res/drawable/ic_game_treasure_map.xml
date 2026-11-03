@@ -1,0 +1,63 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Rolled Fantasy Treasure Map (Ikon Destinasi) -->
+    <!-- Parchment Map Base -->
+    <path
+        android:fillColor="#FEF3C7"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.8"
+        android:pathData="M9,10 C15,8 33,12 39,10 C41,15 38,34 40,38 C34,40 16,36 10,38 C8,33 11,15 9,10 Z" />
+
+    <!-- Blue Island Coastline -->
+    <path
+        android:fillColor="#BAE6FD"
+        android:strokeColor="#0284C7"
+        android:strokeWidth="1.2"
+        android:pathData="M14,16 C18,14 26,17 28,21 C29,26 23,28 18,27 C13,26 12,19 14,16 Z" />
+
+    <!-- Adventure Trail -->
+    <path
+        android:strokeColor="#B45309"
+        android:strokeWidth="1.5"
+        android:pathData="M18,32 C21,28 27,33 30,26 C32,22 35,21 34,16" />
+
+    <!-- Red Flag Marker on Trail -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M15,19 L15,14" />
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M15,14 L20,16 L15,18 Z" />
+
+    <!-- Blue Flag Marker -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M14,35 L14,30" />
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M14,30 L19,32 L14,34 Z" />
+
+    <!-- Destination Landmark: Miniature Castle / Fortress -->
+    <path
+        android:fillColor="#9333EA"
+        android:strokeColor="#4C1D95"
+        android:strokeWidth="1"
+        android:pathData="M31,31 L37,31 L37,35 L31,35 Z" />
+    <path
+        android:fillColor="#A855F7"
+        android:pathData="M32,28 L33,28 L33,31 L32,31 Z M35,28 L36,28 L36,31 L35,31 Z" />
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M34,26 L36,27 L34,28 Z" />
+
+    <!-- Compass Rose Marker on Map -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="1"
+        android:pathData="M33,13 L37,13 M35,11 L35,15" />
+</vector>

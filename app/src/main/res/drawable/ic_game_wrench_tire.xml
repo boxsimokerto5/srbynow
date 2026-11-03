@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Tambal Ban (Motorcycle Tire & Magic Repair Wrench) -->
+    <!-- Heavy Rubber Tire -->
+    <path
+        android:fillColor="#374151"
+        android:strokeColor="#1F2937"
+        android:strokeWidth="1.5"
+        android:pathData="M24,12 A14,14 0 1 0 24,40 A14,14 0 1 0 24,12" />
+    <path
+        android:fillColor="#F3F4F6"
+        android:strokeColor="#4B5563"
+        android:strokeWidth="1.2"
+        android:pathData="M24,19 A7,7 0 1 0 24,33 A7,7 0 1 0 24,19" />
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M24,23 A3,3 0 1 0 24,29 A3,3 0 1 0 24,23" />
+    <!-- Golden / Silver Crossed Wrench -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M11,11 L14,14 L11,17 L14,20 L31,37 L37,31 L20,14 L17,17 L14,14 L17,11 Z" />
+    <!-- Sparkles -->
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M38,12 L39,9 L40,12 L43,13 L40,14 L39,17 L38,14 L35,13 Z" />
+</vector>

@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Golden Ribbon Bookmark with Gem -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.8"
+        android:pathData="M14,8 L34,8 L34,42 L24,34 L14,42 Z" />
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M14,8 L24,8 L24,34 L14,42 Z" />
+    <!-- Ruby Gem Star in Center -->
+    <path
+        android:fillColor="#EF4444"
+        android:strokeColor="#7F1D1D"
+        android:strokeWidth="1.2"
+        android:pathData="M24,18 L26,22 L30,22 L27,25 L28,29 L24,26 L20,29 L21,25 L18,22 L22,22 Z" />
+</vector>

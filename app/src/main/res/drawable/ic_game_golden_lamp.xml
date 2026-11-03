@@ -1,0 +1,65 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Magical Golden Genie Lamp / Urn with Coins (Suara Polling SBY) -->
+    <!-- Gold Coins Spilling at the Base -->
+    <path
+        android:fillColor="#F59E0B"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M10,40 A4,2.5 0 1 0 18,40 A4,2.5 0 1 0 10,40" />
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M32,41 A5,3 0 1 0 42,41 A5,3 0 1 0 32,41" />
+    <path
+        android:fillColor="#FDE047"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M36,37 A4,2.5 0 1 0 44,37 A4,2.5 0 1 0 36,37" />
+
+    <!-- Lamp Curved Spout -->
+    <path
+        android:fillColor="#F59E0B"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M18,25 C12,23 7,16 6,11 C7,11 10,13 13,17 C16,21 18,23 20,24 Z" />
+    <!-- Lamp Handle -->
+    <path
+        android:fillColor="#D97706"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M29,24 C34,20 41,20 42,26 C43,32 36,34 32,31 L30,29 C33,31 37,29 37,26 C37,23 33,22 29,24 Z" />
+
+    <!-- Lamp Belly / Body -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.8"
+        android:pathData="M16,24 C14,32 17,37 24,37 C31,37 34,32 32,24 C30,21 18,21 16,24 Z" />
+
+    <!-- Lamp Lid & Finial -->
+    <path
+        android:fillColor="#D97706"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M19,21 C19,17 29,17 29,21 Z" />
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M24,14 A2.5,2.5 0 1 0 24,19 A2.5,2.5 0 1 0 24,14" />
+
+    <!-- Lamp Base Stand -->
+    <path
+        android:fillColor="#D97706"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M19,37 L29,37 L31,42 L17,42 Z" />
+
+    <!-- Magic Sparkles -->
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M8,7 L9.5,4 L11,7 L14,8.5 L11,10 L9.5,13 L8,10 L5,8.5 Z" />
+</vector>

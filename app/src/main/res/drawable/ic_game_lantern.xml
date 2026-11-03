@@ -1,0 +1,55 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Hanging Ring -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="2"
+        android:pathData="M24,4 A4,4 0 1 0 24,12 A4,4 0 1 0 24,4" />
+    <!-- Lantern Roof Top -->
+    <path
+        android:fillColor="#92400E"
+        android:strokeColor="#451A03"
+        android:strokeWidth="1.2"
+        android:pathData="M16,15 L24,11 L32,15 L30,18 L18,18 Z" />
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M24,10 L26,12 L22,12 Z" />
+    <!-- Lantern Glass Frame (Glowing Warm Orange) -->
+    <path
+        android:fillColor="#FEF08A"
+        android:strokeColor="#451A03"
+        android:strokeWidth="1.5"
+        android:pathData="M17,18 L31,18 L34,34 L14,34 Z" />
+    <!-- Warm Flame Core Glow -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M20,22 C20,20 24,18 24,20 C24,18 28,20 28,22 C29,26 27,31 24,32 C21,31 19,26 20,22 Z" />
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M22,25 C22,23 24,22 24,23 C24,22 26,23 26,25 C27,28 25,30 24,31 C23,30 21,28 22,25 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M23,27 C23,26 24,25 24,26 C24,25 25,26 25,27 C25,29 24.5,30 24,30 C23.5,30 23,29 23,27 Z" />
+    <!-- Glass Highlight Reflection -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.6"
+        android:pathData="M18,20 L21,20 L19,32 L16,32 Z" />
+    <!-- Metal Struts -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M24,18 L24,34" />
+    <!-- Lantern Base -->
+    <path
+        android:fillColor="#92400E"
+        android:strokeColor="#451A03"
+        android:strokeWidth="1.5"
+        android:pathData="M15,34 L33,34 L31,39 L17,39 Z" />
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M20,39 L28,39 L27,42 L21,42 Z" />
+</vector>

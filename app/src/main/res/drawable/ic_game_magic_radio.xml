@@ -1,0 +1,49 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Magic Retro Radio SS (Suara Surabaya 100 FM) -->
+    <!-- Brass Antenna with Radio Waves -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M16,16 L28,7" />
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M28,6 A2,2 0 1 0 28,10 A2,2 0 1 0 28,6" />
+    <path
+        android:strokeColor="#F59E0B"
+        android:strokeWidth="1.2"
+        android:pathData="M31,4 C34,6 34,10 31,12" />
+
+    <!-- Radio Wooden / Golden Cabinet -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.8"
+        android:pathData="M10,16 L38,16 C40,16 41,17 41,19 L41,37 C41,39 40,40 38,40 L10,40 C8,40 7,39 7,37 L7,19 C7,17 8,16 10,16 Z" />
+
+    <!-- Speaker Grille (Left Circle) -->
+    <path
+        android:fillColor="#92400E"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M18,22 A6,6 0 1 0 18,34 A6,6 0 1 0 18,22" />
+    <path
+        android:strokeColor="#FDE68A"
+        android:strokeWidth="1"
+        android:pathData="M14,28 L22,28 M18,24 L18,32" />
+
+    <!-- Tuner Dial (Right) -->
+    <path
+        android:fillColor="#FEF08A"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M28,21 L37,21 L37,26 L28,26 Z" />
+    <!-- Volume Knobs -->
+    <path
+        android:fillColor="#92400E"
+        android:pathData="M30,30 A2,2 0 1 0 30,34 A2,2 0 1 0 30,30 M35,30 A2,2 0 1 0 35,34 A2,2 0 1 0 35,30" />
+</vector>

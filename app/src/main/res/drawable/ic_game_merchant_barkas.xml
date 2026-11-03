@@ -1,0 +1,37 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Merchant Shop Stall / Barkas Warga -->
+    <path
+        android:fillColor="#15803D"
+        android:strokeColor="#14532D"
+        android:strokeWidth="1.5"
+        android:pathData="M8,18 L40,18 L38,11 L10,11 Z" />
+    <!-- Striped Awning -->
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M14,11 L19,11 L18,18 L13,18 Z M24,11 L29,11 L28,18 L23,18 Z M34,11 L38,11 L37,18 L33,18 Z" />
+    <!-- Awning Scallops -->
+    <path
+        android:fillColor="#15803D"
+        android:pathData="M8,18 Q11,21 14,18 Q17,21 20,18 Q23,21 26,18 Q29,21 32,18 Q35,21 38,18 Q39,21 40,18 L40,19 L8,19 Z" />
+    <!-- Counter Box -->
+    <path
+        android:fillColor="#B45309"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.5"
+        android:pathData="M11,23 L37,23 L36,41 L12,41 Z" />
+    <!-- Gold Coin Badge -->
+    <path
+        android:fillColor="#FBBF24"
+        android:strokeColor="#78350F"
+        android:strokeWidth="1.2"
+        android:pathData="M24,28 A4,4 0 1 0 24,36 A4,4 0 1 0 24,28" />
+    <!-- Wooden Pillars -->
+    <path
+        android:strokeColor="#78350F"
+        android:strokeWidth="2"
+        android:pathData="M12,19 L12,23 M36,19 L36,23" />
+</vector>
