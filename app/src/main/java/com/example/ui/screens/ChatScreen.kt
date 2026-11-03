@@ -110,6 +110,7 @@ fun ChatScreen(
     isAdmin: Boolean = false,
     unlockedGroupPinHashes: Map<String, String> = emptyMap(),
     onCreatePublicGroup: () -> Unit = {},
+    knownCitizens: List<NearbyProfile> = emptyList(),
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -146,6 +147,15 @@ fun ChatScreen(
 
     val focusManager = LocalFocusManager.current
     val currentOnSelectSubTab by rememberUpdatedState(onSelectSubTab)
+
+    val citizenByUid = remember(knownCitizens) {
+        buildMap {
+            for (c in knownCitizens) {
+                if (c.userId.isNotBlank()) put(c.userId, c)
+                if (c.id.isNotBlank()) put(c.id, c)
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -385,11 +395,18 @@ fun ChatScreen(
                             isAdmin = isAdmin,
                             unlockedPinHashesByRoomId = unlockedGroupPinHashes,
                         )
+                        val peerUid = if (room.roomType == "DIRECT") {
+                            room.otherParticipantIdFor(currentUserId)
+                                ?: room.roomKey.removePrefix("direct_").split("_").firstOrNull { it.isNotBlank() && it != currentUserId }
+                        } else null
+                        val peerProfile = peerUid?.let { citizenByUid[it] }
+
                         ChatRoomRowCard(
                             room = room,
                             currentUserId = currentUserId,
                             isAdmin = isAdmin,
                             isPinUnlocked = isUnlocked,
+                            peerProfile = peerProfile,
                             onClick = { onOpenRoom(room) },
                         )
                     }
@@ -473,6 +490,7 @@ private fun ChatRoomRowCard(
     currentUserId: String,
     isAdmin: Boolean,
     isPinUnlocked: Boolean,
+    peerProfile: NearbyProfile? = null,
     onClick: () -> Unit,
 ) {
     val isPublic = room.roomType == "PUBLIC"
@@ -545,8 +563,9 @@ private fun ChatRoomRowCard(
             } else {
                 InitialsAvatar(
                     name = displayTitle,
-                    colorHex = "#10B981",
+                    colorHex = peerProfile?.avatarColorHex ?: "#10B981",
                     sizeDp = 40,
+                    avatarUrl = peerProfile?.avatarUrl.orEmpty(),
                 )
             }
 

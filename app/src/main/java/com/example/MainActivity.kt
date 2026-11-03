@@ -298,6 +298,9 @@ fun SurabayaMainHub(
     val myNearbyProfile by viewModel.myNearbyProfile.collectAsStateWithLifecycle()
     val allDiscoverableCitizens by viewModel.allDiscoverableCitizens.collectAsStateWithLifecycle()
     val cachedCitizenProfiles by viewModel.cachedCitizenProfiles.collectAsStateWithLifecycle()
+    val combinedKnownCitizens = remember(allDiscoverableCitizens, cachedCitizenProfiles) {
+        (allDiscoverableCitizens + cachedCitizenProfiles.values).distinctBy { it.userId.ifBlank { it.id } }
+    }
     val isProfileComplete = isCitizenProfileComplete(userAccount, myNearbyProfile)
 
     val incidentsState by viewModel.incidentsState.collectAsStateWithLifecycle()
@@ -323,6 +326,15 @@ fun SurabayaMainHub(
     val directChatRooms by viewModel.directChatRooms.collectAsStateWithLifecycle()
     val activeChatMessages by viewModel.activeChatMessages.collectAsStateWithLifecycle()
     val isSendingChatMessage by viewModel.isSendingChatMessage.collectAsStateWithLifecycle()
+    LaunchedEffect(directChatRooms, currentUserId) {
+        for (room in directChatRooms) {
+            val peerUid = room.otherParticipantIdFor(currentUserId)
+                ?: room.roomKey.removePrefix("direct_").split("_").firstOrNull { it.isNotBlank() && it != currentUserId }
+            if (peerUid != null) {
+                viewModel.preloadCitizenProfile(peerUid)
+            }
+        }
+    }
     val servicesState by viewModel.servicesState.collectAsStateWithLifecycle()
     val approvedPollsState by viewModel.approvedPollsState.collectAsStateWithLifecycle()
     val pendingPollsState by viewModel.pendingPollsState.collectAsStateWithLifecycle()
@@ -799,6 +811,7 @@ fun SurabayaMainHub(
                                 isAdmin = isAdmin,
                                 unlockedGroupPinHashes = unlockedGroupPinHashes,
                                 onCreatePublicGroup = { viewModel.openCreatePublicGroup() },
+                                knownCitizens = combinedKnownCitizens,
                             )
                             MainTab.JASA -> JasaWargaScreen(
                                 servicesState = servicesState,
@@ -1520,15 +1533,17 @@ fun SurabayaMainHub(
                             val parts = liveRoom.roomKey.removePrefix("direct_").split("_")
                             parts.firstOrNull { it.isNotBlank() && it != currentUserId }
                         } else null
-                    val context = androidx.compose.ui.platform.LocalContext.current
                     val peerProfile = if (peerUid != null) {
                         val peerItems = (nearbyPeersState as? UiState.Success)?.data.orEmpty()
                         peerItems.firstOrNull { it.profile.userId == peerUid || it.profile.id == peerUid }?.profile
                             ?: allDiscoverableCitizens.firstOrNull { it.userId == peerUid || it.id == peerUid }
                             ?: cachedCitizenProfiles[peerUid]
                     } else null
-                    val combinedKnownCitizens = remember(allDiscoverableCitizens, cachedCitizenProfiles) {
-                        (allDiscoverableCitizens + cachedCitizenProfiles.values).distinctBy { it.userId.ifBlank { it.id } }
+
+                    LaunchedEffect(peerUid) {
+                        if (peerUid != null) {
+                            viewModel.preloadCitizenProfile(peerUid)
+                        }
                     }
                     val canManageGroup = liveRoom.roomType == "PUBLIC" && (isAdmin || liveRoom.isCreatedBy(currentUserId))
                     ChatConversationSheetContent(

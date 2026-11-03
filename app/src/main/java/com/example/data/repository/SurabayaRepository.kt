@@ -2282,7 +2282,7 @@ class SurabayaRepository(
         if (cleanUid.isBlank()) return null
         return try {
             val direct = runCatching { pb.getOneOrNull("nearby_profiles", cleanUid) }.getOrNull()
-            if (direct != null) {
+            val nearby = if (direct != null) {
                 mapNearbyProfile(direct)
             } else {
                 val safeUid = escapePbValue(cleanUid)
@@ -2294,6 +2294,52 @@ class SurabayaRepository(
                     ).firstOrNull()
                 }.getOrNull()
                 byUserId?.let(::mapNearbyProfile)
+            }
+
+            // Fallback / complement from "users" auth collection
+            val userRecord = if (nearby == null || nearby.avatarUrl.isBlank()) {
+                runCatching { pb.getOneOrNull("users", cleanUid) }.getOrNull()
+            } else null
+
+            val userAvatarFilename = userRecord?.optString("avatar").orEmpty().trim()
+            val userAvatarUrl = if (userAvatarFilename.isNotBlank()) {
+                val uId = userRecord?.optString("id")?.ifBlank { cleanUid } ?: cleanUid
+                pb.buildFileUrl("users", uId, userAvatarFilename)
+            } else ""
+
+            if (nearby != null) {
+                if (nearby.avatarUrl.isBlank() && userAvatarUrl.isNotBlank()) {
+                    nearby.copy(avatarUrl = userAvatarUrl)
+                } else {
+                    nearby
+                }
+            } else if (userRecord != null) {
+                val uId = userRecord.optString("id").ifBlank { cleanUid }
+                val userName = userRecord.optString("name").ifBlank { "Warga Surabaya" }
+                val userDistrict = userRecord.optString("district").ifBlank { "Genteng" }
+                val userGender = normalizeCitizenGender(userRecord.optString("gender"))
+                val userBio = userRecord.optString("bio")
+                val isBanned = userRecord.optBoolean("is_banned", false)
+                val isDiscoverable = if (userRecord.has("is_discoverable")) userRecord.optBoolean("is_discoverable", true) else true
+                NearbyProfile(
+                    id = uId,
+                    userId = uId,
+                    displayName = userName,
+                    gender = userGender,
+                    avatarColorHex = "#006B5E",
+                    avatarUrl = userAvatarUrl,
+                    bio = userBio,
+                    district = userDistrict,
+                    interests = "Arek Suroboyo",
+                    lat = SurabayaDistricts.DEFAULT_LAT,
+                    lng = SurabayaDistricts.DEFAULT_LNG,
+                    isDiscoverable = isDiscoverable,
+                    isBanned = isBanned,
+                    createdAt = parsePocketBaseTimestamp(userRecord.optString("created")),
+                    updatedAt = parsePocketBaseTimestamp(userRecord.optString("updated")),
+                )
+            } else {
+                null
             }
         } catch (_: Exception) {
             null

@@ -793,6 +793,24 @@ class SurabayaViewModel(
         }
     }
 
+    fun preloadCitizenProfile(userId: String) {
+        val cleanUid = userId.trim()
+        if (cleanUid.isBlank()) return
+        val currentCache = _cachedCitizenProfiles.value
+        val existing = currentCache[cleanUid]
+        if (existing != null && existing.avatarUrl.isNotBlank()) return
+        viewModelScope.launch {
+            val fetched = repository.fetchCitizenProfileById(cleanUid)
+            if (fetched != null) {
+                val updated = LinkedHashMap(_cachedCitizenProfiles.value)
+                updated[cleanUid] = fetched
+                if (fetched.id.isNotBlank()) updated[fetched.id] = fetched
+                if (fetched.userId.isNotBlank()) updated[fetched.userId] = fetched
+                _cachedCitizenProfiles.value = updated
+            }
+        }
+    }
+
     // Radio Suara Surabaya 100 FM
     val radioPlaybackState: StateFlow<RadioPlaybackState> =
         radioPlayer?.playbackState ?: MutableStateFlow(RadioPlaybackState.STOPPED).asStateFlow()
