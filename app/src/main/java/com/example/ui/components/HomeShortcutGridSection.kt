@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -27,18 +28,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VerticalAlignTop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +55,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -65,7 +72,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -248,12 +257,20 @@ fun HomeShortcutGridSection(
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Box(
+                Canvas(
                     modifier = Modifier
                         .weight(1f)
-                        .height(1.dp)
-                        .background(SuperAppBorder)
-                )
+                        .height(2.dp)
+                ) {
+                    val pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
+                    drawLine(
+                        color = Color(0xFFD1D5DB),
+                        start = Offset(0f, size.height / 2),
+                        end = Offset(size.width, size.height / 2),
+                        strokeWidth = 1.5.dp.toPx(),
+                        pathEffect = pathEffect,
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -418,6 +435,14 @@ fun HomeShortcutGridSection(
                 )
             }
         }
+
+        // Gojek-Style Hanging Ticket Banner ("Besok klaim hadiah yang lebih...")
+        GojekStyleTicketBanner(
+            title = "Besok klaim hadiah poin warga yang lebih...",
+            badgeText = "1/7 Hari",
+            subText = "Berakhir dalam 6 Hari",
+            modifier = Modifier.padding(horizontal = 2.dp),
+        )
     }
 
     if (isAdmin && showAdminReorderSheet) {
@@ -433,6 +458,13 @@ fun HomeShortcutGridSection(
     }
 }
 
+private data class ShortcutThemeData(
+    val tagText: String,
+    val displayTitle: String,
+    val tagColor: Color,
+    val gradient: Brush,
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HomeShortcutButton(
@@ -440,23 +472,119 @@ private fun HomeShortcutButton(
     onAdminLongPress: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    val (iconBg, iconTint) = when (item.id) {
-        HomeShortcutIds.KULINER -> SuperAppCoralBg to SuperAppCoral
-        HomeShortcutIds.POLLING -> SuperAppPurpleBg to SuperAppPurple
-        HomeShortcutIds.MOMEN, HomeShortcutIds.LENSA_WARGA -> SuperAppGreenContainer to SuperAppGreenDeep
-        HomeShortcutIds.RADIO_SS -> SuperAppGoldBg to SuperAppGoldText
-        HomeShortcutIds.TAMBAL_BAN, HomeShortcutIds.KEJADIAN -> SuperAppBlueBg to SuperAppBlue
-        HomeShortcutIds.BARKAS, HomeShortcutIds.KOS -> Color(0xFFF0FDF4) to ToskaPrimaryDeep
-        else -> Color(0xFFF3F4F6) to Color(0xFF374151)
+    val theme = when (item.id) {
+        HomeShortcutIds.KULINER -> ShortcutThemeData(
+            tagText = "Sentra",
+            displayTitle = "Kuliner SBY",
+            tagColor = SuperAppCoral,
+            gradient = Brush.verticalGradient(listOf(Color(0xFFFF6B6B), Color(0xFFEE2737))),
+        )
+        HomeShortcutIds.POLLING -> ShortcutThemeData(
+            tagText = "Suara",
+            displayTitle = "Polling SBY",
+            tagColor = SuperAppPurple,
+            gradient = Brush.verticalGradient(listOf(Color(0xFF9333EA), Color(0xFF6B21A8))),
+        )
+        HomeShortcutIds.MOMEN -> ShortcutThemeData(
+            tagText = "Cerita",
+            displayTitle = "Momen Arek",
+            tagColor = SuperAppGreenDeep,
+            gradient = Brush.verticalGradient(listOf(Color(0xFF10B981), Color(0xFF047857))),
+        )
+        HomeShortcutIds.LENSA_WARGA -> ShortcutThemeData(
+            tagText = "Visual",
+            displayTitle = "Lensa SBY",
+            tagColor = Color(0xFF0E7490),
+            gradient = Brush.verticalGradient(listOf(Color(0xFF06B6D4), Color(0xFF0E7490))),
+        )
+        HomeShortcutIds.RADIO_SS -> ShortcutThemeData(
+            tagText = "Live",
+            displayTitle = "Radio SS",
+            tagColor = SuperAppGoldText,
+            gradient = Brush.verticalGradient(listOf(Color(0xFFFBBF24), Color(0xFFD97706))),
+        )
+        HomeShortcutIds.KEJADIAN -> ShortcutThemeData(
+            tagText = "Siaga",
+            displayTitle = "Lapor 112",
+            tagColor = AlertCrimson,
+            gradient = Brush.verticalGradient(listOf(Color(0xFFEF4444), Color(0xFFB91C1C))),
+        )
+        HomeShortcutIds.DESTINASI -> ShortcutThemeData(
+            tagText = "Ikonik",
+            displayTitle = "Destinasi",
+            tagColor = SuperAppBlue,
+            gradient = Brush.verticalGradient(listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8))),
+        )
+        HomeShortcutIds.EVENT -> ShortcutThemeData(
+            tagText = "Agenda",
+            displayTitle = "Event Kota",
+            tagColor = Color(0xFFBE185D),
+            gradient = Brush.verticalGradient(listOf(Color(0xFFEC4899), Color(0xFFBE185D))),
+        )
+        HomeShortcutIds.SEKITAR -> ShortcutThemeData(
+            tagText = "Arek",
+            displayTitle = "Sekitar",
+            tagColor = SuperAppGreenDeep,
+            gradient = Brush.verticalGradient(listOf(Color(0xFF10B981), Color(0xFF059669))),
+        )
+        HomeShortcutIds.CHAT -> ShortcutThemeData(
+            tagText = "Kongkow",
+            displayTitle = "Ruang Chat",
+            tagColor = SuperAppBlue,
+            gradient = Brush.verticalGradient(listOf(Color(0xFF0284C7), Color(0xFF0369A1))),
+        )
+        HomeShortcutIds.JASA -> ShortcutThemeData(
+            tagText = "Layanan",
+            displayTitle = "Jasa Warga",
+            tagColor = Color(0xFF1E40AF),
+            gradient = Brush.verticalGradient(listOf(Color(0xFF2563EB), Color(0xFF1E40AF))),
+        )
+        HomeShortcutIds.BARKAS -> ShortcutThemeData(
+            tagText = "Jual Beli",
+            displayTitle = "Barkas SBY",
+            tagColor = Color(0xFF15803D),
+            gradient = Brush.verticalGradient(listOf(Color(0xFF16A34A), Color(0xFF15803D))),
+        )
+        HomeShortcutIds.KOS -> ShortcutThemeData(
+            tagText = "Hunian",
+            displayTitle = "Info Kos",
+            tagColor = Color(0xFF115E59),
+            gradient = Brush.verticalGradient(listOf(Color(0xFF0D9488), Color(0xFF115E59))),
+        )
+        HomeShortcutIds.TAMBAL_BAN -> ShortcutThemeData(
+            tagText = "Darurat",
+            displayTitle = "Tambal Ban",
+            tagColor = Color(0xFFB45309),
+            gradient = Brush.verticalGradient(listOf(Color(0xFFF59E0B), Color(0xFFB45309))),
+        )
+        HomeShortcutIds.TRANSIT -> ShortcutThemeData(
+            tagText = "Rute Bus",
+            displayTitle = "WiraWiri",
+            tagColor = Color(0xFF9F1239),
+            gradient = Brush.verticalGradient(listOf(Color(0xFFE11D48), Color(0xFF9F1239))),
+        )
+        HomeShortcutIds.BOOKMARKS -> ShortcutThemeData(
+            tagText = "Favorit",
+            displayTitle = "Tersimpan",
+            tagColor = Color(0xFFA16207),
+            gradient = Brush.verticalGradient(listOf(Color(0xFFEAB308), Color(0xFFA16207))),
+        )
+        else -> ShortcutThemeData(
+            tagText = "Layanan",
+            displayTitle = item.title,
+            tagColor = Color(0xFF374151),
+            gradient = Brush.verticalGradient(listOf(Color(0xFF6B7280), Color(0xFF374151))),
+        )
     }
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(22.dp),
         color = Color.White,
         border = BorderStroke(1.dp, SuperAppBorder),
-        shadowElevation = 0.5.dp,
+        shadowElevation = 0.8.dp,
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .height(104.dp)
+            .clip(RoundedCornerShape(22.dp))
             .combinedClickable(
                 onClick = item.onClick,
                 onLongClick = onAdminLongPress,
@@ -464,51 +592,70 @@ private fun HomeShortcutButton(
             .testTag(item.testTag)
             .minimumInteractiveComponentSize(),
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 8.dp, start = 4.dp, end = 4.dp),
+                    .fillMaxSize()
+                    .padding(horizontal = 4.dp, vertical = 7.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
+                // Top Text (Like "Win MacBook", "Main Ruby Zone", "GoCats Dapet 500rb", "Diskon terus PLUS")
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = theme.tagText,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        fontWeight = FontWeight.SemiBold,
+                        color = theme.tagColor,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = theme.displayTitle,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF111827),
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                // Vibrant Gojek Illustrated Graphic Badge
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(iconBg),
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(theme.gradient)
+                        .padding(1.dp),
                     contentAlignment = Alignment.Center,
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.White.copy(alpha = 0.28f), Color.Transparent),
+                                ),
+                            ),
+                    )
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.title,
-                        tint = iconTint,
-                        modifier = Modifier.size(20.dp),
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
-                Spacer(modifier = Modifier.height(5.dp))
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2937),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = item.subtitle,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                    color = SuperAppMutedText,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
 
             if (item.badge != null) {
                 Surface(
-                    shape = RoundedCornerShape(bottomStart = 8.dp, topEnd = 15.dp),
+                    shape = RoundedCornerShape(bottomStart = 7.dp, topEnd = 21.dp),
                     color = SuperAppCoral,
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
@@ -516,11 +663,176 @@ private fun HomeShortcutButton(
                         text = item.badge,
                         color = Color.White,
                         fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.5.dp),
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(horizontal = 4.5.dp, vertical = 1.5.dp),
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun GojekStyleTicketBanner(
+    title: String = "Besok klaim hadiah yang lebih...",
+    badgeText: String = "1/7 Hari",
+    subText: String = "Berakhir dalam 6 Hari",
+    onClick: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp, bottom = 2.dp),
+    ) {
+        Surface(
+            onClick = {
+                showDialog = true
+                onClick()
+            },
+            shape = RoundedCornerShape(18.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, SuperAppBorder),
+            shadowElevation = 0.5.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 5.dp)
+                .testTag("home_ticket_banner"),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Filled.Info,
+                        contentDescription = "Info Hadiah",
+                        tint = Color(0xFF9CA3AF),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF2563EB),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.CalendarMonth,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                                Text(
+                                    text = badgeText,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = subText,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = Color(0xFF374151),
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color(0xFF6B7280),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+
+        // Dual Metallic Hanging Eyelets (Slit Rings like Gojek Ticket)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            HangingEyelet()
+            HangingEyelet()
+        }
+    }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Siap Rek!")
+                }
+            },
+            title = {
+                Text(
+                    text = "Misi Warga Arek Suroboyo",
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    "Terus pantau kota, dengarkan Radio SS 100 FM, gunakan layanan warga, dan lapor insiden di sekitarmu untuk mengumpulkan Poin Warga Aktif & klaim lencana warga teladan!",
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun HangingEyelet() {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = Color(0xFFD1D5DB),
+        border = BorderStroke(1.dp, Color(0xFF9CA3AF)),
+        modifier = Modifier
+            .width(9.dp)
+            .height(13.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(7.dp)
+                    .background(Color(0xFF6B7280), RoundedCornerShape(2.dp)),
+            )
         }
     }
 }

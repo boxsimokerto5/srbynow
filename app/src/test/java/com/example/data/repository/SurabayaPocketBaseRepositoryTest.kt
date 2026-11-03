@@ -763,14 +763,14 @@ class SurabayaPocketBaseRepositoryTest {
         )
 
         val arr = JSONArray(assetJsonText)
-        assertEquals("Expected exactly 24 collections in PocketBase schema", 24, arr.length())
+        assertEquals("Expected exactly 25 collections in PocketBase schema", 25, arr.length())
 
         val expectedCollections = listOf(
             "users", "bookmarks", "nearby_profiles", "incidents", "incident_comments",
             "events", "culinary", "culinary_reviews", "chat_rooms", "chat_messages",
             "destinations", "destination_reviews", "moments", "moment_comments",
             "services", "tambal_ban", "tambal_ban_comments", "polls", "poll_comments", "notifications",
-            "barkas_items", "barkas_comments", "kos_listings", "kos_comments",
+            "barkas_items", "barkas_comments", "kos_listings", "kos_comments", "app_settings",
         )
         val seenColIds = mutableSetOf<String>()
         val seenColNames = mutableListOf<String>()

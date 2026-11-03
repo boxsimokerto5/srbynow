@@ -1142,7 +1142,7 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("chat_group_citizen_quota_banner").assertIsDisplayed()
     composeTestRule.onNodeWithTag("chat_create_group_btn").assertIsDisplayed()
     composeTestRule.onNodeWithTag("fab_create_public_group").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("chat_room_pin_badge_pub_pin_sby").assertExists()
+    composeTestRule.onNodeWithTag("chat_room_pin_badge_pub_pin_sby", useUnmergedTree = true).assertExists()
 
     composeTestRule.onNodeWithTag("chat_create_group_btn").performClick()
     composeTestRule.waitForIdle()
