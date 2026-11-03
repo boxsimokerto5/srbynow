@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Groups
@@ -112,7 +113,10 @@ fun ChatScreen(
     onCreatePublicGroup: () -> Unit = {},
     knownCitizens: List<NearbyProfile> = emptyList(),
 ) {
-    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var publicSearchQuery by rememberSaveable { mutableStateOf("") }
+    var directSearchQuery by rememberSaveable { mutableStateOf("") }
+
+    val activeSearchQuery = if (selectedSubTab == 0) publicSearchQuery else directSearchQuery
 
     val myActiveGroupCount = remember(publicRooms, currentUserId) {
         if (currentUserId.isBlank()) 0
@@ -121,11 +125,11 @@ fun ChatScreen(
     val isCitizenQuotaFull = !isAdmin && myActiveGroupCount >= CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN
 
     val baseRooms = if (selectedSubTab == 0) publicRooms else directRooms
-    val activeRooms = remember(baseRooms, searchQuery, currentUserId, isAdmin, unlockedGroupPinHashes) {
-        if (searchQuery.isBlank()) {
+    val activeRooms = remember(baseRooms, activeSearchQuery, currentUserId, isAdmin, unlockedGroupPinHashes) {
+        if (activeSearchQuery.isBlank()) {
             baseRooms
         } else {
-            val q = searchQuery.trim().lowercase()
+            val q = activeSearchQuery.trim().lowercase()
             baseRooms.filter { room ->
                 val canReadPreview = CommunityGroupPinHelper.hasRoomAccess(
                     pinHash = room.pinHash,
@@ -182,8 +186,9 @@ fun ChatScreen(
                             label = "Ruang Publik SBY (${publicRooms.size})",
                             selected = selectedSubTab == 0,
                             onClick = {
-                                focusManager.clearFocus()
-                                currentOnSelectSubTab(0)
+                                if (selectedSubTab != 0) {
+                                    currentOnSelectSubTab(0)
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -193,8 +198,9 @@ fun ChatScreen(
                             label = "Pesan Pribadi (${directRooms.size})",
                             selected = selectedSubTab == 1,
                             onClick = {
-                                focusManager.clearFocus()
-                                currentOnSelectSubTab(1)
+                                if (selectedSubTab != 1) {
+                                    currentOnSelectSubTab(1)
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)
@@ -211,8 +217,14 @@ fun ChatScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        value = activeSearchQuery,
+                        onValueChange = {
+                            if (selectedSubTab == 0) {
+                                publicSearchQuery = it
+                            } else {
+                                directSearchQuery = it
+                            }
+                        },
                         placeholder = {
                             Text(
                                 text = if (selectedSubTab == 0) "Cari grup publik / komunitas…" else "Cari teman atau ID room…",
@@ -225,6 +237,27 @@ fun ChatScreen(
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )
+                        },
+                        trailingIcon = {
+                            if (activeSearchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {
+                                        if (selectedSubTab == 0) {
+                                            publicSearchQuery = ""
+                                        } else {
+                                            directSearchQuery = ""
+                                        }
+                                    },
+                                    modifier = Modifier.size(24.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Hapus pencarian",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
                         },
                         shape = CircleShape,
                         singleLine = true,
@@ -372,20 +405,33 @@ fun ChatScreen(
 
                 if (activeRooms.isEmpty()) {
                     item(key = if (selectedSubTab == 0) "empty_public_rooms" else "empty_direct_rooms") {
+                        val isSearching = activeSearchQuery.isNotBlank()
                         EmptyFeedPlaceholder(
                             icon = if (selectedSubTab == 0) Icons.Filled.Forum else Icons.AutoMirrored.Filled.Chat,
-                            title = if (selectedSubTab == 0) "Memuat Ruang Publik Surabaya" else "Belum ada obrolan pribadi",
-                            subtitle = if (selectedSubTab == 0) {
-                                "Ruang diskusi terbuka atau komunitas ber-PIN bagi seluruh warga Kota Pahlawan."
+                            title = if (selectedSubTab == 0) {
+                                if (isSearching) "Grup Tidak Ditemukan" else "Belum Ada Grup Publik"
                             } else {
-                                "Tekan tombol Chat Warga di atas atau tombol Sapa pada menu Sekitar untuk memulai percakapan dua arah!"
+                                if (isSearching) "Obrolan Tidak Ditemukan" else "Belum ada obrolan pribadi"
+                            },
+                            subtitle = if (selectedSubTab == 0) {
+                                if (isSearching) {
+                                    "Tidak ada grup atau komunitas yang cocok dengan \"$activeSearchQuery\"."
+                                } else {
+                                    "Ruang diskusi terbuka atau komunitas ber-PIN bagi seluruh warga Kota Pahlawan."
+                                }
+                            } else {
+                                if (isSearching) {
+                                    "Tidak ada kontak obrolan yang cocok dengan \"$activeSearchQuery\"."
+                                } else {
+                                    "Tekan tombol Chat Warga di atas atau tombol Sapa pada menu Sekitar untuk memulai percakapan dua arah!"
+                                }
                             },
                         )
                     }
                 } else {
                     items(
                         items = activeRooms,
-                        key = { "${selectedSubTab}_${it.id}" },
+                        key = { it.id },
                     ) { room ->
                         val isUnlocked = CommunityGroupPinHelper.hasRoomAccess(
                             pinHash = room.pinHash,
@@ -453,34 +499,31 @@ private fun ChatModeTabPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = Color.Transparent,
-        modifier = modifier.minimumInteractiveComponentSize(),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (selected) {
-                        Modifier.background(FreshGreenGradient, CircleShape)
-                    } else {
-                        Modifier
-                    },
-                )
-                .padding(vertical = 8.dp, horizontal = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .clickable(
+                role = androidx.compose.ui.semantics.Role.Tab,
+                onClick = onClick,
             )
-        }
+            .then(
+                if (selected) {
+                    Modifier.background(FreshGreenGradient, CircleShape)
+                } else {
+                    Modifier.background(Color.Transparent)
+                },
+            )
+            .padding(vertical = 9.dp, horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
