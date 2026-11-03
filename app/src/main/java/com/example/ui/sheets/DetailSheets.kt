@@ -69,8 +69,11 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Share
+import com.example.ui.screens.ManageGroupPinDialog
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.StarOutline
@@ -2009,12 +2012,14 @@ fun ChatConversationSheetContent(
     room: ChatRoom,
     messages: List<ChatMessage>,
     currentUserId: String,
+    isAdmin: Boolean = false,
     isSending: Boolean = false,
     peerProfile: NearbyProfile? = null,
     onOpenPeerProfile: (() -> Unit)? = null,
     onSendMessage: (String, Uri?) -> Unit,
     onBlockPeer: (() -> Unit)? = null,
     onAdminDeleteGroup: (() -> Unit)? = null,
+    onUpdateGroupPin: ((String) -> Unit)? = null,
     onMarkMessagesRead: ((List<String>) -> Unit)? = null,
     onTyping: ((Boolean) -> Unit)? = null,
     onSyncPhotos: ((List<ChatMessage>) -> Unit)? = null,
@@ -2025,6 +2030,7 @@ fun ChatConversationSheetContent(
     var activeZoomMsgId by remember { mutableStateOf<String?>(null) }
     var showBlockPeerDialog by remember(room.id) { mutableStateOf(false) }
     var showDeleteGroupDialog by remember(room.id) { mutableStateOf(false) }
+    var showManagePinDialog by remember(room.id) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val displayTitle = room.displayTitleFor(currentUserId)
     val context = LocalContext.current
@@ -2148,6 +2154,17 @@ fun ChatConversationSheetContent(
                 TextButton(onClick = { showDeleteGroupDialog = false }) {
                     Text(stringResource(R.string.btn_cancel_action))
                 }
+            },
+        )
+    }
+
+    if (showManagePinDialog && onUpdateGroupPin != null) {
+        ManageGroupPinDialog(
+            room = room,
+            onDismiss = { showManagePinDialog = false },
+            onSavePin = { updatedPin ->
+                showManagePinDialog = false
+                onUpdateGroupPin(updatedPin)
             },
         )
     }
@@ -2379,26 +2396,84 @@ fun ChatConversationSheetContent(
                         color = AlertCrimson,
                     )
                 }
-            } else if (room.roomType == "PUBLIC" && onAdminDeleteGroup != null) {
-                OutlinedButton(
-                    onClick = { showDeleteGroupDialog = true },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .testTag("chat_admin_delete_group_btn"),
+            } else if (room.roomType == "PUBLIC" && (onUpdateGroupPin != null || onAdminDeleteGroup != null)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (onUpdateGroupPin != null) {
+                        FilledTonalButton(
+                            onClick = { showManagePinDialog = true },
+                            shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("chat_manage_group_pin_btn"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.btn_manage_group_pin),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    }
+                    if (onAdminDeleteGroup != null) {
+                        OutlinedButton(
+                            onClick = { showDeleteGroupDialog = true },
+                            shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("chat_admin_delete_group_btn"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DeleteOutline,
+                                contentDescription = null,
+                                tint = AlertCrimson,
+                                modifier = Modifier.size(15.dp),
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = stringResource(R.string.btn_delete_public_group),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AlertCrimson,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (isAdmin && room.roomType == "PUBLIC" && room.isPinProtected && !room.isCreatedBy(currentUserId)) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFE0F2FE),
+                border = BorderStroke(1.dp, Color(0xFF7DD3FC)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("chat_admin_pin_supervision_banner"),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.DeleteOutline,
+                        imageVector = Icons.Filled.AdminPanelSettings,
                         contentDescription = null,
-                        tint = AlertCrimson,
-                        modifier = Modifier.size(15.dp),
+                        tint = Color(0xFF0369A1),
+                        modifier = Modifier.size(16.dp),
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = stringResource(R.string.btn_delete_public_group),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = AlertCrimson,
+                        text = stringResource(R.string.admin_supervision_banner_pin_room),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF0369A1),
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }

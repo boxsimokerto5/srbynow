@@ -1100,13 +1100,16 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `chatScreen hides create group button for regular citizens and shows it only for Admin`() {
+  fun `chatScreen allows citizens to create groups shows 2 group quota and masks PIN preview unless Admin`() {
+    val pinHash = com.example.data.util.CommunityGroupPinHelper.computePinHash("pub_pin_sby", "1234")
     val sampleGroup = ChatRoom(
-      id = "pub_warga_sby",
-      title = "Ruang Warga Surabaya",
+      id = "pub_pin_sby",
+      title = "Komunitas Warga Gubeng",
       subtitle = "Ngobrol santai kabar kota hari ini",
       roomType = "PUBLIC",
-      lastMessage = "Halo rek!",
+      lastMessage = "Pesan rahasia internal warga",
+      createdBy = "other_creator",
+      pinHash = pinHash,
     )
 
     var isAdminState by androidx.compose.runtime.mutableStateOf(false)
@@ -1132,24 +1135,22 @@ class ExampleRobolectricTest {
 
     composeTestRule.waitForIdle()
 
-    // 1. Regular citizen: sees admin-managed notice + 1-on-1 Chat Warga button, NO Buat Grup controls
-    composeTestRule.onNodeWithTag("chat_group_admin_notice").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("chat_start_direct_btn").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("chat_create_group_btn").assertDoesNotExist()
-    composeTestRule.onNodeWithTag("fab_create_public_group").assertDoesNotExist()
+    // 1. Regular citizen: sees quota banner + Buat Grup button + masked PIN preview
+    composeTestRule.onNodeWithTag("chat_group_citizen_quota_banner").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("chat_create_group_btn").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("fab_create_public_group").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("chat_room_pin_badge_pub_pin_sby").assertIsDisplayed()
 
-    // 2. Switch to Admin: Buat Grup button, FAB, and Admin banner appear
+    composeTestRule.onNodeWithTag("chat_create_group_btn").performClick()
+    composeTestRule.waitForIdle()
+    assertTrue("Expected onCreatePublicGroup callback when citizen taps Buat Grup", createGroupClicked)
+
+    // 2. Switch to Admin: Admin supervision banner & unrestricted access badge appear
     isAdminState = true
     composeTestRule.waitForIdle()
 
     composeTestRule.onNodeWithTag("chat_group_admin_banner").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("chat_create_group_btn").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("fab_create_public_group").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("chat_group_admin_notice").assertDoesNotExist()
-
-    composeTestRule.onNodeWithTag("chat_create_group_btn").performClick()
-    composeTestRule.waitForIdle()
-    assertTrue("Expected onCreatePublicGroup callback when Admin taps Buat Grup", createGroupClicked)
+    composeTestRule.onNodeWithTag("chat_group_citizen_quota_banner").assertDoesNotExist()
   }
 
   @Test

@@ -121,6 +121,7 @@ import com.example.ui.screens.StartDirectChatSheetContent
 import com.example.ui.screens.TambalBanScreen
 import com.example.ui.screens.TemanSekitarScreen
 import com.example.ui.screens.TransitScreen
+import com.example.ui.screens.UnlockGroupPinDialog
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -337,6 +338,9 @@ fun SurabayaMainHub(
     val activeKosComments by viewModel.activeKosComments.collectAsStateWithLifecycle()
     val bannedProfiles by viewModel.bannedProfiles.collectAsStateWithLifecycle()
     val homeShortcutOrder by viewModel.homeShortcutOrder.collectAsStateWithLifecycle()
+    val unlockedGroupPinHashes by viewModel.unlockedGroupPinHashes.collectAsStateWithLifecycle()
+    val pendingPinUnlockRoom by viewModel.pendingPinUnlockRoom.collectAsStateWithLifecycle()
+    val myActivePublicGroupCount by viewModel.myActivePublicGroupCount.collectAsStateWithLifecycle()
 
     val pendingPollsList = (pendingPollsState as? UiState.Success)?.data.orEmpty()
     val flaggedItems = remember(
@@ -366,11 +370,28 @@ fun SurabayaMainHub(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LaunchedEffect(currentUserId) {
+        if (currentUserId.isNotBlank()) {
+            viewModel.loadSavedUnlockedGroupPins(context)
+        }
+    }
+
     LaunchedEffect(approvedEventsState) {
         val events = (approvedEventsState as? com.example.data.model.UiState.Success)?.data
         if (!events.isNullOrEmpty()) {
             viewModel.syncApprovedEventsToDirectChatAndGallery(context, events)
         }
+    }
+
+    val pinTargetRoom = pendingPinUnlockRoom
+    if (pinTargetRoom != null) {
+        UnlockGroupPinDialog(
+            room = pinTargetRoom,
+            onDismiss = { viewModel.dismissPinUnlockDialog() },
+            onVerifyPin = { enteredPin ->
+                viewModel.verifyAndUnlockChatRoom(pinTargetRoom, enteredPin, context)
+            },
+        )
     }
 
     // Android 13+ Notification Permission Slide-Up Disclosure (only after mandatory profile is complete)
@@ -415,7 +436,7 @@ fun SurabayaMainHub(
                 viewModel.selectTab(MainTab.CHAT)
                 val targetRoom = (publicChatRooms + directChatRooms).firstOrNull { it.id == payload.targetId || it.roomKey == payload.targetId }
                 if (targetRoom != null) {
-                    viewModel.openSheet(ActiveBottomSheet.ChatConversation(targetRoom))
+                    viewModel.requestOpenChatRoom(targetRoom)
                 }
             }
             AppNotificationType.EVENT -> {
@@ -766,8 +787,9 @@ fun SurabayaMainHub(
                                 selectedSubTab = chatSubTab,
                                 onSelectSubTab = { viewModel.selectChatSubTab(it) },
                                 onStartNewDirectChat = { viewModel.openSheet(ActiveBottomSheet.StartDirectChat) },
-                                onOpenRoom = { viewModel.openSheet(ActiveBottomSheet.ChatConversation(it)) },
+                                onOpenRoom = { viewModel.requestOpenChatRoom(it) },
                                 isAdmin = isAdmin,
+                                unlockedGroupPinHashes = unlockedGroupPinHashes,
                                 onCreatePublicGroup = { viewModel.openCreatePublicGroup() },
                             )
                             MainTab.JASA -> JasaWargaScreen(
@@ -1310,7 +1332,7 @@ fun SurabayaMainHub(
                                     viewModel.selectTab(MainTab.CHAT)
                                     val foundRoom = (publicChatRooms + directChatRooms).firstOrNull { it.id == notif.targetId || it.roomKey == notif.targetId }
                                     if (foundRoom != null) {
-                                        viewModel.openSheet(ActiveBottomSheet.ChatConversation(foundRoom))
+                                        viewModel.requestOpenChatRoom(foundRoom)
                                     }
                                 }
                                 AppNotificationType.EVENT -> {
@@ -1460,11 +1482,15 @@ fun SurabayaMainHub(
                 ActiveBottomSheet.CreatePublicGroup -> {
                     CreatePublicGroupSheetContent(
                         isSubmitting = isSubmitting,
-                        onSubmit = { title, subtitle, welcomeMsg ->
+                        isAdmin = isAdmin,
+                        myActiveGroupCount = myActivePublicGroupCount,
+                        onSubmitWithPin = { title, subtitle, welcomeMsg, pinCode ->
                             viewModel.submitPublicGroupRoom(
                                 title = title,
                                 subtitle = subtitle,
                                 welcomeMessage = welcomeMsg,
+                                pinCode = pinCode,
+                                context = context,
                             )
                         },
                     )
@@ -1483,10 +1509,12 @@ fun SurabayaMainHub(
                         peerItems.firstOrNull { it.profile.userId == peerUid || it.profile.id == peerUid }?.profile
                             ?: allDiscoverableCitizens.firstOrNull { it.userId == peerUid || it.id == peerUid }
                     } else null
+                    val canManageGroup = liveRoom.roomType == "PUBLIC" && (isAdmin || liveRoom.isCreatedBy(currentUserId))
                     ChatConversationSheetContent(
                         room = liveRoom,
                         messages = activeChatMessages,
                         currentUserId = currentUserId,
+                        isAdmin = isAdmin,
                         isSending = isSendingChatMessage || isScanningPhoto,
                         peerProfile = peerProfile,
                         onOpenPeerProfile = if (peerUid != null) {
@@ -1508,8 +1536,13 @@ fun SurabayaMainHub(
                         } else {
                             null
                         },
-                        onAdminDeleteGroup = if (isAdmin && liveRoom.roomType == "PUBLIC") {
-                            { viewModel.adminDeletePublicGroup(liveRoom) }
+                        onAdminDeleteGroup = if (canManageGroup) {
+                            { viewModel.deletePublicGroup(liveRoom) }
+                        } else {
+                            null
+                        },
+                        onUpdateGroupPin = if (canManageGroup) {
+                            { newPin -> viewModel.updatePublicGroupPin(liveRoom, newPin, context) }
                         } else {
                             null
                         },

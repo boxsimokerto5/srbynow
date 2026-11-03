@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.LinkOff
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
@@ -683,20 +684,56 @@ fun AdminPublicGroupManageRow(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { onOpenRoom() },
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = room.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (room.isPinProtected) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFFE0F2FE),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0369A1),
+                                    modifier = Modifier.size(11.dp),
+                                )
+                                Text(
+                                    text = "Ber-PIN • Bebas Pantau",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0369A1),
+                                )
+                            }
+                        }
+                    }
+                }
+                val creatorNote = if (room.creatorName.isNotBlank()) " • Pembuat: ${room.creatorName}" else ""
                 Text(
-                    text = room.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = room.subtitle.ifBlank { "Ruang Publik SBY" },
+                    text = room.subtitle.ifBlank { "Ruang Publik SBY" } + creatorNote,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            Spacer(Modifier.width(8.dp))
             OutlinedButton(
                 onClick = onDeleteRoom,
                 shape = RoundedCornerShape(12.dp),

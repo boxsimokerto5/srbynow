@@ -61,6 +61,7 @@ import com.example.data.util.DuplicateContentException
 import com.example.data.util.SpamCheckResult
 import com.example.data.util.SpamRateLimitException
 import com.example.data.util.SurabayaDistricts
+import com.example.data.util.CommunityGroupPinHelper
 import com.example.data.util.SurabayaNotificationHelper
 import com.example.data.util.SurabayaSpamProtector
 import com.example.data.util.calculateDistanceKm
@@ -185,6 +186,12 @@ class SurabayaViewModel(
 
     private val _isSendingChatMessage = MutableStateFlow(false)
     val isSendingChatMessage: StateFlow<Boolean> = _isSendingChatMessage.asStateFlow()
+
+    private val _unlockedGroupPinHashes = MutableStateFlow<Map<String, String>>(emptyMap())
+    val unlockedGroupPinHashes: StateFlow<Map<String, String>> = _unlockedGroupPinHashes.asStateFlow()
+
+    private val _pendingPinUnlockRoom = MutableStateFlow<ChatRoom?>(null)
+    val pendingPinUnlockRoom: StateFlow<ChatRoom?> = _pendingPinUnlockRoom.asStateFlow()
 
     private val activeInterestJobs = ConcurrentHashMap<String, Job>()
     private val _pendingEventInterests = MutableStateFlow<Set<String>>(emptySet())
@@ -435,6 +442,10 @@ class SurabayaViewModel(
             emit(emptyList())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    val myActivePublicGroupCount: StateFlow<Int> = publicChatRooms
+        .map { rooms -> rooms.count { it.roomType == "PUBLIC" && it.createdBy == currentUserId } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), 0)
 
     val directChatRooms: StateFlow<List<ChatRoom>> = combine(
         repository.observeDirectChatRooms(currentUserId),
@@ -1632,10 +1643,82 @@ class SurabayaViewModel(
         }
     }
 
+    fun loadSavedUnlockedGroupPins(context: Context) {
+        if (currentUserId.isBlank()) return
+        val prefs = context.getSharedPreferences(GROUP_PIN_PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString("${KEY_UNLOCKED_GROUP_PINS}_$currentUserId", null)
+        val parsed = CommunityGroupPinHelper.parseUnlockedPinMap(raw)
+        if (parsed.isNotEmpty()) {
+            _unlockedGroupPinHashes.value = parsed
+        }
+    }
+
+    private fun persistUnlockedGroupPins(context: Context?, updated: Map<String, String>) {
+        _unlockedGroupPinHashes.value = updated
+        if (context == null || currentUserId.isBlank()) return
+        context.getSharedPreferences(GROUP_PIN_PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString("${KEY_UNLOCKED_GROUP_PINS}_$currentUserId", CommunityGroupPinHelper.serializeUnlockedPinMap(updated))
+            .apply()
+    }
+
+    fun canAccessRoomWithoutPinPrompt(room: ChatRoom): Boolean {
+        if (room.roomType != "PUBLIC" || !room.isPinProtected) return true
+        return CommunityGroupPinHelper.hasRoomAccess(
+            pinHash = room.pinHash,
+            roomId = room.id,
+            roomCreatedBy = room.createdBy,
+            currentUserId = currentUserId,
+            isAdmin = isAdmin.value,
+            unlockedPinHashesByRoomId = _unlockedGroupPinHashes.value,
+        )
+    }
+
+    fun requestOpenChatRoom(room: ChatRoom) {
+        if (canAccessRoomWithoutPinPrompt(room)) {
+            _pendingPinUnlockRoom.value = null
+            _activeSheet.value = ActiveBottomSheet.ChatConversation(room)
+        } else {
+            _pendingPinUnlockRoom.value = room
+        }
+    }
+
+    fun dismissPinUnlockDialog() {
+        _pendingPinUnlockRoom.value = null
+    }
+
+    fun verifyAndUnlockChatRoom(room: ChatRoom, enteredPin: String, context: Context? = null): Boolean {
+        if (canAccessRoomWithoutPinPrompt(room)) {
+            _pendingPinUnlockRoom.value = null
+            _activeSheet.value = ActiveBottomSheet.ChatConversation(room)
+            return true
+        }
+        val isMatch = CommunityGroupPinHelper.verifyPin(
+            roomSeed = room.pinSeed,
+            expectedPinHash = room.pinHash,
+            candidatePin = enteredPin,
+        )
+        if (isMatch) {
+            val nextMap = LinkedHashMap(_unlockedGroupPinHashes.value)
+            nextMap[room.id] = room.pinHash.lowercase()
+            persistUnlockedGroupPins(context, nextMap)
+            _pendingPinUnlockRoom.value = null
+            _activeSheet.value = ActiveBottomSheet.ChatConversation(room)
+            return true
+        }
+        return false
+    }
+
     fun openCreatePublicGroup() {
+        if (isCurrentUserFrozen()) return
         if (!isAdmin.value) {
-            notifyMessage("Hanya Admin resmi Arek Surabaya yang dapat membuat grup publik baru.")
-            return
+            val myCount = publicChatRooms.value.count { it.roomType == "PUBLIC" && it.createdBy == currentUserId }
+            if (myCount >= CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN) {
+                notifyMessage(
+                    "Kuota grup Anda penuh ($myCount/${CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN}). Hapus grup lama Anda terlebih dahulu (atau minta Admin) untuk membuat grup baru.",
+                )
+                return
+            }
         }
         _activeSheet.value = ActiveBottomSheet.CreatePublicGroup
     }
@@ -1644,10 +1727,13 @@ class SurabayaViewModel(
         title: String,
         subtitle: String,
         welcomeMessage: String,
+        pinCode: String = "",
+        context: Context? = null,
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
-        if (!isAdmin.value) {
-            notifyMessage("Hanya Admin resmi Arek Surabaya yang dapat membuat grup publik baru.")
+        val cleanPin = pinCode.trim()
+        if (cleanPin.isNotEmpty() && !CommunityGroupPinHelper.isValidFourDigitPin(cleanPin)) {
+            notifyMessage("PIN grup wajib terdiri dari tepat 4 angka (0–9).")
             return
         }
         viewModelScope.launch {
@@ -1658,40 +1744,98 @@ class SurabayaViewModel(
                     subtitle = subtitle,
                     welcomeMessage = welcomeMessage,
                     adminDisplayName = currentDisplayName(),
+                    pinCode = cleanPin,
                 )
+                if (createdRoom.isPinProtected) {
+                    val nextMap = LinkedHashMap(_unlockedGroupPinHashes.value)
+                    nextMap[createdRoom.id] = createdRoom.pinHash.lowercase()
+                    persistUnlockedGroupPins(context, nextMap)
+                }
                 _chatSubTab.value = 0
                 _selectedTab.value = MainTab.CHAT
                 _activeSheet.value = ActiveBottomSheet.ChatConversation(createdRoom)
-                notifyMessage("Grup publik \"${createdRoom.title}\" berhasil dibuat!")
+                val modeInfo = if (createdRoom.isPinProtected) " (Komunitas Ber-PIN)" else " (Terbuka)"
+                notifyMessage("Grup \"${createdRoom.title}\"$modeInfo berhasil dibuat!")
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Exception) {
-                notifyMessage("Gagal membuat grup publik: ${e.localizedMessage ?: "Periksa koneksi internet"}")
+                notifyMessage("Gagal membuat grup: ${e.localizedMessage ?: "Periksa koneksi internet"}")
             } finally {
                 _isSubmitting.value = false
             }
         }
     }
 
-    fun adminDeletePublicGroup(room: ChatRoom) {
-        if (!isAdmin.value || room.roomType != "PUBLIC") {
-            notifyMessage("Hanya Admin yang dapat menghapus grup publik.")
+    fun updatePublicGroupPin(
+        room: ChatRoom,
+        newPinCode: String,
+        context: Context? = null,
+    ) {
+        if (room.roomType != "PUBLIC") return
+        val canManage = isAdmin.value || room.isCreatedBy(currentUserId)
+        if (!canManage) {
+            notifyMessage("Hanya pembuat grup atau Admin yang dapat mengatur PIN grup ini.")
+            return
+        }
+        val cleanPin = newPinCode.trim()
+        if (cleanPin.isNotEmpty() && !CommunityGroupPinHelper.isValidFourDigitPin(cleanPin)) {
+            notifyMessage("PIN grup baru wajib tepat 4 angka (0–9).")
             return
         }
         viewModelScope.launch {
             try {
-                repository.adminDeletePublicGroupRoom(room.id)
+                val updatedRoom = repository.updatePublicGroupPin(room, cleanPin)
+                val nextMap = LinkedHashMap(_unlockedGroupPinHashes.value)
+                if (updatedRoom.isPinProtected) {
+                    nextMap[updatedRoom.id] = updatedRoom.pinHash.lowercase()
+                } else {
+                    nextMap.remove(updatedRoom.id)
+                }
+                persistUnlockedGroupPins(context, nextMap)
+                val currentSheet = _activeSheet.value
+                if (currentSheet is ActiveBottomSheet.ChatConversation && currentSheet.room.id == room.id) {
+                    _activeSheet.value = ActiveBottomSheet.ChatConversation(updatedRoom)
+                }
+                if (updatedRoom.isPinProtected) {
+                    notifyMessage("PIN 4 angka untuk grup \"${updatedRoom.title}\" berhasil diperbarui!")
+                } else {
+                    notifyMessage("Grup \"${updatedRoom.title}\" kini dibuka tanpa PIN.")
+                }
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (e: Exception) {
+                notifyMessage("Gagal memperbarui PIN grup: ${e.localizedMessage ?: ""}")
+            }
+        }
+    }
+
+    fun deletePublicGroup(room: ChatRoom) {
+        val canDelete = (isAdmin.value || room.isCreatedBy(currentUserId)) && room.roomType == "PUBLIC"
+        if (!canDelete) {
+            notifyMessage("Hanya pembuat grup atau Admin yang dapat menghapus grup ini.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.deletePublicGroupRoom(room.id)
                 val currentSheet = _activeSheet.value
                 if (currentSheet is ActiveBottomSheet.ChatConversation && currentSheet.room.id == room.id) {
                     dismissSheet()
                 }
-                notifyMessage("Grup publik \"${room.title}\" telah dihapus.")
+                if (_pendingPinUnlockRoom.value?.id == room.id) {
+                    _pendingPinUnlockRoom.value = null
+                }
+                notifyMessage("Grup \"${room.title}\" telah dihapus.")
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Exception) {
                 notifyMessage("Gagal menghapus grup: ${e.localizedMessage ?: ""}")
             }
         }
+    }
+
+    fun adminDeletePublicGroup(room: ChatRoom) {
+        deletePublicGroup(room)
     }
 
     fun sendChatMessage(
@@ -3234,5 +3378,7 @@ class SurabayaViewModel(
     private companion object {
         const val TAG = "SurabayaVM"
         const val STOP_TIMEOUT = 5000L
+        const val GROUP_PIN_PREFS_NAME = "surabaya_group_pin_prefs"
+        const val KEY_UNLOCKED_GROUP_PINS = "unlocked_group_pin_hashes"
     }
 }

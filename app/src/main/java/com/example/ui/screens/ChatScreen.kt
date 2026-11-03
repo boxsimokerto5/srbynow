@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -18,11 +21,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -31,20 +33,32 @@ import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PersonAddAlt1
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,18 +72,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.model.ChatRoom
 import com.example.data.model.NearbyProfile
 import com.example.data.repository.SurabayaRepository
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import com.example.data.util.CommunityGroupPinHelper
 import com.example.data.util.formatRelativeTimestamp
 import com.example.ui.components.EmptyFeedPlaceholder
 import com.example.ui.components.GoogleMapsSheetHandleHeader
 import com.example.ui.components.InitialsAvatar
+import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.FreshGreenGradient
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
@@ -88,20 +105,36 @@ fun ChatScreen(
     onStartNewDirectChat: () -> Unit,
     onOpenRoom: (ChatRoom) -> Unit,
     isAdmin: Boolean = false,
+    unlockedGroupPinHashes: Map<String, String> = emptyMap(),
     onCreatePublicGroup: () -> Unit = {},
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
+    val myActiveGroupCount = remember(publicRooms, currentUserId) {
+        if (currentUserId.isBlank()) 0
+        else publicRooms.count { it.roomType == "PUBLIC" && it.createdBy == currentUserId }
+    }
+    val isCitizenQuotaFull = !isAdmin && myActiveGroupCount >= CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN
+
     val baseRooms = if (selectedSubTab == 0) publicRooms else directRooms
-    val activeRooms = remember(baseRooms, searchQuery, currentUserId) {
+    val activeRooms = remember(baseRooms, searchQuery, currentUserId, isAdmin, unlockedGroupPinHashes) {
         if (searchQuery.isBlank()) {
             baseRooms
         } else {
             val q = searchQuery.trim().lowercase()
             baseRooms.filter { room ->
+                val canReadPreview = CommunityGroupPinHelper.hasRoomAccess(
+                    pinHash = room.pinHash,
+                    roomId = room.id,
+                    roomCreatedBy = room.createdBy,
+                    currentUserId = currentUserId,
+                    isAdmin = isAdmin,
+                    unlockedPinHashesByRoomId = unlockedGroupPinHashes,
+                )
                 room.displayTitleFor(currentUserId).lowercase().contains(q) ||
                     room.subtitle.lowercase().contains(q) ||
-                    room.lastMessage.lowercase().contains(q) ||
+                    (canReadPreview && room.lastMessage.lowercase().contains(q)) ||
+                    room.creatorName.lowercase().contains(q) ||
                     room.roomKey.lowercase().contains(q) ||
                     room.id.lowercase().contains(q)
             }
@@ -110,7 +143,7 @@ fun ChatScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(top = 6.dp, bottom = if (isAdmin && selectedSubTab == 0) 80.dp else 20.dp),
+            contentPadding = PaddingValues(top = 6.dp, bottom = if (selectedSubTab == 0) 80.dp else 20.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
                 .fillMaxSize()
@@ -162,7 +195,7 @@ fun ChatScreen(
                         onValueChange = { searchQuery = it },
                         placeholder = {
                             Text(
-                                text = "Cari teman, ruang, atau ID room…",
+                                text = if (selectedSubTab == 0) "Cari grup publik / komunitas…" else "Cari teman atau ID room…",
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         },
@@ -184,11 +217,11 @@ fun ChatScreen(
                             .weight(1f)
                             .testTag("chat_search_input"),
                     )
-                    if (selectedSubTab == 0 && isAdmin) {
+                    if (selectedSubTab == 0) {
                         Button(
                             onClick = onCreatePublicGroup,
                             shape = CircleShape,
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                             modifier = Modifier.testTag("chat_create_group_btn"),
                         ) {
                             Icon(
@@ -196,7 +229,7 @@ fun ChatScreen(
                                 contentDescription = stringResource(R.string.btn_create_public_group),
                                 modifier = Modifier.size(17.dp),
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = stringResource(R.string.btn_create_public_group),
                                 style = MaterialTheme.typography.labelLarge,
@@ -254,12 +287,16 @@ fun ChatScreen(
                         }
                     } else {
                         Surface(
-                            color = ToskaPrimaryDeep.copy(alpha = 0.08f),
+                            color = if (isCitizenQuotaFull) Color(0xFFFFF8E1) else ToskaPrimaryDeep.copy(alpha = 0.08f),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isCitizenQuotaFull) Color(0xFFFFD54F) else ToskaPrimaryDeep.copy(alpha = 0.16f),
+                            ),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 10.dp)
-                                .testTag("chat_group_admin_notice"),
+                                .testTag("chat_group_citizen_quota_banner"),
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -267,17 +304,38 @@ fun ChatScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Info,
+                                    imageVector = if (isCitizenQuotaFull) Icons.Filled.Lock else Icons.Filled.Info,
                                     contentDescription = null,
-                                    tint = ToskaPrimaryDeep,
+                                    tint = if (isCitizenQuotaFull) Color(0xFFB45309) else ToskaPrimaryDeep,
                                     modifier = Modifier.size(16.dp),
                                 )
-                                Text(
-                                    text = stringResource(R.string.admin_only_create_group_notice),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ToskaPrimaryDeep,
-                                    modifier = Modifier.weight(1f),
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isCitizenQuotaFull) {
+                                            stringResource(
+                                                R.string.group_quota_full_hint,
+                                                myActiveGroupCount,
+                                                CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN,
+                                            )
+                                        } else {
+                                            stringResource(R.string.admin_only_create_group_notice)
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isCitizenQuotaFull) Color(0xFF92400E) else ToskaPrimaryDeep,
+                                    )
+                                }
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isCitizenQuotaFull) Color(0xFFFDE68A) else OpenGreenBg,
+                                ) {
+                                    Text(
+                                        text = "$myActiveGroupCount/${CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isCitizenQuotaFull) Color(0xFF92400E) else OpenGreenText,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -290,7 +348,7 @@ fun ChatScreen(
                         icon = if (selectedSubTab == 0) Icons.Filled.Forum else Icons.AutoMirrored.Filled.Chat,
                         title = if (selectedSubTab == 0) "Memuat Ruang Publik Surabaya" else "Belum ada obrolan pribadi",
                         subtitle = if (selectedSubTab == 0) {
-                            "Ruang diskusi terbuka dua arah bagi seluruh warga Kota Pahlawan."
+                            "Ruang diskusi terbuka atau komunitas ber-PIN bagi seluruh warga Kota Pahlawan."
                         } else {
                             "Tekan tombol Chat Warga di atas atau tombol Sapa pada menu Sekitar untuk memulai percakapan dua arah!"
                         },
@@ -298,16 +356,26 @@ fun ChatScreen(
                 }
             } else {
                 items(activeRooms, key = { it.id }) { room ->
+                    val isUnlocked = CommunityGroupPinHelper.hasRoomAccess(
+                        pinHash = room.pinHash,
+                        roomId = room.id,
+                        roomCreatedBy = room.createdBy,
+                        currentUserId = currentUserId,
+                        isAdmin = isAdmin,
+                        unlockedPinHashesByRoomId = unlockedGroupPinHashes,
+                    )
                     ChatRoomRowCard(
                         room = room,
                         currentUserId = currentUserId,
+                        isAdmin = isAdmin,
+                        isPinUnlocked = isUnlocked,
                         onClick = { onOpenRoom(room) },
                     )
                 }
             }
         }
 
-        if (isAdmin && selectedSubTab == 0) {
+        if (selectedSubTab == 0) {
             ExtendedFloatingActionButton(
                 onClick = onCreatePublicGroup,
                 shape = CircleShape,
@@ -322,7 +390,11 @@ fun ChatScreen(
                 },
                 text = {
                     Text(
-                        text = stringResource(R.string.btn_create_public_group),
+                        text = if (isAdmin) {
+                            stringResource(R.string.btn_create_public_group)
+                        } else {
+                            "${stringResource(R.string.btn_create_public_group)} ($myActiveGroupCount/${CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN})"
+                        },
                         style = MaterialTheme.typography.labelLarge,
                     )
                 },
@@ -371,15 +443,22 @@ private fun ChatModeTabPill(
 private fun ChatRoomRowCard(
     room: ChatRoom,
     currentUserId: String,
+    isAdmin: Boolean,
+    isPinUnlocked: Boolean,
     onClick: () -> Unit,
 ) {
     val isPublic = room.roomType == "PUBLIC"
+    val isPinProtected = room.isPinProtected
+    val isMine = isPublic && room.isCreatedBy(currentUserId)
     val displayTitle = room.displayTitleFor(currentUserId)
 
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = Color.White,
-        border = BorderStroke(1.dp, OutlineVariantLight),
+        border = BorderStroke(
+            1.dp,
+            if (isPinProtected && !isPinUnlocked) Color(0xFFFCD34D) else OutlineVariantLight,
+        ),
         shadowElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -400,14 +479,24 @@ private fun ChatRoomRowCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(MintSoftGradient),
+                        .then(
+                            if (isPinProtected && !isPinUnlocked) {
+                                Modifier.background(Color(0xFFFEF3C7))
+                            } else {
+                                Modifier.background(MintSoftGradient)
+                            },
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Groups,
+                        imageVector = when {
+                            isPinProtected && !isPinUnlocked -> Icons.Filled.Lock
+                            isPinProtected && isPinUnlocked -> Icons.Filled.LockOpen
+                            else -> Icons.Filled.Groups
+                        },
                         contentDescription = null,
-                        tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(21.dp),
+                        tint = if (isPinProtected && !isPinUnlocked) Color(0xFFB45309) else ToskaPrimaryDeep,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             } else if (room.isOfficialAccount) {
@@ -450,12 +539,68 @@ private fun ChatRoomRowCard(
                         Text(
                             text = displayTitle,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = if (room.isOfficialAccount) FontWeight.Bold else FontWeight.SemiBold,
+                            fontWeight = if (room.isOfficialAccount || isMine) FontWeight.Bold else FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
-                        if (room.isOfficialAccount) {
+                        if (isPinProtected) {
+                            val badgeBg = when {
+                                isAdmin && !isMine -> Color(0xFFE0F2FE)
+                                isPinUnlocked -> OpenGreenBg
+                                else -> Color(0xFFFEF3C7)
+                            }
+                            val badgeFg = when {
+                                isAdmin && !isMine -> Color(0xFF0369A1)
+                                isPinUnlocked -> OpenGreenText
+                                else -> Color(0xFFB45309)
+                            }
+                            val badgeText = when {
+                                isAdmin && !isMine -> stringResource(R.string.group_badge_admin_bypass)
+                                isPinUnlocked -> stringResource(R.string.group_badge_unlocked_pin)
+                                else -> stringResource(R.string.group_badge_locked_pin)
+                            }
+                            Surface(
+                                shape = CircleShape,
+                                color = badgeBg,
+                                modifier = Modifier.testTag("chat_room_pin_badge_${room.id}"),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPinUnlocked) Icons.Filled.LockOpen else Icons.Filled.Lock,
+                                        contentDescription = null,
+                                        tint = badgeFg,
+                                        modifier = Modifier.size(11.dp),
+                                    )
+                                    Text(
+                                        text = badgeText,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = badgeFg,
+                                    )
+                                }
+                            }
+                        }
+                        if (isMine) {
+                            Surface(
+                                shape = CircleShape,
+                                color = OpenGreenBg,
+                                modifier = Modifier.testTag("chat_room_mine_badge_${room.id}"),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.group_badge_my_group),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OpenGreenText,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                )
+                            }
+                        } else if (room.isOfficialAccount) {
                             Icon(
                                 imageVector = Icons.Filled.Verified,
                                 contentDescription = "Resmi",
@@ -476,6 +621,7 @@ private fun ChatRoomRowCard(
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = formatRelativeTimestamp(room.updatedAt ?: room.createdAt),
                         style = MaterialTheme.typography.labelSmall,
@@ -484,8 +630,13 @@ private fun ChatRoomRowCard(
                 }
 
                 if (room.subtitle.isNotBlank()) {
+                    val subtitleWithCreator = if (isPublic && room.creatorName.isNotBlank()) {
+                        "${room.subtitle} • Oleh ${room.creatorName}"
+                    } else {
+                        room.subtitle
+                    }
                     Text(
-                        text = room.subtitle,
+                        text = subtitleWithCreator,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
@@ -493,20 +644,229 @@ private fun ChatRoomRowCard(
                     )
                 }
 
+                val previewMessage = if (isPinProtected && !isPinUnlocked) {
+                    stringResource(R.string.group_masked_last_message)
+                } else if (room.lastSenderName.isNotBlank()) {
+                    "${room.lastSenderName}: ${room.lastMessage}"
+                } else {
+                    room.lastMessage.ifBlank { "Ketuk untuk membuka percakapan" }
+                }
                 Text(
-                    text = if (room.lastSenderName.isNotBlank()) {
-                        "${room.lastSenderName}: ${room.lastMessage}"
-                    } else {
-                        room.lastMessage.ifBlank { "Ketuk untuk membuka percakapan" }
-                    },
+                    text = previewMessage,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isPinProtected && !isPinUnlocked) {
+                        Color(0xFF92400E)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    fontWeight = if (isPinProtected && !isPinUnlocked) FontWeight.Medium else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag("chat_room_preview_${room.id}"),
                 )
             }
         }
     }
+}
+
+@Composable
+fun UnlockGroupPinDialog(
+    room: ChatRoom,
+    onDismiss: () -> Unit,
+    onVerifyPin: (String) -> Boolean,
+) {
+    var pinInput by remember(room.id) { mutableStateOf("") }
+    var showError by remember(room.id) { mutableStateOf(false) }
+    var showDigits by remember(room.id) { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFFEF3C7)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Lock,
+                    contentDescription = null,
+                    tint = Color(0xFFB45309),
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        },
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_unlock_pin_title),
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = stringResource(R.string.dialog_unlock_pin_subtitle, room.title),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                OutlinedTextField(
+                    value = pinInput,
+                    onValueChange = { raw ->
+                        pinInput = CommunityGroupPinHelper.sanitizePinDigits(raw)
+                        if (showError) showError = false
+                    },
+                    label = { Text(stringResource(R.string.group_pin_input_label)) },
+                    placeholder = { Text("••••") },
+                    singleLine = true,
+                    isError = showError,
+                    visualTransformation = if (showDigits) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    trailingIcon = {
+                        IconButton(onClick = { showDigits = !showDigits }) {
+                            Icon(
+                                imageVector = if (showDigits) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (showDigits) "Sembunyikan PIN" else "Tampilkan PIN",
+                            )
+                        }
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("unlock_group_pin_input"),
+                )
+
+                if (showError) {
+                    Text(
+                        text = stringResource(R.string.dialog_unlock_pin_error),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AlertCrimson,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.testTag("unlock_group_pin_error"),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val ok = onVerifyPin(pinInput)
+                    if (!ok) {
+                        showError = true
+                    }
+                },
+                enabled = CommunityGroupPinHelper.isValidFourDigitPin(pinInput),
+                shape = CircleShape,
+                modifier = Modifier.testTag("confirm_unlock_group_pin_btn"),
+            ) {
+                Icon(Icons.Filled.LockOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.btn_unlock_group_pin))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.btn_cancel_action))
+            }
+        },
+    )
+}
+
+@Composable
+fun ManageGroupPinDialog(
+    room: ChatRoom,
+    onDismiss: () -> Unit,
+    onSavePin: (String) -> Unit,
+) {
+    var newPin by remember(room.id) { mutableStateOf("") }
+    var showDigits by remember(room.id) { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Filled.Security,
+                contentDescription = null,
+                tint = ToskaPrimaryDeep,
+                modifier = Modifier.size(28.dp),
+            )
+        },
+        title = {
+            Text(
+                text = stringResource(R.string.dialog_manage_pin_title, room.title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = stringResource(R.string.dialog_manage_pin_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                OutlinedTextField(
+                    value = newPin,
+                    onValueChange = { newPin = CommunityGroupPinHelper.sanitizePinDigits(it) },
+                    label = { Text(stringResource(R.string.group_pin_input_label)) },
+                    placeholder = { Text(stringResource(R.string.group_pin_input_placeholder)) },
+                    singleLine = true,
+                    visualTransformation = if (showDigits) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    trailingIcon = {
+                        IconButton(onClick = { showDigits = !showDigits }) {
+                            Icon(
+                                imageVector = if (showDigits) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (showDigits) "Sembunyikan PIN" else "Tampilkan PIN",
+                            )
+                        }
+                    },
+                    supportingText = {
+                        Text("${newPin.length}/${CommunityGroupPinHelper.PIN_LENGTH} angka")
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("manage_group_pin_input"),
+                )
+
+                if (room.isPinProtected) {
+                    OutlinedButton(
+                        onClick = { onSavePin("") },
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("remove_group_pin_btn"),
+                    ) {
+                        Icon(Icons.Filled.Public, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.btn_remove_group_pin))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSavePin(newPin) },
+                enabled = CommunityGroupPinHelper.isValidFourDigitPin(newPin),
+                shape = CircleShape,
+                modifier = Modifier.testTag("save_manage_group_pin_btn"),
+            ) {
+                Text(stringResource(R.string.btn_save_new_pin))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.btn_cancel_action))
+            }
+        },
+    )
 }
 
 @Composable
@@ -646,12 +1006,18 @@ fun StartDirectChatSheetContent(
 @Composable
 fun CreatePublicGroupSheetContent(
     isSubmitting: Boolean = false,
-    onSubmit: (title: String, subtitle: String, welcomeMessage: String) -> Unit,
+    isAdmin: Boolean = false,
+    myActiveGroupCount: Int = 0,
+    onSubmitWithPin: (title: String, subtitle: String, welcomeMessage: String, pinCode: String) -> Unit = { _, _, _, _ -> },
+    onSubmit: ((title: String, subtitle: String, welcomeMessage: String) -> Unit)? = null,
 ) {
     var title by remember { mutableStateOf("") }
     var subtitle by remember { mutableStateOf("") }
     var welcomeMessage by remember { mutableStateOf("") }
     var selectedTopicPreset by remember { mutableStateOf("") }
+    var usePinProtection by remember { mutableStateOf(false) }
+    var pinCode by remember { mutableStateOf("") }
+    var showPinDigits by remember { mutableStateOf(true) }
 
     val topicPresets = listOf(
         "Komunitas Warga" to "Diskusi harian & silaturahmi warga Surabaya",
@@ -661,7 +1027,9 @@ fun CreatePublicGroupSheetContent(
         "Lalin & Darurat" to "Pantauan lalu lintas cepat, cuaca & info darurat",
     )
 
-    val isFormValid = title.trim().length >= 3 && subtitle.trim().length >= 4
+    val isQuotaFull = !isAdmin && myActiveGroupCount >= CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN
+    val isPinValid = !usePinProtection || CommunityGroupPinHelper.isValidFourDigitPin(pinCode)
+    val isFormValid = title.trim().length >= 3 && subtitle.trim().length >= 4 && isPinValid && !isQuotaFull
 
     Column(
         modifier = Modifier
@@ -678,27 +1046,181 @@ fun CreatePublicGroupSheetContent(
             subtitle = stringResource(R.string.create_group_sheet_subtitle),
         )
 
-        Surface(
-            shape = CircleShape,
-            color = OpenGreenBg,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            Surface(
+                shape = CircleShape,
+                color = OpenGreenBg,
             ) {
-                Icon(
-                    imageVector = Icons.Filled.AdminPanelSettings,
-                    contentDescription = null,
-                    tint = OpenGreenText,
-                    modifier = Modifier.size(15.dp),
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        imageVector = if (isAdmin) Icons.Filled.AdminPanelSettings else Icons.Filled.Groups,
+                        contentDescription = null,
+                        tint = OpenGreenText,
+                        modifier = Modifier.size(15.dp),
+                    )
+                    Text(
+                        text = if (isAdmin) {
+                            "Admin Resmi • Tanpa Batas Grup"
+                        } else {
+                            stringResource(
+                                R.string.group_quota_citizen_badge,
+                                myActiveGroupCount,
+                                CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN,
+                            )
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = OpenGreenText,
+                    )
+                }
+            }
+        }
+
+        // Privacy Mode Selector: Terbuka (Tanpa PIN) vs Komunitas Ber-PIN (4 Angka)
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color(0xFFF6FBF8),
+            border = BorderStroke(1.dp, OutlineVariantLight),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Text(
-                    text = stringResource(R.string.admin_only_badge),
-                    style = MaterialTheme.typography.labelSmall,
+                    text = "Pengaturan Privasi Ruang / Grup",
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = OpenGreenText,
+                    color = ToskaPrimaryDeep,
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = !usePinProtection,
+                        onClick = {
+                            if (!isSubmitting) {
+                                usePinProtection = false
+                                pinCode = ""
+                            }
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(R.string.group_privacy_mode_open),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Filled.Public, contentDescription = null, modifier = Modifier.size(16.dp))
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ToskaPrimaryDeep,
+                            selectedLabelColor = Color.White,
+                            selectedLeadingIconColor = Color.White,
+                        ),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("group_mode_open_chip"),
+                    )
+                    FilterChip(
+                        selected = usePinProtection,
+                        onClick = {
+                            if (!isSubmitting) {
+                                usePinProtection = true
+                            }
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(R.string.group_privacy_mode_pin),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFB45309),
+                            selectedLabelColor = Color.White,
+                            selectedLeadingIconColor = Color.White,
+                        ),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("group_mode_pin_chip"),
+                    )
+                }
+
+                if (usePinProtection) {
+                    OutlinedTextField(
+                        value = pinCode,
+                        onValueChange = { pinCode = CommunityGroupPinHelper.sanitizePinDigits(it) },
+                        enabled = !isSubmitting,
+                        label = { Text(stringResource(R.string.group_pin_input_label)) },
+                        placeholder = { Text(stringResource(R.string.group_pin_input_placeholder)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Lock,
+                                contentDescription = null,
+                                tint = Color(0xFFB45309),
+                                modifier = Modifier.size(19.dp),
+                            )
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { showPinDigits = !showPinDigits }) {
+                                Icon(
+                                    imageVector = if (showPinDigits) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                    contentDescription = if (showPinDigits) "Sembunyikan PIN" else "Tampilkan PIN",
+                                )
+                            }
+                        },
+                        visualTransformation = if (showPinDigits) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        supportingText = {
+                            Text("${stringResource(R.string.group_pin_helper_text)} (${pinCode.length}/4)")
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("form_group_pin_input"),
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFFFBEB),
+                        border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("group_pin_moderation_notice"),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Security,
+                                contentDescription = null,
+                                tint = Color(0xFFB45309),
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                text = stringResource(R.string.group_pin_moderation_notice),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF92400E),
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -764,7 +1286,7 @@ fun CreatePublicGroupSheetContent(
             onValueChange = { welcomeMessage = it },
             enabled = !isSubmitting,
             label = { Text(stringResource(R.string.create_group_welcome_label)) },
-            placeholder = { Text("Opsional • Pesan sapaan pertama dari Admin di dalam grup…") },
+            placeholder = { Text("Opsional • Pesan sapaan pertama di dalam grup…") },
             shape = RoundedCornerShape(16.dp),
             minLines = 2,
             modifier = Modifier
@@ -774,11 +1296,17 @@ fun CreatePublicGroupSheetContent(
 
         Button(
             onClick = {
-                onSubmit(
-                    title.trim(),
-                    subtitle.trim(),
-                    welcomeMessage.trim(),
-                )
+                val effectivePin = if (usePinProtection) pinCode.trim() else ""
+                if (onSubmit != null && effectivePin.isEmpty()) {
+                    onSubmit(title.trim(), subtitle.trim(), welcomeMessage.trim())
+                } else {
+                    onSubmitWithPin(
+                        title.trim(),
+                        subtitle.trim(),
+                        welcomeMessage.trim(),
+                        effectivePin,
+                    )
+                }
             },
             enabled = isFormValid && !isSubmitting,
             shape = CircleShape,
@@ -797,7 +1325,7 @@ fun CreatePublicGroupSheetContent(
                 Text(stringResource(R.string.submitting_upload_label))
             } else {
                 Icon(
-                    imageVector = Icons.Filled.GroupAdd,
+                    imageVector = if (usePinProtection) Icons.Filled.Lock else Icons.Filled.GroupAdd,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )

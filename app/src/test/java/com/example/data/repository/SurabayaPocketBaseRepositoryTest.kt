@@ -593,62 +593,98 @@ class SurabayaPocketBaseRepositoryTest {
     }
 
     @Test
-    fun `public group chat creation and deletion is strictly restricted to Admin`() = runBlocking {
+    fun `citizen can create up to 2 groups with or without 4 digit PIN manage PIN and Admin can freely supervise or delete`() = runBlocking {
         val clientCitizen = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
+        val clientOther = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
         val clientAdmin = PocketBaseClient(baseUrlInput = baseUrl, enableRealtimeSse = false)
 
         val repoCitizen = SurabayaRepository(clientCitizen)
+        val repoOther = SurabayaRepository(clientOther)
         val repoAdmin = SurabayaRepository(clientAdmin)
 
-        clientCitizen.registerAndSignIn("Raka Warga", "raka.group@surabaya.id", "secret123", "Gubeng")
+        val sCitizen = clientCitizen.registerAndSignIn("Raka Warga", "raka.group@surabaya.id", "secret123", "Gubeng")
+        clientOther.registerAndSignIn("Budi Warga", "budi.other@surabaya.id", "secret123", "Wonokromo")
         val sAdmin = clientAdmin.registerAndSignIn("Admin SBY", "nabilalailatus12@gmail.com", "secret123", "Genteng")
 
-        // 1. Non-admin citizen MUST be rejected when trying to create a public group
-        var citizenCreateRejected = false
+        // 1. Citizen creates Group #1 (Open, without PIN) and Group #2 (4-digit PIN = "2580")
+        val openGroup = repoCitizen.createPublicGroupRoom(
+            title = "Grup Gowes Gubeng",
+            subtitle = "Komunitas sepeda santai pagi",
+            welcomeMessage = "Ayo gowes bareng rek!",
+            adminDisplayName = sCitizen.displayName,
+            pinCode = "",
+        )
+        assertFalse(openGroup.isPinProtected)
+
+        val pinGroup = repoCitizen.createPublicGroupRoom(
+            title = "Komunitas RT 05 Gubeng",
+            subtitle = "Ruang khusus warga RT 05",
+            welcomeMessage = "Rahasia koordinasi warga RT 05",
+            adminDisplayName = sCitizen.displayName,
+            pinCode = "2580",
+        )
+        assertTrue(pinGroup.isPinProtected)
+        assertTrue(com.example.data.util.CommunityGroupPinHelper.verifyPin(pinGroup.pinSeed, pinGroup.pinHash, "2580"))
+        assertFalse(com.example.data.util.CommunityGroupPinHelper.verifyPin(pinGroup.pinSeed, pinGroup.pinHash, "9999"))
+
+        // 2. Citizen attempting to create a 3rd active group MUST be blocked (max 2 per user)
+        var thirdGroupRejected = false
         try {
             repoCitizen.createPublicGroupRoom(
-                title = "Grup Ilegal Warga",
-                subtitle = "Coba buat tanpa izin",
-                welcomeMessage = "Halo!",
-                adminDisplayName = "Raka Warga",
+                title = "Grup Ketiga Raka",
+                subtitle = "Melebihi batas kuota",
+                adminDisplayName = sCitizen.displayName,
             )
         } catch (e: IllegalStateException) {
-            citizenCreateRejected = true
+            thirdGroupRejected = true
         }
-        assertTrue("Non-admin citizen must not be allowed to create public group", citizenCreateRejected)
+        assertTrue("Citizen must be capped at 2 active groups", thirdGroupRejected)
 
-        // 2. Admin creates an official public group room + initial welcome message
-        val createdGroup = repoAdmin.createPublicGroupRoom(
-            title = "Grup Warga Gubeng",
-            subtitle = "Info kegiatan & kuliner sekitar Gubeng",
-            welcomeMessage = "Selamat bergabung rek di Grup Warga Gubeng!",
-            adminDisplayName = sAdmin.displayName,
-        )
-        assertEquals("PUBLIC", createdGroup.roomType)
-        assertEquals("Grup Warga Gubeng", createdGroup.title)
-
-        val publicRooms = repoCitizen.observePublicChatRooms().first()
-        assertTrue("Created public group must be visible to citizens", publicRooms.any { it.id == createdGroup.id })
-
-        val groupMessages = repoCitizen.observeMessages(createdGroup, sAdmin.userId).first()
-        assertTrue(
-            "Welcome message must be posted in the new group",
-            groupMessages.any { it.text.contains("Selamat bergabung rek di Grup Warga Gubeng!") },
-        )
-
-        // 3. Non-admin citizen MUST be rejected when trying to delete the public group
-        var citizenDeleteRejected = false
+        // 3. Another non-creator citizen CANNOT change PIN or delete Raka's group
+        var outsiderPinRejected = false
         try {
-            repoCitizen.adminDeletePublicGroupRoom(createdGroup.id)
+            repoOther.updatePublicGroupPin(pinGroup, "1111")
         } catch (e: IllegalStateException) {
-            citizenDeleteRejected = true
+            outsiderPinRejected = true
         }
-        assertTrue("Non-admin citizen must not be allowed to delete public group", citizenDeleteRejected)
+        assertTrue("Outsider must not be able to change group PIN", outsiderPinRejected)
 
-        // 4. Admin deletes the public group cleanly
-        repoAdmin.adminDeletePublicGroupRoom(createdGroup.id)
-        val roomsAfterDelete = repoCitizen.observePublicChatRooms().first()
-        assertFalse("Deleted public group must be removed", roomsAfterDelete.any { it.id == createdGroup.id })
+        var outsiderDeleteRejected = false
+        try {
+            repoOther.deletePublicGroupRoom(pinGroup.id)
+        } catch (e: IllegalStateException) {
+            outsiderDeleteRejected = true
+        }
+        assertTrue("Outsider must not be able to delete another user's group", outsiderDeleteRejected)
+
+        // 4. Creator CAN change the 4-digit PIN (e.g. to "4321") and delete their own group to free quota
+        val updatedPinGroup = repoCitizen.updatePublicGroupPin(pinGroup, "4321")
+        assertTrue(com.example.data.util.CommunityGroupPinHelper.verifyPin(updatedPinGroup.pinSeed, updatedPinGroup.pinHash, "4321"))
+        assertFalse(com.example.data.util.CommunityGroupPinHelper.verifyPin(updatedPinGroup.pinSeed, updatedPinGroup.pinHash, "2580"))
+
+        repoCitizen.deletePublicGroupRoom(openGroup.id)
+        // Now Citizen has 1 active group left -> can create another group!
+        val replacementGroup = repoCitizen.createPublicGroupRoom(
+            title = "Grup Kuliner Gubeng",
+            subtitle = "Pengganti grup lama",
+            adminDisplayName = sCitizen.displayName,
+        )
+        assertEquals("PUBLIC", replacementGroup.roomType)
+
+        // 5. Admin has free supervision access & can delete any citizen's PIN group at any time
+        assertTrue(
+            com.example.data.util.CommunityGroupPinHelper.hasRoomAccess(
+                pinHash = updatedPinGroup.pinHash,
+                roomId = updatedPinGroup.id,
+                roomCreatedBy = updatedPinGroup.createdBy,
+                currentUserId = sAdmin.userId,
+                isAdmin = true,
+                unlockedPinHashesByRoomId = emptyMap(),
+            ),
+        )
+        repoAdmin.adminDeletePublicGroupRoom(updatedPinGroup.id)
+        val roomsAfterAdminDelete = repoOther.observePublicChatRooms().first()
+        assertFalse("Admin deleted PIN group must be removed", roomsAfterAdminDelete.any { it.id == updatedPinGroup.id })
         shadowOf(Looper.getMainLooper()).idle()
     }
 

@@ -250,14 +250,16 @@
       { "system": false, "id": "sbyrm008", "name": "last_message", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 300, "pattern": "" } },
       { "system": false, "id": "sbyrm009", "name": "last_sender_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } },
       { "system": false, "id": "sbyrm010", "name": "created_by", "type": "text", "required": true, "presentable": false, "unique": false, "options": { "min": 1, "max": 64, "pattern": "" } },
-      { "system": false, "id": "sbyrm011", "name": "typing_status", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 200, "pattern": "" } }
+      { "system": false, "id": "sbyrm011", "name": "typing_status", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 200, "pattern": "" } },
+      { "system": false, "id": "sbyrm012", "name": "pin_hash", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 64, "pattern": "" } },
+      { "system": false, "id": "sbyrm013", "name": "creator_name", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 80, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
     "viewRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
-    "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id && ((@request.data.room_type = 'PUBLIC' && (@request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')) || (@request.data.room_type = 'DIRECT' && (@request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)))",
+    "createRule": "@request.auth.id != '' && @request.data.created_by = @request.auth.id && (@request.data.room_type = 'PUBLIC' || (@request.data.room_type = 'DIRECT' && (@request.data.participant_uid_1 = @request.auth.id || @request.data.participant_uid_2 = @request.auth.id)))",
     "updateRule": "@request.auth.id != '' && (room_type = 'PUBLIC' || participant_uid_1 = @request.auth.id || participant_uid_2 = @request.auth.id)",
-    "deleteRule": "@request.auth.id != '' && (@request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
+    "deleteRule": "@request.auth.id != '' && (created_by = @request.auth.id || @request.auth.is_admin = true || @request.auth.email = 'eccko.w4@gmail.com' || @request.auth.email = 'nabilalailatus12@gmail.com')",
     "options": {}
   },
   {

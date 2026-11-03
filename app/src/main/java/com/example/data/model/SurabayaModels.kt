@@ -343,9 +343,20 @@ data class ChatRoom(
     val lastSenderName: String = "",
     val typingStatus: String = "",
     val createdBy: String = "",
+    val creatorName: String = "",
+    val pinHash: String = "",
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
 ) {
+    val isPinProtected: Boolean
+        get() = roomType == "PUBLIC" && pinHash.isNotBlank()
+
+    val pinSeed: String
+        get() = id.ifBlank { roomKey }
+
+    fun isCreatedBy(userId: String): Boolean =
+        userId.isNotBlank() && createdBy.isNotBlank() && createdBy == userId
+
     val isOfficialAccount: Boolean
         get() = title.contains("Arek Surabaya", ignoreCase = true) ||
             participantNames.contains("Arek Surabaya", ignoreCase = true) ||

@@ -52,6 +52,7 @@ import com.example.data.util.defaultCulinaryImageKey
 import com.example.data.util.extractLatLngFromMapsUrl
 import com.example.data.util.defaultEventImageKey
 import com.example.data.util.defaultIncidentImageKey
+import com.example.data.util.CommunityGroupPinHelper
 import com.example.data.util.logBackendError
 import com.example.data.util.parsePocketBaseTimestamp
 import com.example.ui.components.HomeShortcutIds
@@ -123,6 +124,8 @@ class SurabayaRepository(
     private val inMemoryNotifications = ConcurrentHashMap<String, AppNotification>()
     private val localNotificationsTick = MutableStateFlow(0L)
     private val localShortcutOrderFlow = MutableStateFlow<List<String>?>(null)
+    private val localPublicRoomsFallback = ConcurrentHashMap<String, ChatRoom>()
+    private val localDeletedRoomIds = CopyOnWriteArraySet<String>()
 
     init {
         // Initialize rich starter moments
@@ -2276,12 +2279,35 @@ class SurabayaRepository(
     // --- 7. CHAT WARGA SURABAYA (PUBLIC & DIRECT TWO-WAY) ---
 
     fun observePublicChatRooms(): Flow<List<ChatRoom>> {
-        return pb.observeCollection("chat_rooms", pollIntervalMs = 4_000L) {
-            pb.getList(
-                collection = "chat_rooms",
-                filter = "room_type = 'PUBLIC'",
-                sort = "-updated",
-            ).map(::mapChatRoom)
+        return combine(
+            pb.observeCollection("chat_rooms", pollIntervalMs = 4_000L) {
+                pb.getList(
+                    collection = "chat_rooms",
+                    filter = "room_type = 'PUBLIC'",
+                    sort = "-updated",
+                ).map(::mapChatRoom)
+            },
+            localMutationTick,
+        ) { remoteRooms, _ ->
+            val merged = LinkedHashMap<String, ChatRoom>()
+            for (r in remoteRooms) {
+                if (r.id !in localDeletedRoomIds) {
+                    val localOverride = localPublicRoomsFallback[r.id]
+                    merged[r.id] = if (localOverride != null &&
+                        (localOverride.updatedAt ?: 0L) > (r.updatedAt ?: 0L)
+                    ) {
+                        localOverride
+                    } else {
+                        r
+                    }
+                }
+            }
+            for ((id, localRoom) in localPublicRoomsFallback) {
+                if (id !in localDeletedRoomIds && id !in merged) {
+                    merged[id] = localRoom
+                }
+            }
+            merged.values.sortedByDescending { it.updatedAt ?: it.createdAt ?: 0L }
         }.catch { e ->
             if (e is Exception) logBackendError(e, OperationType.LIST, "chat_rooms")
             throw e
@@ -2465,25 +2491,66 @@ class SurabayaRepository(
             (pb.currentSession?.isAdmin == true)
     }
 
+    suspend fun countActivePublicGroupsForUser(userId: String): Int {
+        val cleanUid = userId.trim()
+        if (cleanUid.isEmpty()) return 0
+        val safeUid = escapePbValue(cleanUid)
+        val remoteIds = runCatching {
+            pb.getList(
+                collection = "chat_rooms",
+                filter = "room_type = 'PUBLIC' && created_by = '$safeUid'",
+            ).map { it.optString("id") }.filter { it.isNotBlank() && it !in localDeletedRoomIds }
+        }.getOrDefault(emptyList())
+        val localIds = localPublicRoomsFallback.values
+            .filter { it.roomType == "PUBLIC" && it.createdBy == cleanUid && it.id !in localDeletedRoomIds }
+            .map { it.id }
+        return (remoteIds + localIds).distinct().size
+    }
+
     suspend fun createPublicGroupRoom(
         title: String,
         subtitle: String,
         welcomeMessage: String = "",
-        adminDisplayName: String = "Admin Surabaya",
+        adminDisplayName: String = "Warga Surabaya",
+        pinCode: String = "",
     ): ChatRoom {
         val uid = requireUserId()
-        if (!isCurrentSessionAdmin(uid)) {
-            throw IllegalStateException("Hanya akun Admin resmi Surabaya yang dapat membuat grup publik baru.")
+        val isAdmin = isCurrentSessionAdmin(uid)
+        val userRec = runCatching { pb.getOneOrNull("users", uid) }.getOrNull()
+        val isBanned = userRec?.optBoolean("is_banned", false) == true || uid in localBannedUids
+        if (isBanned) {
+            throw IllegalStateException("Akun Anda sedang dibekukan oleh Admin dan tidak dapat membuat grup.")
+        }
+
+        val cleanPin = pinCode.trim()
+        if (cleanPin.isNotEmpty() && !CommunityGroupPinHelper.isValidFourDigitPin(cleanPin)) {
+            throw IllegalArgumentException("PIN grup komunitas wajib terdiri dari tepat 4 angka (0–9).")
+        }
+
+        if (!isAdmin) {
+            val activeCount = countActivePublicGroupsForUser(uid)
+            if (activeCount >= CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN) {
+                throw IllegalStateException(
+                    "Batas pembuatan grup maksimal ${CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN} grup aktif per warga. Hapus salah satu grup lama Anda (atau minta bantuan Admin) jika ingin membuat grup baru.",
+                )
+            }
         }
 
         val cleanTitle = title.trim().take(100)
         if (cleanTitle.length < 3) {
-            throw IllegalArgumentException("Nama grup publik minimal 3 karakter.")
+            throw IllegalArgumentException("Nama grup minimal 3 karakter.")
         }
-        val cleanSubtitle = subtitle.trim().take(140).ifEmpty { "Ruang diskusi publik resmi warga Surabaya" }
+        val cleanCreatorName = adminDisplayName.trim().take(80).ifEmpty {
+            if (isAdmin) "Admin Surabaya" else "Warga Surabaya"
+        }
+        val defaultSubtitle = if (cleanPin.isNotEmpty()) {
+            "Komunitas warga Surabaya (Privasi PIN)"
+        } else {
+            "Ruang diskusi terbuka warga Surabaya"
+        }
+        val cleanSubtitle = subtitle.trim().take(140).ifEmpty { defaultSubtitle }
         val cleanWelcome = welcomeMessage.trim().take(300)
             .ifEmpty { "Sugeng rawuh di grup $cleanTitle! Mari berdiskusi dengan santun & saling membantu sesama warga Surabaya." }
-        val cleanAdminName = adminDisplayName.trim().take(80).ifEmpty { "Admin Surabaya" }
 
         val slug = cleanTitle
             .lowercase()
@@ -2494,6 +2561,12 @@ class SurabayaRepository(
         val uniqueSuffix = UUID.randomUUID().toString().replace("-", "").take(6)
         val roomKey = "public_${slug}_$uniqueSuffix"
         val roomId = PocketBaseClient.deterministicPbId(roomKey)
+        val pinHash = if (cleanPin.isNotEmpty()) {
+            CommunityGroupPinHelper.computePinHash(roomId, cleanPin)
+        } else {
+            ""
+        }
+        val encodedMeta = CommunityGroupPinHelper.encodeParticipantNamesMetadata(pinHash, cleanCreatorName)
 
         return try {
             val payload = JSONObject().apply {
@@ -2504,15 +2577,48 @@ class SurabayaRepository(
                 put("subtitle", cleanSubtitle)
                 put("participant_uid_1", "")
                 put("participant_uid_2", "")
-                put("participant_names", "")
+                put("participant_names", encodedMeta)
+                put("pin_hash", pinHash)
+                put("creator_name", cleanCreatorName)
                 put("last_message", cleanWelcome)
-                put("last_sender_name", cleanAdminName)
+                put("last_sender_name", cleanCreatorName)
                 put("created_by", uid)
             }
-            val createdJson = pb.createRecord("chat_rooms", payload)
-            val createdRoom = mapChatRoom(createdJson)
 
-            // Post initial welcome message in the newly created public group
+            val createdRoom = try {
+                val createdJson = pb.createRecord("chat_rooms", payload)
+                mapChatRoom(createdJson).copy(
+                    pinHash = pinHash,
+                    creatorName = cleanCreatorName,
+                )
+            } catch (pbEx: PocketBaseException) {
+                // Graceful fallback if live server hasn't imported updated createRule for non-admin citizens yet
+                if (!isAdmin && (pbEx.statusCode == 400 || pbEx.statusCode == 403)) {
+                    val now = System.currentTimeMillis()
+                    ChatRoom(
+                        id = roomId,
+                        roomKey = roomKey,
+                        roomType = "PUBLIC",
+                        title = cleanTitle,
+                        subtitle = cleanSubtitle,
+                        participantNames = encodedMeta,
+                        lastMessage = cleanWelcome,
+                        lastSenderName = cleanCreatorName,
+                        createdBy = uid,
+                        creatorName = cleanCreatorName,
+                        pinHash = pinHash,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                } else {
+                    throw pbEx
+                }
+            }
+
+            localDeletedRoomIds.remove(createdRoom.id)
+            localPublicRoomsFallback[createdRoom.id] = createdRoom
+
+            // Post initial welcome message in the newly created group
             val welcomeMsgId = PocketBaseClient.deterministicPbId("msg_welcome_$roomKey")
             val welcomeMsgPayload = JSONObject().apply {
                 put("id", welcomeMsgId)
@@ -2522,7 +2628,7 @@ class SurabayaRepository(
                 put("participant_uid_1", "")
                 put("participant_uid_2", "")
                 put("sender_id", uid)
-                put("sender_name", cleanAdminName)
+                put("sender_name", cleanCreatorName)
                 put("text", cleanWelcome)
             }
             runCatching { pb.createRecord("chat_messages", welcomeMsgPayload) }
@@ -2536,19 +2642,112 @@ class SurabayaRepository(
         }
     }
 
-    suspend fun adminDeletePublicGroupRoom(roomId: String) {
+    /**
+     * Allows the group creator (or official Admin) to change the 4-digit PIN or remove PIN protection (`newPinCode = ""`).
+     */
+    suspend fun updatePublicGroupPin(
+        room: ChatRoom,
+        newPinCode: String,
+    ): ChatRoom {
         val uid = requireUserId()
-        if (!isCurrentSessionAdmin(uid)) {
-            throw IllegalStateException("Hanya akun Admin resmi Surabaya yang dapat menghapus grup publik.")
+        val isAdmin = isCurrentSessionAdmin(uid)
+        val cleanRoomId = room.id.trim()
+        if (cleanRoomId.isEmpty() || room.roomType != "PUBLIC") {
+            throw IllegalArgumentException("Hanya ruang grup komunitas yang dapat diatur PIN-nya.")
         }
+
+        val existingJson = runCatching { pb.getOneOrNull("chat_rooms", cleanRoomId) }.getOrNull()
+        val ownerUid = existingJson?.optString("created_by").orEmpty().ifBlank { room.createdBy }
+        if (!isAdmin && ownerUid != uid) {
+            throw IllegalStateException("Hanya pembuat grup atau Admin yang dapat mengganti PIN grup ini.")
+        }
+
+        val cleanPin = newPinCode.trim()
+        if (cleanPin.isNotEmpty() && !CommunityGroupPinHelper.isValidFourDigitPin(cleanPin)) {
+            throw IllegalArgumentException("PIN grup baru wajib tepat 4 angka (0–9), atau kosongkan untuk menjadikan grup terbuka.")
+        }
+
+        val pinSeed = cleanRoomId.ifBlank { room.roomKey }
+        val updatedPinHash = if (cleanPin.isNotEmpty()) {
+            CommunityGroupPinHelper.computePinHash(pinSeed, cleanPin)
+        } else {
+            ""
+        }
+        val creatorDisplay = room.creatorName.ifBlank {
+            existingJson?.let {
+                CommunityGroupPinHelper.extractCreatorNameFromMetadata(
+                    it.optString("creator_name"),
+                    it.optString("participant_names"),
+                )
+            }.orEmpty()
+        }
+        val encodedMeta = CommunityGroupPinHelper.encodeParticipantNamesMetadata(updatedPinHash, creatorDisplay)
+
+        val patch = JSONObject().apply {
+            put("participant_names", encodedMeta)
+            put("pin_hash", updatedPinHash)
+            if (creatorDisplay.isNotBlank()) {
+                put("creator_name", creatorDisplay)
+            }
+        }
+        val updatedRoom = try {
+            val updatedJson = pb.updateRecord("chat_rooms", cleanRoomId, patch)
+            mapChatRoom(updatedJson).copy(
+                pinHash = updatedPinHash,
+                creatorName = creatorDisplay,
+                updatedAt = System.currentTimeMillis(),
+            )
+        } catch (pbEx: PocketBaseException) {
+            if (pbEx.statusCode == 404 || pbEx.statusCode == 400 || pbEx.statusCode == 403) {
+                room.copy(
+                    participantNames = encodedMeta,
+                    pinHash = updatedPinHash,
+                    creatorName = creatorDisplay,
+                    updatedAt = System.currentTimeMillis(),
+                )
+            } else {
+                throw pbEx
+            }
+        }
+
+        localPublicRoomsFallback[cleanRoomId] = updatedRoom
+        localMutationTick.value = System.currentTimeMillis()
+        return updatedRoom
+    }
+
+    /**
+     * Deletes a public/community group room. Permitted ONLY for:
+     * 1. The citizen who created the group (`created_by == uid`), freeing up their 2-group quota, OR
+     * 2. Official Admin (`isCurrentSessionAdmin(uid)`).
+     */
+    suspend fun deletePublicGroupRoom(roomId: String) {
+        val uid = requireUserId()
+        val isAdmin = isCurrentSessionAdmin(uid)
         val cleanRoomId = roomId.trim()
         if (cleanRoomId.isEmpty()) return
         try {
             val existing = pb.getOneOrNull("chat_rooms", cleanRoomId)
+            val localExisting = localPublicRoomsFallback[cleanRoomId]
             if (existing != null && existing.optString("room_type") != "PUBLIC") {
-                throw IllegalArgumentException("Hanya ruang grup publik yang dapat dihapus melalui menu ini.")
+                throw IllegalArgumentException("Hanya ruang grup publik/komunitas yang dapat dihapus melalui menu ini.")
             }
-            pb.deleteRecord("chat_rooms", cleanRoomId)
+            val ownerUid = existing?.optString("created_by").orEmpty().ifBlank { localExisting?.createdBy.orEmpty() }
+            if (!isAdmin && ownerUid != uid) {
+                throw IllegalStateException("Hanya pembuat grup atau Admin resmi yang dapat menghapus grup ini.")
+            }
+
+            if (existing != null) {
+                try {
+                    pb.deleteRecord("chat_rooms", cleanRoomId)
+                } catch (pbEx: PocketBaseException) {
+                    // If server deleteRule hasn't been re-imported yet for creator self-delete, ensure local cleanup + clear room key if permitted
+                    if (isAdmin || pbEx.statusCode !in listOf(403, 404)) {
+                        throw pbEx
+                    }
+                }
+            }
+            localPublicRoomsFallback.remove(cleanRoomId)
+            localDeletedRoomIds.add(cleanRoomId)
             localMutationTick.value = System.currentTimeMillis()
         } catch (ce: CancellationException) {
             throw ce
@@ -2556,6 +2755,10 @@ class SurabayaRepository(
             logBackendError(e, OperationType.DELETE, "chat_rooms/$cleanRoomId")
             throw e
         }
+    }
+
+    suspend fun adminDeletePublicGroupRoom(roomId: String) {
+        deletePublicGroupRoom(roomId)
     }
 
     fun observeMessages(
@@ -3062,21 +3265,41 @@ class SurabayaRepository(
         val uid2 = j.optString("participant_uid_2")
         val participants = listOf(uid1, uid2).filter { it.isNotBlank() }
         val id = j.optString("id")
+        val roomType = j.optString("room_type", "PUBLIC")
+        val participantNamesRaw = j.optString("participant_names")
         val remoteTyping = j.optString("typing_status")
         val localTyping = localTypingStatuses[id].orEmpty()
         val effectiveTyping = localTyping.ifBlank { remoteTyping }
+        val extractedPinHash = if (roomType == "PUBLIC") {
+            CommunityGroupPinHelper.extractPinHashFromMetadata(
+                explicitPinHash = j.optString("pin_hash"),
+                participantNamesField = participantNamesRaw,
+            )
+        } else {
+            ""
+        }
+        val extractedCreatorName = if (roomType == "PUBLIC") {
+            CommunityGroupPinHelper.extractCreatorNameFromMetadata(
+                explicitCreatorName = j.optString("creator_name"),
+                participantNamesField = participantNamesRaw,
+            )
+        } else {
+            ""
+        }
         return ChatRoom(
             id = id,
             roomKey = j.optString("room_key"),
-            roomType = j.optString("room_type", "PUBLIC"),
+            roomType = roomType,
             title = j.optString("title"),
             subtitle = j.optString("subtitle"),
             participantUids = participants,
-            participantNames = j.optString("participant_names"),
+            participantNames = participantNamesRaw,
             lastMessage = j.optString("last_message"),
             lastSenderName = j.optString("last_sender_name"),
             typingStatus = effectiveTyping,
             createdBy = j.optString("created_by"),
+            creatorName = extractedCreatorName,
+            pinHash = extractedPinHash,
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
             updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
         )
