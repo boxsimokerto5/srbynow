@@ -391,7 +391,7 @@
     <string name="chat_replying_to_label">Membalas %1$s</string>
     <string name="chat_reply_you_label">Anda</string>
     <string name="chat_cancel_reply_desc">Batalkan balasan</string>
-    <string name="chat_swipe_reply_hint">Geser kanan balon pesan untuk membalas • Ketuk nama untuk lihat bio profil</string>
+    <string name="chat_swipe_reply_hint">Geser kanan balon untuk balas • Tahan balon untuk opsi &amp; tarik pesan</string>
     <string name="chat_open_sender_bio_desc">Lihat bio &amp; profil %1$s</string>
     <string name="chat_reply_input_hint">Tulis balasan untuk %1$s…</string>
 </resources>

@@ -1899,6 +1899,17 @@ class SurabayaViewModel(
         }
     }
 
+    fun deleteChatMessage(room: ChatRoom, messageId: String) {
+        viewModelScope.launch {
+            val success = repository.deleteChatMessage(room.id, messageId)
+            if (success) {
+                notifyMessage("Pesan berhasil ditarik.")
+            } else {
+                notifyMessage("Gagal menarik pesan.")
+            }
+        }
+    }
+
     /**
      * Store-and-forward synchronizer: Automatically downloads incoming chat photos to local disk cache,
      * registers them into the device's Android Gallery (Pictures/ArekSurabaya), and triggers server pruning

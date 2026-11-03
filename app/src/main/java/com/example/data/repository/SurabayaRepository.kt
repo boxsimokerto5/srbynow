@@ -2994,6 +2994,18 @@ class SurabayaRepository(
         }
     }
 
+    suspend fun deleteChatMessage(roomId: String, messageId: String): Boolean {
+        return try {
+            pb.deleteRecord("chat_messages", messageId)
+            bumpMutationTick()
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "deleteChatMessage: ${e.message}")
+            bumpMutationTick()
+            false
+        }
+    }
+
     fun markMessagesAsRead(room: ChatRoom, currentUserId: String, messageIds: List<String>) {
         if (messageIds.isEmpty()) return
         var newlyMarked = false
@@ -3486,7 +3498,9 @@ class SurabayaRepository(
             else -> emptyList()
         }
         val cleanAuthor = authorName.trim().take(80).ifEmpty { "Warga Surabaya" }
-        val cleanCaption = caption.trim().take(1000)
+        val cleanCaption = caption.trim().take(1000).ifEmpty {
+            if (postType == POST_TYPE_LENSA_WARGA) "Lensa Warga Surabaya" else "Momen Arek Suroboyo"
+        }
         val cleanLocation = locationName.trim().take(100)
         val cleanDistrict = district.trim().take(60).ifEmpty { "Genteng" }
 
@@ -3504,7 +3518,6 @@ class SurabayaRepository(
             put("liked_by_uids", "")
             put("comment_count", 0)
         }
-
         val fields = mapOf(
             "id" to recordId,
             "author_id" to uid,
@@ -3531,9 +3544,58 @@ class SurabayaRepository(
 
         try {
             if (multipartFiles.isNotEmpty()) {
-                pb.createRecordMultipartFiles("moments", fields, multipartFiles)
+                val uploadSuccess = try {
+                    pb.createRecordMultipartFiles("moments", fields, multipartFiles)
+                    true
+                } catch (e: Exception) {
+                    val msg = e.message.orEmpty()
+                    val isPostTypeError = msg.contains("post_type", ignoreCase = true)
+                    val targetFields = if (isPostTypeError) fields.filterKeys { it != "post_type" } else fields
+
+                    if (multipartFiles.size > 1) {
+                        try {
+                            pb.createRecordMultipartFiles("moments", targetFields, listOf(multipartFiles.first()))
+                            true
+                        } catch (e2: Exception) {
+                            if (e2.message?.contains("post_type", ignoreCase = true) == true) {
+                                val noPostTypeFields = fields.filterKeys { it != "post_type" }
+                                pb.createRecordMultipartFiles("moments", noPostTypeFields, listOf(multipartFiles.first()))
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    } else if (isPostTypeError) {
+                        pb.createRecordMultipartFiles("moments", targetFields, multipartFiles)
+                        true
+                    } else {
+                        false
+                    }
+                }
+
+                if (!uploadSuccess) {
+                    try {
+                        pb.createRecord("moments", payload)
+                    } catch (eFallback: Exception) {
+                        if (eFallback.message?.contains("post_type", ignoreCase = true) == true) {
+                            val legacyPayload = JSONObject(payload.toString()).apply { remove("post_type") }
+                            pb.createRecord("moments", legacyPayload)
+                        } else {
+                            throw eFallback
+                        }
+                    }
+                }
             } else {
-                pb.createRecord("moments", payload)
+                try {
+                    pb.createRecord("moments", payload)
+                } catch (e: Exception) {
+                    if (e.message?.contains("post_type", ignoreCase = true) == true) {
+                        val legacyPayload = JSONObject(payload.toString()).apply { remove("post_type") }
+                        pb.createRecord("moments", legacyPayload)
+                    } else {
+                        throw e
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.w(TAG, "createMoment PB save: ${e.message}, saved to local memory")

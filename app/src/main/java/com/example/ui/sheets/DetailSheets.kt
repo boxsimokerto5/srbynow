@@ -11,9 +11,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -59,6 +61,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.DoneAll
@@ -115,13 +118,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import android.widget.Toast
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -2025,6 +2031,7 @@ fun MessageDeliveryStatusIcon(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatConversationSheetContent(
     room: ChatRoom,
@@ -2043,6 +2050,7 @@ fun ChatConversationSheetContent(
     onMarkMessagesRead: ((List<String>) -> Unit)? = null,
     onTyping: ((Boolean) -> Unit)? = null,
     onSyncPhotos: ((List<ChatMessage>) -> Unit)? = null,
+    onDeleteMessage: ((String) -> Unit)? = null,
 ) {
     var inputText by remember(room.id) { mutableStateOf("") }
     var selectedPhotoUri by remember(room.id) { mutableStateOf<Uri?>(null) }
@@ -2053,6 +2061,9 @@ fun ChatConversationSheetContent(
     var showBlockPeerDialog by remember(room.id) { mutableStateOf(false) }
     var showDeleteGroupDialog by remember(room.id) { mutableStateOf(false) }
     var showManagePinDialog by remember(room.id) { mutableStateOf(false) }
+    var messagePendingAction by remember(room.id) { mutableStateOf<ChatMessage?>(null) }
+    var showDeleteMessageConfirm by remember(room.id) { mutableStateOf<ChatMessage?>(null) }
+    val clipboardManager = LocalClipboardManager.current
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val inputFocusRequester = remember { FocusRequester() }
@@ -2069,6 +2080,23 @@ fun ChatConversationSheetContent(
             for (c in knownCitizens) {
                 if (c.userId.isNotBlank()) put(c.userId, c)
                 if (c.id.isNotBlank()) put(c.id, c)
+            }
+        }
+    }
+
+    val triggerReplyTo: (ChatMessage) -> Unit = { targetMsg ->
+        replyingToMessage = targetMsg
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        runCatching { inputFocusRequester.requestFocus() }
+        keyboardController?.show()
+    }
+
+    val jumpToQuotedMessage: (String) -> Unit = { quotedId ->
+        val idx = messages.indexOfFirst { it.id == quotedId }
+        if (idx >= 0) {
+            highlightedMessageId = quotedId
+            coroutineScope.launch {
+                listState.animateScrollToItem(idx)
             }
         }
     }
@@ -2206,6 +2234,143 @@ fun ChatConversationSheetContent(
         )
     }
 
+    val pendingMsg = messagePendingAction
+    if (pendingMsg != null) {
+        val isSenderOrAdmin = (pendingMsg.senderId == currentUserId || isAdmin) && onDeleteMessage != null
+        val hasTextToCopy = pendingMsg.text.isNotBlank() && pendingMsg.text != "📷 Foto"
+        AlertDialog(
+            onDismissRequest = { messagePendingAction = null },
+            title = {
+                Text(
+                    text = "Opsi Pesan",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (pendingMsg.text.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = pendingMsg.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(8.dp),
+                            )
+                        }
+                    }
+
+                    if (isSenderOrAdmin) {
+                        OutlinedButton(
+                            onClick = {
+                                val target = messagePendingAction
+                                messagePendingAction = null
+                                showDeleteMessageConfirm = target
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AlertCrimson),
+                            border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("btn_unsend_chat_message"),
+                        ) {
+                            Icon(
+                                Icons.Filled.DeleteOutline,
+                                contentDescription = null,
+                                tint = AlertCrimson,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Tarik / Batalkan Pesan", fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (hasTextToCopy) {
+                        OutlinedButton(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(pendingMsg.text))
+                                Toast.makeText(context, "Teks pesan disalin ke papan klip", Toast.LENGTH_SHORT).show()
+                                messagePendingAction = null
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("btn_copy_chat_message"),
+                        ) {
+                            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Salin Teks")
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val target = messagePendingAction
+                            messagePendingAction = null
+                            if (target != null) {
+                                triggerReplyTo(target)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("btn_reply_chat_message"),
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Balas Pesan")
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { messagePendingAction = null }) {
+                    Text(stringResource(R.string.btn_cancel_action))
+                }
+            },
+        )
+    }
+
+    val deleteTarget = showDeleteMessageConfirm
+    if (deleteTarget != null && onDeleteMessage != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteMessageConfirm = null },
+            title = {
+                Text(
+                    text = "Tarik Pesan Ini?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text("Pesan ini akan dibatalkan/ditarik dan dihapus untuk semua orang dalam percakapan warga.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val msgId = deleteTarget.id
+                        showDeleteMessageConfirm = null
+                        onDeleteMessage(msgId)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertCrimson),
+                    modifier = Modifier.testTag("confirm_unsend_chat_message_btn"),
+                ) {
+                    Text("Tarik Pesan")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteMessageConfirm = null }) {
+                    Text(stringResource(R.string.btn_cancel_action))
+                }
+            },
+        )
+    }
+
     LaunchedEffect(messages.size, imeBottomPx) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
@@ -2246,23 +2411,6 @@ fun ChatConversationSheetContent(
     DisposableEffect(room.id) {
         onDispose {
             onTyping?.invoke(false)
-        }
-    }
-
-    val triggerReplyTo: (ChatMessage) -> Unit = { targetMsg ->
-        replyingToMessage = targetMsg
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        runCatching { inputFocusRequester.requestFocus() }
-        keyboardController?.show()
-    }
-
-    val jumpToQuotedMessage: (String) -> Unit = { quotedId ->
-        val idx = messages.indexOfFirst { it.id == quotedId }
-        if (idx >= 0) {
-            highlightedMessageId = quotedId
-            coroutineScope.launch {
-                listState.animateScrollToItem(idx)
-            }
         }
     }
 
@@ -2543,7 +2691,7 @@ fun ChatConversationSheetContent(
 
         HorizontalDivider()
 
-        if (room.roomType == "PUBLIC" && messages.isNotEmpty()) {
+        if (messages.isNotEmpty()) {
             Text(
                 text = stringResource(R.string.chat_swipe_reply_hint),
                 style = MaterialTheme.typography.labelSmall,
@@ -2667,7 +2815,15 @@ fun ChatConversationSheetContent(
                                         .clip(bubbleShape)
                                         .background(SoftChatBubbleGradient, bubbleShape)
                                         .border(1.dp, OutlineVariantLight, bubbleShape)
-                                        .widthIn(max = 286.dp),
+                                        .combinedClickable(
+                                            onClick = { },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                messagePendingAction = msg
+                                            },
+                                        )
+                                        .widthIn(max = 286.dp)
+                                        .testTag("chat_msg_bubble_${msg.id}"),
                                 ) {
                                     Column(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -2778,7 +2934,17 @@ fun ChatConversationSheetContent(
                                     shape = bubbleShape,
                                     color = Color(0xFFF6FBF8),
                                     border = BorderStroke(1.dp, OutlineVariantLight),
-                                    modifier = Modifier.widthIn(max = 286.dp),
+                                    modifier = Modifier
+                                        .clip(bubbleShape)
+                                        .combinedClickable(
+                                            onClick = { },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                messagePendingAction = msg
+                                            },
+                                        )
+                                        .widthIn(max = 286.dp)
+                                        .testTag("chat_msg_bubble_${msg.id}"),
                                 ) {
                                     Column(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -3326,33 +3492,102 @@ fun MomentDetailSheetContent(
     var viewingPhotoIndex by remember { mutableStateOf<Int?>(null) }
     val isLiked = currentUserId in moment.likedByUids
     val photos = moment.allPhotos
+    val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val commentListState = rememberLazyListState()
 
-    Column(
+    val maxImageHeight = 140.dp
+    val minImageHeight = 84.dp
+    val maxCollapsePx = with(density) { (maxImageHeight - minImageHeight).toPx() }
+    var collapseProgressPx by remember(moment.id) { mutableFloatStateOf(0f) }
+    var previousCommentCount by remember(moment.id) { mutableIntStateOf(comments.size) }
+    var pendingScrollToBottom by remember(moment.id) { mutableStateOf(false) }
+
+    LaunchedEffect(moment.id, comments.size) {
+        if (comments.isNotEmpty() && (pendingScrollToBottom || (comments.size > previousCommentCount && previousCommentCount > 0))) {
+            commentListState.animateScrollToItem(comments.lastIndex)
+            pendingScrollToBottom = false
+        }
+        previousCommentCount = comments.size
+    }
+
+    val momentNestedScrollConnection = remember(moment.id, commentListState, maxCollapsePx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < 0f && (commentListState.canScrollForward || collapseProgressPx < maxCollapsePx)) {
+                    val previous = collapseProgressPx
+                    val updated = (previous - available.y).coerceIn(0f, maxCollapsePx)
+                    val consumedY = previous - updated
+                    if (consumedY != 0f) {
+                        collapseProgressPx = updated
+                        return Offset(0f, consumedY)
+                    }
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                if (available.y > 0f && collapseProgressPx > 0f) {
+                    val updated = (collapseProgressPx - available.y).coerceIn(0f, maxCollapsePx)
+                    collapseProgressPx = updated
+                }
+                return Offset(0f, available.y)
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                return Velocity(0f, available.y)
+            }
+        }
+    }
+
+    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .imePadding()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .imePadding(),
     ) {
-        // Sheet Drag Handle & Close
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .size(width = 36.dp, height = 4.dp)
-                .clip(CircleShape)
-                .background(OutlineVariantLight),
-        )
+        val hasBoundedHeight = maxHeight != Dp.Unspecified && maxHeight < 2000.dp
+        val availableHeight = if (hasBoundedHeight) maxHeight else 680.dp
+        val isKeyboardOpen = isImeVisible || (hasBoundedHeight && maxHeight < 500.dp)
+        val sheetMaxHeight = if (isKeyboardOpen) {
+            availableHeight
+        } else {
+            (availableHeight * 0.92f).coerceIn(440.dp, 800.dp)
+        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        val currentImageHeight = (maxImageHeight - with(density) { collapseProgressPx.toDp() })
+            .coerceIn(minImageHeight, maxImageHeight)
+        val collapseFraction = if (maxCollapsePx > 0f) (collapseProgressPx / maxCollapsePx).coerceIn(0f, 1f) else 0f
+        val imageCornerRadius = 18.dp - (4.dp * collapseFraction)
 
-        LazyColumn(
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .fillMaxWidth()
+                .heightIn(max = sheetMaxHeight)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            // Author row
-            item {
+            // Drag handle
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(OutlineVariantLight),
+            )
+
+            // ZONA 1: ATAS (HEADER MOMEN ADAPTIF GAYA 2)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 4.dp else 6.dp),
+            ) {
+                // Author row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -3370,7 +3605,7 @@ fun MomentDetailSheetContent(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(if (isKeyboardOpen) 32.dp else 40.dp)
                                 .clip(CircleShape)
                                 .background(ToskaPrimaryDeep),
                             contentAlignment = Alignment.Center,
@@ -3382,13 +3617,15 @@ fun MomentDetailSheetContent(
                                 style = MaterialTheme.typography.titleMedium,
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = moment.authorName,
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 if (onOpenAuthorProfile != null) {
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -3404,6 +3641,8 @@ fun MomentDetailSheetContent(
                                 text = "${moment.district}${if (moment.locationName.isNotBlank()) " • ${moment.locationName}" else ""} • ${formatRelativeTimestamp(moment.timestamp)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -3427,167 +3666,206 @@ fun MomentDetailSheetContent(
                         }
                     }
                 }
-            }
 
-            // Photos
-            item {
-                if (photos.isNotEmpty()) {
-                    CulinaryPhotoCarousel(
-                        photoUrls = photos,
-                        fallbackImageKey = moment.imageKey,
-                        spotName = moment.caption.ifBlank { "Momen Arek Surabaya" },
-                        isBlurredSensitive = moment.isContentBlurred,
-                        sensitiveReportCount = moment.contentReportCount,
-                        onPhotoClick = { viewingPhotoIndex = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(260.dp)
-                            .clip(RoundedCornerShape(16.dp)),
-                    )
-                } else if (moment.imageKey.isNotBlank()) {
-                    SurabayaRemoteOrFallbackImage(
-                        imageUrl = "",
-                        fallbackImageKey = moment.imageKey,
-                        contentDescription = moment.caption,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(260.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable { viewingPhotoIndex = 0 },
-                    )
+                // Photos (Gaya 2 Collapsible Carousel)
+                AnimatedVisibility(
+                    visible = !isKeyboardOpen,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    if (photos.isNotEmpty()) {
+                        CulinaryPhotoCarousel(
+                            photoUrls = photos,
+                            fallbackImageKey = moment.imageKey,
+                            spotName = moment.caption.ifBlank { "Momen Arek Surabaya" },
+                            compactMode = false,
+                            isBlurredSensitive = moment.isContentBlurred,
+                            sensitiveReportCount = moment.contentReportCount,
+                            onPhotoClick = { clickedIdx -> viewingPhotoIndex = clickedIdx },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(currentImageHeight)
+                                .clip(RoundedCornerShape(imageCornerRadius))
+                                .testTag("sheet_moment_image"),
+                        )
+                    } else if (moment.imageKey.isNotBlank()) {
+                        SurabayaRemoteOrFallbackImage(
+                            imageUrl = "",
+                            fallbackImageKey = moment.imageKey,
+                            contentDescription = moment.caption,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(currentImageHeight)
+                                .clip(RoundedCornerShape(imageCornerRadius))
+                                .clickable { viewingPhotoIndex = 0 },
+                        )
+                    }
                 }
-            }
 
-            // Caption
-            if (moment.caption.isNotBlank()) {
-                item {
-                    Text(
-                        text = moment.caption,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-            }
-
-            // Likes row
-            item {
+                // Caption & Likes Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    IconButton(onClick = onToggleLike) {
+                    if (moment.caption.isNotBlank()) {
+                        Text(
+                            text = moment.caption,
+                            style = if (isKeyboardOpen) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = if (isKeyboardOpen) 1 else 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp),
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable(onClick = onToggleLike)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .testTag("moment_toggle_like_btn"),
+                    ) {
                         Icon(
-                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.Favorite,
+                            imageVector = Icons.Filled.Favorite,
                             contentDescription = "Suka",
                             tint = if (isLiked) AlertCrimson else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${moment.likesCount}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isLiked) AlertCrimson else MaterialTheme.colorScheme.onSurface,
                         )
                     }
-                    Text(
-                        text = "${moment.likesCount} warga menyukai ini",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
                 }
             }
 
-            item {
-                HorizontalDivider(color = OutlineVariantLight)
-            }
+            HorizontalDivider(color = OutlineVariantLight)
 
-            // Comments header
-            item {
-                Text(
-                    text = "Komentar Warga (${comments.size})",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = ToskaPrimaryDeep,
-                )
-            }
+            // ZONA 2: TENGAH (DAFTAR KOMENTAR LUAS weight(1f))
+            Text(
+                text = "Komentar Warga (${comments.size})",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = ToskaPrimaryDeep,
+            )
 
-            if (comments.isEmpty()) {
-                item {
-                    Text(
-                        text = "Belum ada komentar. Jadilah yang pertama menyapa!",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                }
-            } else {
-                items(comments, key = { it.id }) { comment ->
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
+            LazyColumn(
+                state = commentListState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .nestedScroll(momentNestedScrollConnection)
+                    .testTag("moment_comments_list"),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (comments.isEmpty()) {
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = "Belum ada komentar. Jadilah yang pertama menyapa!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(14.dp),
+                            )
+                        }
+                    }
+                } else {
+                    items(comments, key = { it.id }) { comment ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(
+                                        text = comment.authorName,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        text = formatRelativeTimestamp(comment.timestamp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = comment.authorName,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = formatRelativeTimestamp(comment.timestamp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    text = comment.comment,
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                             }
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = comment.comment,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
                         }
                     }
                 }
             }
-        }
 
-        // Comment Input Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedTextField(
-                value = commentInput,
-                onValueChange = { commentInput = it },
-                placeholder = {
-                    Text(
-                        text = "Tulis tanggapan atau sapa...",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                },
-                shape = CircleShape,
-                singleLine = true,
+            // ZONA 3: BAWAH (INPUT KOMENTAR STICKY)
+            val submitCommentAction = {
+                val trimmed = commentInput.trim()
+                if (trimmed.isNotBlank()) {
+                    pendingScrollToBottom = true
+                    onAddComment(trimmed)
+                    commentInput = ""
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
+            }
+
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .testTag("moment_comment_input"),
-            )
-            IconButton(
-                onClick = {
-                    if (commentInput.isNotBlank()) {
-                        onAddComment(commentInput)
-                        commentInput = ""
-                    }
-                },
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(FreshGreenGradient, CircleShape)
-                    .testTag("moment_comment_send_btn"),
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Kirim",
-                    tint = Color.White,
+                OutlinedTextField(
+                    value = commentInput,
+                    onValueChange = { commentInput = it },
+                    placeholder = {
+                        Text(
+                            text = "Tulis tanggapan atau sapa...",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    shape = CircleShape,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = { submitCommentAction() }),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("moment_comment_input"),
                 )
+                IconButton(
+                    onClick = submitCommentAction,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(FreshGreenGradient, CircleShape)
+                        .testTag("moment_comment_send_btn"),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Kirim",
+                        tint = Color.White,
+                    )
+                }
             }
         }
     }

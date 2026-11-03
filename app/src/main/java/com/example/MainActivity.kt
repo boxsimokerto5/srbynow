@@ -1577,6 +1577,9 @@ fun SurabayaMainHub(
                         onSyncPhotos = { msgs ->
                             viewModel.syncAndSaveChatPhotos(context, msgs, liveRoom)
                         },
+                        onDeleteMessage = { msgId ->
+                            viewModel.deleteChatMessage(liveRoom, msgId)
+                        },
                     )
                 }
                 ActiveBottomSheet.RadioPlayer -> {
