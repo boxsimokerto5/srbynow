@@ -33,6 +33,7 @@ import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.model.POST_TYPE_MOMEN
 import com.example.data.model.POST_TYPE_LENSA_WARGA
+import com.example.data.model.isValidCitizenDisplayName
 import com.example.data.model.normalizeCitizenGender
 import com.example.data.pocketbase.MultipartFilePart
 import com.example.data.pocketbase.PocketBaseClient
@@ -239,6 +240,22 @@ class SurabayaRepository(
         }
     }
 
+    fun observeMyNearbyProfile(userId: String): Flow<NearbyProfile?> {
+        val safeUid = escapePbValue(userId)
+        return combine(
+            pb.observeCollection("nearby_profiles", pollIntervalMs = 7_000L) {
+                pb.getOneOrNull("nearby_profiles", userId)
+                    ?: pb.getList("nearby_profiles", filter = "user_id = '$safeUid'", perPage = 1).firstOrNull()
+            },
+            localMutationTick,
+        ) { json, _ ->
+            json?.let(::mapNearbyProfile)
+        }.catch { e ->
+            if (e is Exception) logBackendError(e, OperationType.GET, "nearby_profiles/$userId")
+            throw e
+        }
+    }
+
     fun observeAdminRole(userId: String): Flow<Boolean> {
         return pb.observeCollection("users", pollIntervalMs = 8_000L) {
             val json = pb.getOneOrNull("users", userId)
@@ -260,7 +277,9 @@ class SurabayaRepository(
     ) {
         val uid = requireUserId()
         val session = pb.currentSession
-        val userName = (session?.displayName?.takeIf { it.isNotBlank() } ?: displayNameFallback).take(80)
+        val rawSessionName = session?.displayName?.trim().orEmpty()
+        val hasValidSessionName = isValidCitizenDisplayName(rawSessionName)
+        val userName = (rawSessionName.takeIf { hasValidSessionName } ?: displayNameFallback).take(80)
         val isBootstrappedAdmin = isOfficialAdminEmail(session?.email)
 
         try {
@@ -269,9 +288,10 @@ class SurabayaRepository(
                 val curName = existingUser.optString("name")
                 val curDistrict = existingUser.optString("district")
                 val curAdmin = existingUser.optBoolean("is_admin", false)
-                if (curName.isBlank() || curDistrict.isBlank() || (isBootstrappedAdmin && !curAdmin)) {
+                val shouldPatchName = curName.isBlank() && hasValidSessionName
+                if (shouldPatchName || curDistrict.isBlank() || (isBootstrappedAdmin && !curAdmin)) {
                     val patch = JSONObject().apply {
-                        if (curName.isBlank()) put("name", userName)
+                        if (shouldPatchName) put("name", rawSessionName.take(80))
                         if (curDistrict.isBlank()) put("district", district)
                         if (existingUser.optString("bio").isBlank()) put("bio", "Warga aktif Arek Surabaya")
                         if (existingUser.optDouble("search_radius_km", 0.0) <= 0.0) put("search_radius_km", 10.0)
@@ -2735,7 +2755,8 @@ class SurabayaRepository(
     private fun mapUserAccount(j: JSONObject): UserAccount {
         val id = j.optString("id")
         val email = j.optString("email")
-        val name = j.optString("name").ifBlank { email.substringBefore("@").ifBlank { "Warga Surabaya" } }
+        val rawName = j.optString("name").trim()
+        val name = rawName.ifBlank { email.substringBefore("@").ifBlank { "Warga Surabaya" } }
         val serverBlocked = decodeUidList(j.optString("blocked_uids"))
         val effectiveBlocked = localBlockedUids[id] ?: serverBlocked
         val effectiveBanned = j.optBoolean("is_banned", false) || id in localBannedUids
@@ -2756,6 +2777,7 @@ class SurabayaRepository(
             isBanned = effectiveBanned,
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
             updatedAt = parsePocketBaseTimestamp(j.optString("updated")),
+            rawName = rawName,
         )
     }
 

@@ -32,6 +32,17 @@ data class PbUserSession(
     val isAdmin: Boolean = false,
 )
 
+fun isValidCitizenDisplayName(raw: String): Boolean {
+    val trimmed = raw.trim()
+    if (trimmed.length < 2) return false
+    val normalized = trimmed.lowercase()
+    return normalized != "warga surabaya" &&
+        normalized != "warga" &&
+        normalized != "pengguna" &&
+        normalized != "anonymous" &&
+        normalized != "anonim"
+}
+
 data class UserAccount(
     val id: String = "",
     val userId: String = "",
@@ -47,6 +58,7 @@ data class UserAccount(
     val isBanned: Boolean = false,
     val createdAt: Long? = null,
     val updatedAt: Long? = null,
+    val rawName: String = displayName,
 ) {
     val normalizedGender: String
         get() = normalizeCitizenGender(gender)
@@ -88,6 +100,34 @@ data class NearbyProfile(
 
     val genderLabel: String
         get() = formatCitizenGenderLabel(gender)
+}
+
+fun effectiveCitizenAvatarUrl(account: UserAccount?, nearby: NearbyProfile?): String {
+    return account?.avatarUrl?.takeIf { it.isNotBlank() }
+        ?: nearby?.avatarUrl?.takeIf { it.isNotBlank() }
+        ?: ""
+}
+
+fun effectiveCitizenDisplayName(account: UserAccount?, nearby: NearbyProfile?): String {
+    val accRawName = account?.rawName?.trim().orEmpty()
+    if (isValidCitizenDisplayName(accRawName)) return accRawName
+    val nearbyName = nearby?.displayName?.trim().orEmpty()
+    if (isValidCitizenDisplayName(nearbyName)) return nearbyName
+    return ""
+}
+
+fun effectiveCitizenGender(account: UserAccount?, nearby: NearbyProfile?): String {
+    val accGender = normalizeCitizenGender(account?.gender.orEmpty())
+    if (accGender.isNotBlank()) return accGender
+    return normalizeCitizenGender(nearby?.gender.orEmpty())
+}
+
+fun isCitizenProfileComplete(account: UserAccount?, nearby: NearbyProfile?): Boolean {
+    val hasAvatar = effectiveCitizenAvatarUrl(account, nearby).isNotBlank()
+    val hasValidName = isValidCitizenDisplayName(effectiveCitizenDisplayName(account, nearby))
+    val gender = effectiveCitizenGender(account, nearby)
+    val hasValidGender = gender == "LAKI_LAKI" || gender == "PEREMPUAN"
+    return hasAvatar && hasValidName && hasValidGender
 }
 
 data class IncidentReport(

@@ -334,5 +334,25 @@
     <string name="delete_account_dialog_confirm_btn">Ya, Hapus Akun Saya</string>
     <string name="delete_account_dialog_cancel_btn">Batal</string>
     <string name="delete_account_support_notice">Sesuai kebijakan Google Play Store, pengajuan penghapusan akun dan data melalui web juga dapat dikirimkan ke tim kami: support@areksurabaya.id</string>
+    <string name="mandatory_profile_badge">Verifikasi Profil Warga</string>
+    <string name="mandatory_profile_title">Lengkapi Profil Warga</string>
+    <string name="mandatory_profile_subtitle">Demi komunitas Arek Surabaya yang ramah, asli, dan bebas akun kosong, setiap warga wajib memasang foto profil, nama tampilan, serta jenis kelamin sebelum masuk.</string>
+    <string name="mandatory_profile_logout_btn">Ganti Akun</string>
+    <string name="mandatory_profile_check_photo">Foto Profil</string>
+    <string name="mandatory_profile_check_name">Nama Warga</string>
+    <string name="mandatory_profile_check_gender">Jenis Kelamin</string>
+    <string name="mandatory_profile_photo_title">Foto Profil Warga (Wajib)</string>
+    <string name="mandatory_profile_photo_missing_hint">Belum ada foto • Ketuk untuk memilih foto dari galeri</string>
+    <string name="mandatory_profile_photo_ready_hint">Foto profil siap digunakan • Ketuk jika ingin mengganti</string>
+    <string name="mandatory_profile_pick_btn">Pilih Foto</string>
+    <string name="mandatory_profile_change_btn">Ganti Foto</string>
+    <string name="mandatory_profile_name_label">Nama Lengkap / Panggilan Warga (Wajib)</string>
+    <string name="mandatory_profile_name_placeholder">Contoh: Cak Budi Santoso / Ning Sari</string>
+    <string name="mandatory_profile_name_helper">Gunakan nama asli atau panggilan sopan minimal 2 huruf (bukan teks default).</string>
+    <string name="mandatory_profile_gender_title">Jenis Kelamin Warga (Wajib)</string>
+    <string name="mandatory_profile_gender_subtitle">Digunakan untuk sapaan Cak/Ning &amp; filter pencarian warga terdekat</string>
+    <string name="mandatory_profile_district_label">Kecamatan Domisili Surabaya</string>
+    <string name="mandatory_profile_submit_btn">Simpan Profil &amp; Masuk Aplikasi</string>
+    <string name="mandatory_profile_loading_check">Memeriksa kelengkapan profil warga…</string>
 </resources>
 

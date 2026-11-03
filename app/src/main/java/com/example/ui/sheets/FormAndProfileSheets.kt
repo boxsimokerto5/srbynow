@@ -113,7 +113,10 @@ import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.model.POST_TYPE_MOMEN
 import com.example.data.model.POST_TYPE_LENSA_WARGA
+import com.example.data.model.effectiveCitizenDisplayName
 import com.example.data.model.formatCitizenGenderLabel
+import com.example.data.model.isValidCitizenDisplayName
+import com.example.data.model.normalizeCitizenGender
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.util.DestinationDraftManager
 import com.example.data.util.EventDraftManager
@@ -1702,7 +1705,9 @@ fun ProfileAndPrivacySheetContent(
     )? = null,
 ) {
     val isAuthorizedAdminAccount = isAdmin || PocketBaseClient.isOfficialAdminEmail(userEmail)
-    var displayName by remember(userAccount?.displayName) { mutableStateOf(userAccount?.displayName ?: "Warga Surabaya") }
+    val initialEditableName = effectiveCitizenDisplayName(userAccount, nearbyProfile)
+        .ifBlank { userAccount?.displayName.orEmpty() }
+    var displayName by remember(initialEditableName) { mutableStateOf(initialEditableName) }
     var selectedGender by remember(userAccount?.gender, nearbyProfile?.gender) {
         mutableStateOf(
             userAccount?.normalizedGender?.ifBlank { nearbyProfile?.normalizedGender.orEmpty() }.orEmpty(),
@@ -2349,7 +2354,7 @@ fun ProfileAndPrivacySheetContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = stringResource(R.string.profile_gender_label),
+                        text = stringResource(R.string.mandatory_profile_gender_title),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = ToskaOnPrimaryContainer,
@@ -2403,20 +2408,6 @@ fun ProfileAndPrivacySheetContent(
                             modifier = Modifier
                                 .minimumInteractiveComponentSize()
                                 .testTag("gender_chip_female"),
-                        )
-
-                        FilterChip(
-                            selected = selectedGender.isBlank(),
-                            onClick = { if (!isSubmitting) selectedGender = "" },
-                            label = { Text(stringResource(R.string.gender_option_unspecified)) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = ToskaPrimaryDeep,
-                                selectedLabelColor = Color.White,
-                            ),
-                            shape = CircleShape,
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("gender_chip_unspecified"),
                         )
                     }
                 }
@@ -2721,7 +2712,13 @@ fun ProfileAndPrivacySheetContent(
                     )
                 }
             },
-            enabled = displayName.trim().length >= 2 && !isSubmitting,
+            enabled = !isSubmitting && (
+                focusPrivacyOnly || (
+                    isValidCitizenDisplayName(displayName) &&
+                        normalizeCitizenGender(selectedGender).isNotBlank() &&
+                        (existingAvatarUrl.isNotBlank() || selectedAvatarUri != null)
+                )
+            ),
             shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()

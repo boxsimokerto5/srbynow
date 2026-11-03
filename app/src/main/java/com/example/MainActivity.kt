@@ -49,6 +49,7 @@ import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -90,12 +91,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.data.location.LocationHelper
 import com.example.data.model.UiState
+import com.example.data.model.isCitizenProfileComplete
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.repository.SurabayaRepository
 import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.calculateDistanceKm
 import com.example.data.util.configureAppCheck
 import com.example.ui.auth.AuthScreen
+import com.example.ui.auth.MandatoryProfileSetupScreen
 import com.example.ui.auth.OAuthRedirectBus
 import com.example.ui.auth.performSignOut
 import com.example.ui.components.SurabayaCompactTopBar
@@ -289,8 +292,10 @@ fun SurabayaMainHub(
     val userLng by viewModel.userLng.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
     val isScanningPhoto by viewModel.isScanningPhoto.collectAsStateWithLifecycle()
+    val isProfileCheckReady by viewModel.isProfileCheckReady.collectAsStateWithLifecycle()
     val myNearbyProfile by viewModel.myNearbyProfile.collectAsStateWithLifecycle()
     val allDiscoverableCitizens by viewModel.allDiscoverableCitizens.collectAsStateWithLifecycle()
+    val isProfileComplete = isCitizenProfileComplete(userAccount, myNearbyProfile)
 
     val incidentsState by viewModel.incidentsState.collectAsStateWithLifecycle()
     val incidentComments by viewModel.activeIncidentComments.collectAsStateWithLifecycle()
@@ -367,7 +372,7 @@ fun SurabayaMainHub(
         }
     }
 
-    // Android 13+ Notification Permission Slide-Up Disclosure (replaces abrupt raw startup popup)
+    // Android 13+ Notification Permission Slide-Up Disclosure (only after mandatory profile is complete)
     var showInitialNotifDisclosure by remember { mutableStateOf(false) }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val notifPermissionLauncher = rememberLauncherForActivityResult(
@@ -376,15 +381,15 @@ fun SurabayaMainHub(
                 Log.d("MainActivity", "POST_NOTIFICATIONS granted: $isGranted")
             },
         )
-        LaunchedEffect(Unit) {
-            if (!hasNotificationPermission(context) && !hasSeenInitialNotificationDisclosure(context)) {
+        LaunchedEffect(isProfileComplete) {
+            if (isProfileComplete && !hasNotificationPermission(context) && !hasSeenInitialNotificationDisclosure(context)) {
                 delay(650)
                 if (activeSheet == null && !hasNotificationPermission(context)) {
                     showInitialNotifDisclosure = true
                 }
             }
         }
-        if (showInitialNotifDisclosure && activeSheet == null) {
+        if (isProfileComplete && showInitialNotifDisclosure && activeSheet == null) {
             PermissionDisclosureBottomSheet(
                 mode = PermissionSheetMode.Notification(showSettingsShortcut = false),
                 onDismiss = {
@@ -436,6 +441,61 @@ fun SurabayaMainHub(
             snackbarHostState.showSnackbar(msg)
             viewModel.clearSnackbar()
         }
+    }
+
+    if (!isProfileComplete && !isProfileCheckReady) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .testTag("profile_check_loading"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(30.dp),
+                    strokeWidth = 3.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.mandatory_profile_loading_check),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        return
+    }
+
+    if (!isProfileComplete) {
+        MandatoryProfileSetupScreen(
+            userAccount = userAccount,
+            nearbyProfile = myNearbyProfile,
+            userEmail = email,
+            isSubmitting = isSubmitting,
+            isScanningPhoto = isScanningPhoto,
+            snackbarHostState = snackbarHostState,
+            onSubmitProfile = { fullName, gender, district, avatarUri ->
+                viewModel.completeMandatoryProfile(
+                    displayName = fullName,
+                    gender = gender,
+                    district = district,
+                    avatarUri = avatarUri,
+                    context = context,
+                )
+            },
+            onSignOut = {
+                performSignOut(
+                    context = context,
+                    onSignOutComplete = {},
+                    scope = scope,
+                )
+            },
+        )
+        return
     }
 
     // Back button returns to previous sheet (e.g. Chat) if citizen profile has a returnSheet

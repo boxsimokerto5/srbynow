@@ -74,6 +74,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
+import com.example.data.model.isValidCitizenDisplayName
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.ui.components.SurabayaDistrictDropdown
 import com.example.ui.theme.FreshGreenGradient
@@ -335,7 +336,7 @@ fun AuthScreen(
 
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = stringResource(R.string.profile_gender_label),
+                                text = stringResource(R.string.mandatory_profile_gender_title),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium,
@@ -348,7 +349,7 @@ fun AuthScreen(
                                     selected = selectedGender == "LAKI_LAKI",
                                     onClick = {
                                         if (!isLoading) {
-                                            selectedGender = if (selectedGender == "LAKI_LAKI") "" else "LAKI_LAKI"
+                                            selectedGender = "LAKI_LAKI"
                                         }
                                     },
                                     label = { Text(stringResource(R.string.gender_option_male)) },
@@ -374,7 +375,7 @@ fun AuthScreen(
                                     selected = selectedGender == "PEREMPUAN",
                                     onClick = {
                                         if (!isLoading) {
-                                            selectedGender = if (selectedGender == "PEREMPUAN") "" else "PEREMPUAN"
+                                            selectedGender = "PEREMPUAN"
                                         }
                                     },
                                     label = { Text(stringResource(R.string.gender_option_female)) },
@@ -486,7 +487,7 @@ fun AuthScreen(
                     }
 
                     val canSubmit = email.trim().contains("@") && password.length >= 6 &&
-                        (authTab == 0 || fullName.trim().length >= 2)
+                        (authTab == 0 || (isValidCitizenDisplayName(fullName) && selectedGender.isNotBlank()))
 
                     Button(
                         onClick = {

@@ -42,6 +42,9 @@ import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.model.POST_TYPE_MOMEN
 import com.example.data.model.POST_TYPE_LENSA_WARGA
+import com.example.data.model.effectiveCitizenAvatarUrl
+import com.example.data.model.isValidCitizenDisplayName
+import com.example.data.model.normalizeCitizenGender
 import com.example.data.repository.SurabayaRepository
 import com.example.data.util.PollImageExporter
 import com.example.data.util.GeminiExplicitImageScanner
@@ -73,6 +76,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -185,10 +189,22 @@ class SurabayaViewModel(
     private val _pendingEventInterests = MutableStateFlow<Set<String>>(emptySet())
     val pendingEventInterests: StateFlow<Set<String>> = _pendingEventInterests.asStateFlow()
 
+    private val _hasLoadedUserAccount = MutableStateFlow(false)
+    private val _hasLoadedMyNearby = MutableStateFlow(false)
+
+    val isProfileCheckReady: StateFlow<Boolean> = combine(
+        _hasLoadedUserAccount,
+        _hasLoadedMyNearby,
+    ) { accountLoaded, nearbyLoaded ->
+        accountLoaded && nearbyLoaded
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), false)
+
     // User account & Admin streams
     val userAccount: StateFlow<UserAccount?> = repository.observeUserAccount(currentUserId)
+        .onEach { _hasLoadedUserAccount.value = true }
         .catch { e ->
             Log.w(TAG, "observeUserAccount error", e)
+            _hasLoadedUserAccount.value = true
             emit(null)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
@@ -385,9 +401,12 @@ class SurabayaViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), UiState.Loading)
 
-    val myNearbyProfile: StateFlow<NearbyProfile?> = repository.observeDiscoverableProfiles()
-        .map { list -> list.firstOrNull { it.id == currentUserId } }
-        .catch { emit(null) }
+    val myNearbyProfile: StateFlow<NearbyProfile?> = repository.observeMyNearbyProfile(currentUserId)
+        .onEach { _hasLoadedMyNearby.value = true }
+        .catch {
+            _hasLoadedMyNearby.value = true
+            emit(null)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), null)
 
     val allDiscoverableCitizens: StateFlow<List<NearbyProfile>> = combine(
@@ -814,6 +833,7 @@ class SurabayaViewModel(
                         isDiscoverable = acc.isDiscoverable,
                         lat = gps.lat,
                         lng = gps.lng,
+                        gender = acc.gender.ifBlank { myNearbyProfile.value?.gender.orEmpty() },
                     )
                 }
                 notifyMessage("Lokasi GPS diperbarui: Kec. ${gps.nearestDistrict}")
@@ -857,6 +877,46 @@ class SurabayaViewModel(
         }
     }
 
+    fun completeMandatoryProfile(
+        displayName: String,
+        gender: String,
+        district: String,
+        avatarUri: Uri?,
+        context: Context,
+    ) {
+        val trimmedName = displayName.trim()
+        if (!isValidCitizenDisplayName(trimmedName)) {
+            notifyMessage("Mohon isi nama tampilan asli atau panggilan Anda (minimal 2 huruf).")
+            return
+        }
+        val normalizedGender = normalizeCitizenGender(gender)
+        if (normalizedGender.isBlank()) {
+            notifyMessage("Mohon pilih jenis kelamin (Laki-laki atau Perempuan).")
+            return
+        }
+        val existingAvatar = effectiveCitizenAvatarUrl(userAccount.value, myNearbyProfile.value)
+        if (existingAvatar.isBlank() && avatarUri == null) {
+            notifyMessage("Wajib memilih foto profil terlebih dahulu sebelum masuk aplikasi.")
+            return
+        }
+        val acc = userAccount.value
+        val nearby = myNearbyProfile.value
+        saveProfileAndPrivacy(
+            displayName = trimmedName,
+            district = district.ifBlank { acc?.district ?: "Genteng" },
+            bio = acc?.bio?.takeIf { it.isNotBlank() }
+                ?: nearby?.bio?.takeIf { it.isNotBlank() }
+                ?: "Halo rek! Salam kenal dari ${district.ifBlank { "Surabaya" }}.",
+            interests = nearby?.interests?.takeIf { it.isNotBlank() }
+                ?: "Kuliner SBY, Kopi, Event Kota",
+            searchRadiusKm = acc?.searchRadiusKm ?: 10.0,
+            isDiscoverable = acc?.isDiscoverable ?: true,
+            avatarUri = avatarUri,
+            context = context,
+            gender = normalizedGender,
+        )
+    }
+
     fun saveProfileAndPrivacy(
         displayName: String,
         district: String,
@@ -869,8 +929,24 @@ class SurabayaViewModel(
         gender: String = "",
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
+        val trimmedName = displayName.trim()
+        if (!isValidCitizenDisplayName(trimmedName)) {
+            notifyMessage("Nama tampilan wajib diisi minimal 2 huruf (bukan teks default).")
+            return
+        }
         val appCtx = context?.applicationContext
-        val effectiveGender = gender.ifBlank { userAccount.value?.gender ?: myNearbyProfile.value?.gender.orEmpty() }
+        val effectiveGender = normalizeCitizenGender(
+            gender.ifBlank { userAccount.value?.gender ?: myNearbyProfile.value?.gender.orEmpty() },
+        )
+        if (effectiveGender.isBlank()) {
+            notifyMessage("Jenis kelamin wajib dipilih (Laki-laki atau Perempuan).")
+            return
+        }
+        val existingAvatar = effectiveCitizenAvatarUrl(userAccount.value, myNearbyProfile.value)
+        if (existingAvatar.isBlank() && avatarUri == null) {
+            notifyMessage("Foto profil wajib terpasang untuk menyimpan profil warga.")
+            return
+        }
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
@@ -905,7 +981,7 @@ class SurabayaViewModel(
 
                 var photoSchemaMissing = false
                 repository.updateProfileAndPrivacy(
-                    displayName = displayName,
+                    displayName = trimmedName,
                     district = district,
                     bio = bio,
                     interests = interests,
@@ -921,7 +997,7 @@ class SurabayaViewModel(
                 if (preparedAvatar != null && photoSchemaMissing) {
                     notifyMessage("Profil disimpan, namun kolom avatar belum di-import di PocketBase Admin.")
                 } else if (preparedAvatar != null) {
-                    notifyMessage("Foto profil & pengaturan berhasil diperbarui!")
+                    notifyMessage("Profil warga & foto profil berhasil disimpan!")
                 } else {
                     notifyMessage("Pengaturan profil & privasi disimpan")
                 }
