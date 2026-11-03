@@ -11,8 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,9 +26,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.AltRoute
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.AltRoute
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.ElectricBolt
@@ -426,7 +424,6 @@ fun TransitScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TransitRouteCard(
     route: TransitRoute,
@@ -583,12 +580,11 @@ fun TransitRouteCard(
 
             // Transfer Hubs preview
             if (route.transferHubs.isNotEmpty()) {
-                FlowRow(
+                LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    route.transferHubs.forEach { hub ->
+                    items(route.transferHubs) { hub ->
                         Surface(
                             color = ToskaPrimary.copy(alpha = 0.08f),
                             shape = RoundedCornerShape(6.dp),
@@ -599,7 +595,7 @@ fun TransitRouteCard(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.AltRoute,
+                                    imageVector = Icons.AutoMirrored.Filled.AltRoute,
                                     contentDescription = null,
                                     tint = ToskaPrimaryDeep,
                                     modifier = Modifier.size(12.dp)
@@ -716,7 +712,7 @@ fun TransitRouteCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransitDetailModalSheet(
     route: TransitRoute,

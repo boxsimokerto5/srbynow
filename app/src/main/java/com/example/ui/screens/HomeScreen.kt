@@ -372,12 +372,40 @@ fun HomeScreen(
         ),
     )
 
-    LazyColumn(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .testTag("home_screen_content"),
-        contentPadding = PaddingValues(bottom = 84.dp),
+            .testTag("home_screen_root"),
     ) {
+        // Fantasy RPG Pastel Wallpaper Background
+        Image(
+            painter = painterResource(id = R.drawable.img_game_wallpaper_bg),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.45f,
+        )
+        // Soft Pastel Gradient Glow Overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.35f),
+                            Color(0xFFFFF0F5).copy(alpha = 0.25f),
+                            Color(0xFFFDF2F8).copy(alpha = 0.45f),
+                        ),
+                    ),
+                ),
+        )
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("home_screen_content"),
+            contentPadding = PaddingValues(bottom = 84.dp),
+        ) {
         // 1. Hero Header
         item(key = "home_header") {
             HomeHeaderSection(
@@ -1558,6 +1586,7 @@ fun HomeScreen(
             }
         }
     }
+}
 
     if (showAboutDialog) {
         AboutAppDialog(onDismiss = { showAboutDialog = false })

@@ -168,13 +168,14 @@ fun SurabayaCompactTopBar(
     onOpenSearch: (() -> Unit)? = null,
 ) {
     Surface(
-        color = Color.White,
-        shadowElevation = 1.dp,
+        color = Color(0xFFFFF7F9),
+        border = BorderStroke(0.8.dp, Color(0xFFFFD1DC)),
+        shadowElevation = 0.5.dp,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
+                .background(Color(0xFFFFF7F9))
                 .statusBarsPadding(),
         ) {
             // Row 1: Mascot + Name + Location and Right-side Quick Actions
