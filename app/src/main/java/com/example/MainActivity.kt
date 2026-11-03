@@ -296,6 +296,7 @@ fun SurabayaMainHub(
     val isProfileCheckReady by viewModel.isProfileCheckReady.collectAsStateWithLifecycle()
     val myNearbyProfile by viewModel.myNearbyProfile.collectAsStateWithLifecycle()
     val allDiscoverableCitizens by viewModel.allDiscoverableCitizens.collectAsStateWithLifecycle()
+    val cachedCitizenProfiles by viewModel.cachedCitizenProfiles.collectAsStateWithLifecycle()
     val isProfileComplete = isCitizenProfileComplete(userAccount, myNearbyProfile)
 
     val incidentsState by viewModel.incidentsState.collectAsStateWithLifecycle()
@@ -929,8 +930,16 @@ fun SurabayaMainHub(
     if (sheetTarget != null) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
-            onDismissRequest = { viewModel.dismissSheet() },
+            onDismissRequest = {
+                val returnSheet = (sheetTarget as? ActiveBottomSheet.CitizenProfile)?.returnSheet
+                if (returnSheet != null) {
+                    viewModel.openSheet(returnSheet)
+                } else {
+                    viewModel.dismissSheet()
+                }
+            },
             sheetState = sheetState,
+            contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             containerColor = androidx.compose.ui.graphics.Color.White,
             tonalElevation = 0.dp,
@@ -1252,6 +1261,7 @@ fun SurabayaMainHub(
                     }
                     val foundProfile = matchedPeerItem?.profile
                         ?: allDiscoverableCitizens.firstOrNull { it.userId == targetUid || it.id == targetUid }
+                        ?: cachedCitizenProfiles[targetUid]
                     val estimatedDistKm = when {
                         targetUid == currentUserId -> null
                         matchedPeerItem != null -> matchedPeerItem.distanceKm
@@ -1508,7 +1518,11 @@ fun SurabayaMainHub(
                         val peerItems = (nearbyPeersState as? UiState.Success)?.data.orEmpty()
                         peerItems.firstOrNull { it.profile.userId == peerUid || it.profile.id == peerUid }?.profile
                             ?: allDiscoverableCitizens.firstOrNull { it.userId == peerUid || it.id == peerUid }
+                            ?: cachedCitizenProfiles[peerUid]
                     } else null
+                    val combinedKnownCitizens = remember(allDiscoverableCitizens, cachedCitizenProfiles) {
+                        (allDiscoverableCitizens + cachedCitizenProfiles.values).distinctBy { it.userId.ifBlank { it.id } }
+                    }
                     val canManageGroup = liveRoom.roomType == "PUBLIC" && (isAdmin || liveRoom.isCreatedBy(currentUserId))
                     ChatConversationSheetContent(
                         room = liveRoom,
@@ -1517,6 +1531,7 @@ fun SurabayaMainHub(
                         isAdmin = isAdmin,
                         isSending = isSendingChatMessage || isScanningPhoto,
                         peerProfile = peerProfile,
+                        knownCitizens = combinedKnownCitizens,
                         onOpenPeerProfile = if (peerUid != null) {
                             {
                                 val targetName = peerProfile?.displayName?.ifBlank { liveRoom.displayTitleFor(currentUserId) }
@@ -1528,8 +1543,15 @@ fun SurabayaMainHub(
                                 )
                             }
                         } else null,
-                        onSendMessage = { txt, photoUri ->
-                            viewModel.sendChatMessage(liveRoom, txt, photoUri, context)
+                        onOpenSenderProfile = { senderUid, senderName ->
+                            viewModel.openCitizenProfile(
+                                userId = senderUid,
+                                displayName = senderName,
+                                returnSheet = ActiveBottomSheet.ChatConversation(liveRoom),
+                            )
+                        },
+                        onSendMessage = { txt, photoUri, replyMsg ->
+                            viewModel.sendChatMessage(liveRoom, txt, photoUri, context, replyMsg)
                         },
                         onBlockPeer = if (peerUid != null) {
                             { viewModel.blockCitizen(peerUid, liveRoom.displayTitleFor(currentUserId)) }

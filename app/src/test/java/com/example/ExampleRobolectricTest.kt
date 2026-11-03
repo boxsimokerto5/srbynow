@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
@@ -42,6 +43,8 @@ import com.example.data.model.UserAccount
 import com.example.data.model.UserMoment
 import com.example.data.model.NearbyProfile
 import com.example.data.model.CitizenPoll
+import androidx.compose.ui.test.swipeRight
+import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.PollOption
 import com.example.data.model.PollComment
@@ -1434,7 +1437,7 @@ class ExampleRobolectricTest {
             currentUserId = "my_uid",
             peerProfile = samplePeerProfile,
             onOpenPeerProfile = { profileOpened = true },
-            onSendMessage = { _, _ -> },
+            onSendMessage = { _, _, _ -> },
           )
         }
       }
@@ -1559,5 +1562,126 @@ class ExampleRobolectricTest {
 
     TambalBanDraftManager.clearDraft(context)
     assertNull(TambalBanDraftManager.loadDraft(context))
+  }
+
+  @Test
+  fun `chatScreen switches smoothly back and forth between Ruang Publik SBY and Pesan Pribadi`() {
+    val samplePublic = listOf(
+      ChatRoom(
+        id = "pub_kuliner_sby",
+        roomType = "PUBLIC",
+        title = "Grup Kulineran & Ngopi SBY",
+        subtitle = "Rekomendasi warung legendaris",
+        lastMessage = "Soto Cak Har mantap",
+        lastSenderName = "Eko wahyudi",
+      ),
+    )
+
+    composeTestRule.setContent {
+      var subTab by remember { mutableStateOf(0) }
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(860.dp)) {
+          ChatScreen(
+            publicRooms = samplePublic,
+            directRooms = emptyList(),
+            currentUserId = "uid_eko",
+            selectedSubTab = subTab,
+            onSelectSubTab = { subTab = it },
+            onStartNewDirectChat = {},
+            onOpenRoom = {},
+          )
+        }
+      }
+    }
+    composeTestRule.waitForIdle()
+
+    // Starts on Ruang Publik SBY
+    composeTestRule.onNodeWithText("Grup Kulineran & Ngopi SBY").assertIsDisplayed()
+
+    // Switch to Pesan Pribadi (empty list)
+    composeTestRule.onNodeWithTag("chat_tab_direct").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithText("Belum ada obrolan pribadi").assertIsDisplayed()
+
+    // Switch back to Ruang Publik SBY -> must work reliably!
+    composeTestRule.onNodeWithTag("chat_tab_public").performClick()
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithText("Grup Kulineran & Ngopi SBY").assertIsDisplayed()
+  }
+
+  @Test
+  fun `group chat supports swipe right to reply and tapping sender name to inspect citizen bio`() {
+    val groupRoom = ChatRoom(
+      id = "pub_kuliner_sby",
+      roomType = "PUBLIC",
+      title = "Grup Kulineran & Ngopi SBY",
+      subtitle = "Rekomendasi warung legendaris",
+    )
+    val msgs = listOf(
+      ChatMessage(
+        id = "msg_ivak_1",
+        roomId = "pub_kuliner_sby",
+        roomType = "PUBLIC",
+        senderId = "uid_ivakhudin",
+        senderName = "ivakhudin",
+        text = "anake sampeyan sakit apa ki?",
+      ),
+    )
+    val citizens = listOf(
+      NearbyProfile(
+        id = "uid_ivakhudin",
+        userId = "uid_ivakhudin",
+        displayName = "ivakhudin",
+        district = "Wonokromo",
+        bio = "Pecinta kopi & rawon Surabaya",
+      ),
+    )
+
+    var openedSenderId = ""
+    var openedSenderName = ""
+    var sentText = ""
+    var sentReplyTo: ChatMessage? = null
+
+    composeTestRule.setContent {
+      SurabayaHariIniTheme {
+        Box(modifier = Modifier.width(412.dp).height(860.dp)) {
+          ChatConversationSheetContent(
+            room = groupRoom,
+            messages = msgs,
+            currentUserId = "uid_eko",
+            knownCitizens = citizens,
+            onOpenSenderProfile = { uid, name ->
+              openedSenderId = uid
+              openedSenderName = name
+            },
+            onSendMessage = { txt, _, replyMsg ->
+              sentText = txt
+              sentReplyTo = replyMsg
+            },
+          )
+        }
+      }
+    }
+    composeTestRule.waitForIdle()
+
+    // 1. Tap sender name -> opens citizen bio profile
+    composeTestRule.onNodeWithTag("chat_sender_name_msg_ivak_1").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("uid_ivakhudin", openedSenderId)
+    assertEquals("ivakhudin", openedSenderName)
+
+    // 2. Swipe right on message bubble -> triggers reply preview bar
+    composeTestRule.onNodeWithTag("chat_msg_swipe_box_msg_ivak_1").performTouchInput {
+      swipeRight(startX = 20f, endX = 320f, durationMillis = 180)
+    }
+    composeTestRule.waitForIdle()
+    composeTestRule.onNodeWithTag("chat_reply_preview_bar").assertIsDisplayed()
+
+    // 3. Send reply message -> passes replyTo target cleanly
+    composeTestRule.onNodeWithTag("chat_message_input").performTextInput("Alhamdulillah sehat cak")
+    composeTestRule.onNodeWithTag("chat_message_send_button").performClick()
+    composeTestRule.waitForIdle()
+    assertEquals("Alhamdulillah sehat cak", sentText)
+    assertEquals("msg_ivak_1", sentReplyTo?.id)
   }
 }

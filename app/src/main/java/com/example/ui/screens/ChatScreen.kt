@@ -59,12 +59,15 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -141,15 +144,18 @@ fun ChatScreen(
         }
     }
 
+    val focusManager = LocalFocusManager.current
+    val currentOnSelectSubTab by rememberUpdatedState(onSelectSubTab)
+
     Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            contentPadding = PaddingValues(top = 6.dp, bottom = if (selectedSubTab == 0) 80.dp else 20.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier
-                .fillMaxSize()
-                .testTag("chat_rooms_list"),
-        ) {
-            item(key = "chat_sub_tabs") {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Fixed top header outside LazyColumn so tab switching never loses clicks during list recomposition
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp, bottom = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 Surface(
                     shape = CircleShape,
                     color = Color.White,
@@ -165,7 +171,10 @@ fun ChatScreen(
                         ChatModeTabPill(
                             label = "Ruang Publik SBY (${publicRooms.size})",
                             selected = selectedSubTab == 0,
-                            onClick = { onSelectSubTab(0) },
+                            onClick = {
+                                focusManager.clearFocus()
+                                currentOnSelectSubTab(0)
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("chat_tab_public"),
@@ -173,16 +182,17 @@ fun ChatScreen(
                         ChatModeTabPill(
                             label = "Pesan Pribadi (${directRooms.size})",
                             selected = selectedSubTab == 1,
-                            onClick = { onSelectSubTab(1) },
+                            onClick = {
+                                focusManager.clearFocus()
+                                currentOnSelectSubTab(1)
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("chat_tab_direct"),
                         )
                     }
                 }
-            }
 
-            item(key = "chat_search_and_new_bar") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -254,123 +264,135 @@ fun ChatScreen(
                 }
             }
 
-            if (selectedSubTab == 0) {
-                item(key = "chat_public_group_role_banner") {
-                    if (isAdmin) {
-                        Surface(
-                            color = ToskaPrimaryDeep,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 10.dp)
-                                .testTag("chat_group_admin_banner"),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            LazyColumn(
+                contentPadding = PaddingValues(top = 2.dp, bottom = if (selectedSubTab == 0) 80.dp else 20.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .testTag("chat_rooms_list"),
+            ) {
+                if (selectedSubTab == 0) {
+                    item(key = "chat_public_group_role_banner") {
+                        if (isAdmin) {
+                            Surface(
+                                color = ToskaPrimaryDeep,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp)
+                                    .testTag("chat_group_admin_banner"),
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.AdminPanelSettings,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Text(
-                                    text = stringResource(R.string.admin_create_group_banner),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        }
-                    } else {
-                        Surface(
-                            color = if (isCitizenQuotaFull) Color(0xFFFFF8E1) else ToskaPrimaryDeep.copy(alpha = 0.08f),
-                            border = BorderStroke(
-                                1.dp,
-                                if (isCitizenQuotaFull) Color(0xFFFFD54F) else ToskaPrimaryDeep.copy(alpha = 0.16f),
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 10.dp)
-                                .testTag("chat_group_citizen_quota_banner"),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Icon(
-                                    imageVector = if (isCitizenQuotaFull) Icons.Filled.Lock else Icons.Filled.Info,
-                                    contentDescription = null,
-                                    tint = if (isCitizenQuotaFull) Color(0xFFB45309) else ToskaPrimaryDeep,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.AdminPanelSettings,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp),
+                                    )
                                     Text(
-                                        text = if (isCitizenQuotaFull) {
-                                            stringResource(
-                                                R.string.group_quota_full_hint,
-                                                myActiveGroupCount,
-                                                CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN,
-                                            )
-                                        } else {
-                                            stringResource(R.string.admin_only_create_group_notice)
-                                        },
+                                        text = stringResource(R.string.admin_create_group_banner),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (isCitizenQuotaFull) Color(0xFF92400E) else ToskaPrimaryDeep,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.weight(1f),
                                     )
                                 }
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (isCitizenQuotaFull) Color(0xFFFDE68A) else OpenGreenBg,
+                            }
+                        } else {
+                            Surface(
+                                color = if (isCitizenQuotaFull) Color(0xFFFFF8E1) else ToskaPrimaryDeep.copy(alpha = 0.08f),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isCitizenQuotaFull) Color(0xFFFFD54F) else ToskaPrimaryDeep.copy(alpha = 0.16f),
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp)
+                                    .testTag("chat_group_citizen_quota_banner"),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Text(
-                                        text = "$myActiveGroupCount/${CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isCitizenQuotaFull) Color(0xFF92400E) else OpenGreenText,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    Icon(
+                                        imageVector = if (isCitizenQuotaFull) Icons.Filled.Lock else Icons.Filled.Info,
+                                        contentDescription = null,
+                                        tint = if (isCitizenQuotaFull) Color(0xFFB45309) else ToskaPrimaryDeep,
+                                        modifier = Modifier.size(16.dp),
                                     )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (isCitizenQuotaFull) {
+                                                stringResource(
+                                                    R.string.group_quota_full_hint,
+                                                    myActiveGroupCount,
+                                                    CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN,
+                                                )
+                                            } else {
+                                                stringResource(R.string.admin_only_create_group_notice)
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (isCitizenQuotaFull) Color(0xFF92400E) else ToskaPrimaryDeep,
+                                        )
+                                    }
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isCitizenQuotaFull) Color(0xFFFDE68A) else OpenGreenBg,
+                                    ) {
+                                        Text(
+                                            text = "$myActiveGroupCount/${CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isCitizenQuotaFull) Color(0xFF92400E) else OpenGreenText,
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            if (activeRooms.isEmpty()) {
-                item {
-                    EmptyFeedPlaceholder(
-                        icon = if (selectedSubTab == 0) Icons.Filled.Forum else Icons.AutoMirrored.Filled.Chat,
-                        title = if (selectedSubTab == 0) "Memuat Ruang Publik Surabaya" else "Belum ada obrolan pribadi",
-                        subtitle = if (selectedSubTab == 0) {
-                            "Ruang diskusi terbuka atau komunitas ber-PIN bagi seluruh warga Kota Pahlawan."
-                        } else {
-                            "Tekan tombol Chat Warga di atas atau tombol Sapa pada menu Sekitar untuk memulai percakapan dua arah!"
-                        },
-                    )
-                }
-            } else {
-                items(activeRooms, key = { it.id }) { room ->
-                    val isUnlocked = CommunityGroupPinHelper.hasRoomAccess(
-                        pinHash = room.pinHash,
-                        roomId = room.id,
-                        roomCreatedBy = room.createdBy,
-                        currentUserId = currentUserId,
-                        isAdmin = isAdmin,
-                        unlockedPinHashesByRoomId = unlockedGroupPinHashes,
-                    )
-                    ChatRoomRowCard(
-                        room = room,
-                        currentUserId = currentUserId,
-                        isAdmin = isAdmin,
-                        isPinUnlocked = isUnlocked,
-                        onClick = { onOpenRoom(room) },
-                    )
+                if (activeRooms.isEmpty()) {
+                    item(key = if (selectedSubTab == 0) "empty_public_rooms" else "empty_direct_rooms") {
+                        EmptyFeedPlaceholder(
+                            icon = if (selectedSubTab == 0) Icons.Filled.Forum else Icons.AutoMirrored.Filled.Chat,
+                            title = if (selectedSubTab == 0) "Memuat Ruang Publik Surabaya" else "Belum ada obrolan pribadi",
+                            subtitle = if (selectedSubTab == 0) {
+                                "Ruang diskusi terbuka atau komunitas ber-PIN bagi seluruh warga Kota Pahlawan."
+                            } else {
+                                "Tekan tombol Chat Warga di atas atau tombol Sapa pada menu Sekitar untuk memulai percakapan dua arah!"
+                            },
+                        )
+                    }
+                } else {
+                    items(
+                        items = activeRooms,
+                        key = { "${selectedSubTab}_${it.id}" },
+                    ) { room ->
+                        val isUnlocked = CommunityGroupPinHelper.hasRoomAccess(
+                            pinHash = room.pinHash,
+                            roomId = room.id,
+                            roomCreatedBy = room.createdBy,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
+                            unlockedPinHashesByRoomId = unlockedGroupPinHashes,
+                        )
+                        ChatRoomRowCard(
+                            room = room,
+                            currentUserId = currentUserId,
+                            isAdmin = isAdmin,
+                            isPinUnlocked = isUnlocked,
+                            onClick = { onOpenRoom(room) },
+                        )
+                    }
                 }
             }
         }
@@ -414,28 +436,34 @@ private fun ChatModeTabPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .then(
-                if (selected) {
-                    Modifier.background(FreshGreenGradient, CircleShape)
-                } else {
-                    Modifier
-                },
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp, horizontal = 8.dp),
-        contentAlignment = Alignment.Center,
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = Color.Transparent,
+        modifier = modifier.minimumInteractiveComponentSize(),
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (selected) {
+                        Modifier.background(FreshGreenGradient, CircleShape)
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(vertical = 8.dp, horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

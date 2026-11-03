@@ -411,7 +411,13 @@ data class ChatMessage(
     val isRead: Boolean = false,
     val createdAt: Long? = null,
     val hasPhotoAttachment: Boolean = false,
+    val replyToId: String = "",
+    val replyToSender: String = "",
+    val replyToText: String = "",
 ) {
+    val hasReply: Boolean
+        get() = replyToId.isNotBlank()
+
     val hasPhoto: Boolean
         get() = photoUrl.isNotBlank() || hasPhotoAttachment || text.contains("📷 Foto")
 

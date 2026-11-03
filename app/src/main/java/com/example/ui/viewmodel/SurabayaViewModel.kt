@@ -193,6 +193,9 @@ class SurabayaViewModel(
     private val _pendingPinUnlockRoom = MutableStateFlow<ChatRoom?>(null)
     val pendingPinUnlockRoom: StateFlow<ChatRoom?> = _pendingPinUnlockRoom.asStateFlow()
 
+    private val _cachedCitizenProfiles = MutableStateFlow<Map<String, NearbyProfile>>(emptyMap())
+    val cachedCitizenProfiles: StateFlow<Map<String, NearbyProfile>> = _cachedCitizenProfiles.asStateFlow()
+
     private val activeInterestJobs = ConcurrentHashMap<String, Job>()
     private val _pendingEventInterests = MutableStateFlow<Set<String>>(emptySet())
     val pendingEventInterests: StateFlow<Set<String>> = _pendingEventInterests.asStateFlow()
@@ -775,7 +778,19 @@ class SurabayaViewModel(
         displayName: String = "",
         returnSheet: ActiveBottomSheet? = null,
     ) {
-        _activeSheet.value = ActiveBottomSheet.CitizenProfile(userId, displayName, returnSheet)
+        val cleanUid = userId.trim()
+        if (cleanUid.isBlank()) return
+        _activeSheet.value = ActiveBottomSheet.CitizenProfile(cleanUid, displayName, returnSheet)
+        viewModelScope.launch {
+            val fetched = repository.fetchCitizenProfileById(cleanUid)
+            if (fetched != null) {
+                val updated = LinkedHashMap(_cachedCitizenProfiles.value)
+                updated[cleanUid] = fetched
+                if (fetched.id.isNotBlank()) updated[fetched.id] = fetched
+                if (fetched.userId.isNotBlank()) updated[fetched.userId] = fetched
+                _cachedCitizenProfiles.value = updated
+            }
+        }
     }
 
     // Radio Suara Surabaya 100 FM
@@ -1843,6 +1858,7 @@ class SurabayaViewModel(
         text: String,
         photoUri: Uri? = null,
         context: Context? = null,
+        replyTo: ChatMessage? = null,
     ) {
         if ((text.isBlank() && photoUri == null) || isCurrentUserFrozen()) return
         viewModelScope.launch {
@@ -1863,7 +1879,13 @@ class SurabayaViewModel(
                         preparedPhoto = prepared
                     }
                 }
-                val msgId = repository.sendMessage(room, currentDisplayName(), text, preparedPhoto)
+                val msgId = repository.sendMessage(
+                    room = room,
+                    senderName = currentDisplayName(),
+                    text = text,
+                    photo = preparedPhoto,
+                    replyTo = replyTo,
+                )
                 if (msgId.isNotBlank() && preparedPhoto != null && context != null) {
                     // WhatsApp-style: Immediately save outgoing photo to local cache & Android Gallery!
                     ChatMediaManager.saveOutgoingPhoto(context, msgId, preparedPhoto.bytes, preparedPhoto.mimeType)

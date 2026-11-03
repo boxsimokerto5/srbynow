@@ -52,6 +52,7 @@ import com.example.data.util.defaultCulinaryImageKey
 import com.example.data.util.extractLatLngFromMapsUrl
 import com.example.data.util.defaultEventImageKey
 import com.example.data.util.defaultIncidentImageKey
+import com.example.data.util.ChatReplyHelper
 import com.example.data.util.CommunityGroupPinHelper
 import com.example.data.util.logBackendError
 import com.example.data.util.parsePocketBaseTimestamp
@@ -2276,6 +2277,29 @@ class SurabayaRepository(
         }
     }
 
+    suspend fun fetchCitizenProfileById(targetUid: String): NearbyProfile? {
+        val cleanUid = targetUid.trim()
+        if (cleanUid.isBlank()) return null
+        return try {
+            val direct = runCatching { pb.getOneOrNull("nearby_profiles", cleanUid) }.getOrNull()
+            if (direct != null) {
+                mapNearbyProfile(direct)
+            } else {
+                val safeUid = escapePbValue(cleanUid)
+                val byUserId = runCatching {
+                    pb.getList(
+                        collection = "nearby_profiles",
+                        filter = "user_id = '$safeUid'",
+                        perPage = 1,
+                    ).firstOrNull()
+                }.getOrNull()
+                byUserId?.let(::mapNearbyProfile)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     // --- 7. CHAT WARGA SURABAYA (PUBLIC & DIRECT TWO-WAY) ---
 
     fun observePublicChatRooms(): Flow<List<ChatRoom>> {
@@ -2795,6 +2819,7 @@ class SurabayaRepository(
         senderName: String,
         text: String,
         photo: PreparedPhoto? = null,
+        replyTo: ChatMessage? = null,
     ): String {
         val uid = requireUserId()
         val cleanText = text.trim().take(1000)
@@ -2803,21 +2828,45 @@ class SurabayaRepository(
         val msgId = PocketBaseClient.deterministicPbId("msg_${UUID.randomUUID()}")
         val uid1 = if (room.roomType == "DIRECT") room.participantUids.getOrNull(0).orEmpty() else ""
         val uid2 = if (room.roomType == "DIRECT") room.participantUids.getOrNull(1).orEmpty() else ""
-        val effectiveText = cleanText.ifEmpty { if (photo != null) "📷 Foto" else "" }
+        val baseBodyText = cleanText.ifEmpty { if (photo != null) "📷 Foto" else "" }
+
+        val replyId = replyTo?.id?.trim().orEmpty()
+        val replySender = replyTo?.senderName?.trim().orEmpty().take(80)
+        val replySnippet = if (replyTo != null) {
+            ChatReplyHelper.sanitizeSnippet(replyTo.text, replyTo.hasPhoto)
+        } else {
+            ""
+        }
+
+        val effectiveEncodedText = if (replyId.isNotBlank()) {
+            ChatReplyHelper.encodeTextWithReply(
+                bodyText = baseBodyText,
+                replyToId = replyId,
+                replyToSender = replySender,
+                replyToSnippet = replySnippet,
+            )
+        } else {
+            baseBodyText
+        }
 
         try {
             if (photo != null) {
-                val fields = mapOf(
-                    "id" to msgId,
-                    "room_id" to room.id,
-                    "room_key" to room.roomKey.ifBlank { room.id },
-                    "room_type" to room.roomType,
-                    "participant_uid_1" to uid1,
-                    "participant_uid_2" to uid2,
-                    "sender_id" to uid,
-                    "sender_name" to cleanSender,
-                    "text" to effectiveText,
-                )
+                val fields = buildMap {
+                    put("id", msgId)
+                    put("room_id", room.id)
+                    put("room_key", room.roomKey.ifBlank { room.id })
+                    put("room_type", room.roomType)
+                    put("participant_uid_1", uid1)
+                    put("participant_uid_2", uid2)
+                    put("sender_id", uid)
+                    put("sender_name", cleanSender)
+                    put("text", effectiveEncodedText)
+                    if (replyId.isNotBlank()) {
+                        put("reply_to_id", replyId)
+                        put("reply_to_sender", replySender)
+                        put("reply_to_text", replySnippet)
+                    }
+                }
                 val filePart = MultipartFilePart(
                     fieldName = "photo",
                     fileName = photo.fileName,
@@ -2828,9 +2877,22 @@ class SurabayaRepository(
                     pb.createRecordMultipartFiles("chat_messages", fields, listOf(filePart))
                 } catch (e: Exception) {
                     Log.w(TAG, "Multipart upload for chat photo failed, falling back to JSON: ${e.message}")
+                    val fallbackBody = if (cleanText.isNotBlank()) "$cleanText (📷 Foto terlampir)" else "📷 Foto terlampir"
+                    val fallbackEncoded = if (replyId.isNotBlank()) {
+                        ChatReplyHelper.encodeTextWithReply(fallbackBody, replyId, replySender, replySnippet)
+                    } else {
+                        fallbackBody
+                    }
                     val fallbackPayload = JSONObject().apply {
-                        fields.forEach { (k, v) -> put(k, v) }
-                        put("text", if (cleanText.isNotBlank()) "$cleanText (📷 Foto terlampir)" else "📷 Foto terlampir")
+                        put("id", msgId)
+                        put("room_id", room.id)
+                        put("room_key", room.roomKey.ifBlank { room.id })
+                        put("room_type", room.roomType)
+                        put("participant_uid_1", uid1)
+                        put("participant_uid_2", uid2)
+                        put("sender_id", uid)
+                        put("sender_name", cleanSender)
+                        put("text", fallbackEncoded)
                     }
                     pb.createRecord("chat_messages", fallbackPayload)
                 }
@@ -2844,13 +2906,30 @@ class SurabayaRepository(
                     put("participant_uid_2", uid2)
                     put("sender_id", uid)
                     put("sender_name", cleanSender)
-                    put("text", effectiveText)
+                    put("text", effectiveEncodedText)
+                    if (replyId.isNotBlank()) {
+                        put("reply_to_id", replyId)
+                        put("reply_to_sender", replySender)
+                        put("reply_to_text", replySnippet)
+                    }
                 }
-                pb.createRecord("chat_messages", msgPayload)
+                try {
+                    pb.createRecord("chat_messages", msgPayload)
+                } catch (pbEx: PocketBaseException) {
+                    if (replyId.isNotBlank() && pbEx.statusCode == 400) {
+                        msgPayload.remove("reply_to_id")
+                        msgPayload.remove("reply_to_sender")
+                        msgPayload.remove("reply_to_text")
+                        pb.createRecord("chat_messages", msgPayload)
+                    } else {
+                        throw pbEx
+                    }
+                }
             }
 
+            val previewLastMsg = (if (photo != null && cleanText.isBlank()) "📷 Foto" else baseBodyText).take(300)
             val roomPatch = JSONObject().apply {
-                put("last_message", (if (photo != null && cleanText.isBlank()) "📷 Foto" else effectiveText).take(300))
+                put("last_message", previewLastMsg)
                 put("last_sender_name", cleanSender)
             }
             pb.updateRecord("chat_rooms", room.id, roomPatch)
@@ -3294,7 +3373,7 @@ class SurabayaRepository(
             subtitle = j.optString("subtitle"),
             participantUids = participants,
             participantNames = participantNamesRaw,
-            lastMessage = j.optString("last_message"),
+            lastMessage = ChatReplyHelper.stripReplyMarkerForPreview(j.optString("last_message")),
             lastSenderName = j.optString("last_sender_name"),
             typingStatus = effectiveTyping,
             createdBy = j.optString("created_by"),
@@ -3317,8 +3396,13 @@ class SurabayaRepository(
         val isReadRemote = j.optBoolean("is_read", false)
         val isReadLocal = localReadMsgIds.contains(id)
         val isRead = isReadRemote || isReadLocal
-        val text = j.optString("text")
-        val hasAttachment = photoFileNames.isNotEmpty() || resolvedPhotoUrl.isNotBlank() || j.optBoolean("has_photo", false) || text.contains("📷 Foto")
+        val rawText = j.optString("text")
+        val embeddedReply = ChatReplyHelper.parseEmbeddedReply(rawText)
+        val cleanText = embeddedReply?.cleanText ?: rawText
+        val replyToId = j.optString("reply_to_id").ifBlank { embeddedReply?.replyToId.orEmpty() }
+        val replyToSender = j.optString("reply_to_sender").ifBlank { embeddedReply?.replyToSender.orEmpty() }
+        val replyToText = j.optString("reply_to_text").ifBlank { embeddedReply?.replyToSnippet.orEmpty() }
+        val hasAttachment = photoFileNames.isNotEmpty() || resolvedPhotoUrl.isNotBlank() || j.optBoolean("has_photo", false) || cleanText.contains("📷 Foto")
         return ChatMessage(
             id = id,
             roomId = j.optString("room_id"),
@@ -3327,12 +3411,15 @@ class SurabayaRepository(
             participantUids = participants,
             senderId = j.optString("sender_id"),
             senderName = j.optString("sender_name", "Warga Surabaya"),
-            text = text,
+            text = cleanText,
             photoUrl = resolvedPhotoUrl,
             isDelivered = isDeliveredRemote,
             isRead = isRead,
             createdAt = parsePocketBaseTimestamp(j.optString("created")),
             hasPhotoAttachment = hasAttachment,
+            replyToId = replyToId,
+            replyToSender = replyToSender,
+            replyToText = replyToText,
         )
     }
 
