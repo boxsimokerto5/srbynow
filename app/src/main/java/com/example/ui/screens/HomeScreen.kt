@@ -1852,24 +1852,25 @@ private fun HomeCulinaryCard(
     isNearestTopSpot: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val etaMin = remember(distanceKm) { (15 + (distanceKm * 4).toInt()).coerceIn(15, 60) }
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(15.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
         border = BorderStroke(
             width = if (isNearestTopSpot) 1.5.dp else 1.dp,
-            color = if (isNearestTopSpot) ToskaPrimary.copy(alpha = 0.6f) else OutlineVariantLight.copy(alpha = 0.7f),
+            color = if (isNearestTopSpot) SuperAppCoral.copy(alpha = 0.5f) else SuperAppBorder,
         ),
-        shadowElevation = 2.dp,
+        shadowElevation = 1.dp,
         modifier = Modifier
-            .width(188.dp)
+            .width(172.dp)
             .testTag("home_culinary_${spot.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(90.dp),
+                    .height(98.dp),
             ) {
                 val photoModel = spot.allPhotos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(spot.imageKey)
                 AsyncImage(
@@ -1881,34 +1882,36 @@ private fun HomeCulinaryCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
+                // Gojek-style discount/category badge top-left
                 Surface(
-                    shape = RoundedCornerShape(bottomEnd = 8.dp),
-                    color = if (isNearestTopSpot) OpenGreenText.copy(alpha = 0.94f) else ToskaPrimaryDeep.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(bottomEnd = 8.dp, topStart = 15.dp),
+                    color = SuperAppCoral,
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
-                    val catLabel = if (isNearestTopSpot) {
-                        stringResource(R.string.kuliner_nearest_rank_badge, 1)
+                    val discountBadge = if (isNearestTopSpot) {
+                        "Terdekat #1"
                     } else {
                         when (spot.category) {
-                            "RAWON_SOTO" -> "Rawon & Soto"
-                            "PENYETAN_SAMBAL" -> "Penyetan"
-                            "KOPI_NONGKRONG" -> "Kopi & Warkop"
-                            "JAJANAN_MALAM" -> "Jajanan Malam"
-                            else -> "Legendaris"
+                            "RAWON_SOTO" -> "35% off"
+                            "PENYETAN_SAMBAL" -> "30% off"
+                            "KOPI_NONGKRONG" -> "20% off"
+                            "JAJANAN_MALAM" -> "25% off"
+                            else -> "Pilihan"
                         }
                     }
                     Text(
-                        text = catLabel,
+                        text = discountBadge,
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
                         fontSize = 9.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp),
                     )
                 }
+                // Distance badge top-right
                 Surface(
-                    shape = RoundedCornerShape(bottomStart = 8.dp),
-                    color = Color.Black.copy(alpha = 0.72f),
+                    shape = RoundedCornerShape(bottomStart = 8.dp, topEnd = 15.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Text(
@@ -1916,54 +1919,79 @@ private fun HomeCulinaryCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 9.sp,
+                        fontSize = 8.5.sp,
                         modifier = Modifier
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
                             .testTag("home_culinary_distance_${spot.id}"),
                     )
                 }
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = Color.Black.copy(alpha = 0.7f),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(5.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = null,
-                            tint = Color(0xFFFFB300),
-                            modifier = Modifier.size(11.dp),
-                        )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = String.format(Locale.US, "%.1f", spot.ratingAvg),
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
             }
-            Column(modifier = Modifier.padding(8.dp)) {
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 9.dp, vertical = 8.dp),
+            ) {
+                // ETA • Distance line (Gojek style)
+                Text(
+                    text = "${etaMin}-${etaMin + 10} min • ${formatDistanceLabel(distanceKm)}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                    fontWeight = FontWeight.SemiBold,
+                    color = SuperAppMutedText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                // Spot name
                 Text(
                     text = spot.name,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF1F2937),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = "${spot.district} • ${formatDistanceLabel(distanceKm)} • ${spot.priceRange}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ToskaPrimaryDeep,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Spacer(modifier = Modifier.height(3.dp))
+                // Rating + District
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = SuperAppGold,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = String.format(Locale.US, "%.1f", spot.ratingAvg),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF374151),
+                    )
+                    Text(
+                        text = " • ${spot.district} • ${spot.priceRange}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = SuperAppMutedText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                // Gojek-style bottom tag: "Rekomendasi Warga"
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = SuperAppCoralBg,
+                    border = BorderStroke(0.5.dp, SuperAppCoralBorder),
+                ) {
+                    Text(
+                        text = "Rekomendasi Warga",
+                        color = SuperAppCoral,
+                        fontSize = 8.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                    )
+                }
             }
         }
     }
