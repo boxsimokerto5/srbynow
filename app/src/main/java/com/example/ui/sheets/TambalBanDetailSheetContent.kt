@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PhoneInTalk
@@ -117,6 +118,7 @@ fun TambalBanDetailSheetContent(
     isAdmin: Boolean = false,
     onVerify: () -> Unit,
     onSendComment: (String) -> Unit,
+    onEditSpot: (() -> Unit)? = null,
     onDeleteSpot: (() -> Unit)? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -545,6 +547,20 @@ fun TambalBanDetailSheetContent(
                                 imageVector = Icons.Filled.Call,
                                 contentDescription = "Telepon",
                                 modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+
+                    // Edit button (for author or admin)
+                    if (onEditSpot != null && (spot.authorId == currentUserId || isAdmin)) {
+                        IconButton(
+                            onClick = onEditSpot,
+                            modifier = Modifier.testTag("btn_edit_tambal_ban"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = "Edit Tambal Ban",
+                                tint = ToskaPrimaryDeep,
                             )
                         }
                     }

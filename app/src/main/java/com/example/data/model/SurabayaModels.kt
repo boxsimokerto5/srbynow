@@ -547,6 +547,28 @@ data class EventDraft(
             description.isNotBlank() || mapsUrl.isNotBlank() || photoUris.isNotEmpty()
 }
 
+data class TambalBanDraft(
+    val name: String = "",
+    val description: String = "",
+    val district: String = "Genteng",
+    val address: String = "",
+    val mapsUrl: String = "",
+    val phoneNumber: String = "",
+    val whatsappNumber: String = "",
+    val is24Hours: Boolean = false,
+    val isTubeless: Boolean = true,
+    val forMotor: Boolean = true,
+    val forMobil: Boolean = false,
+    val canCallOut: Boolean = false,
+    val photoUri: String = "",
+    val savedAt: Long = System.currentTimeMillis(),
+) {
+    fun hasContent(): Boolean =
+        name.isNotBlank() || description.isNotBlank() || address.isNotBlank() ||
+            phoneNumber.isNotBlank() || whatsappNumber.isNotBlank() || mapsUrl.isNotBlank() ||
+            photoUri.isNotBlank()
+}
+
 enum class AppNotificationType {
     CHAT,
     EVENT,

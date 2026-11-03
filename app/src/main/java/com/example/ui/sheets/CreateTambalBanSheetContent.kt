@@ -28,18 +28,30 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import com.example.data.model.TambalBanDraft
+import com.example.data.model.TambalBanSpot
+import com.example.data.util.TambalBanDraftManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,10 +87,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun CreateTambalBanSheetContent(
     defaultDistrict: String = "Genteng",
+    initialSpot: TambalBanSpot? = null,
     isSubmitting: Boolean = false,
     isScanningPhoto: Boolean = false,
     isLiveGpsActive: Boolean = false,
     onRequestGpsRefresh: () -> Unit = {},
+    onSaveDraft: ((TambalBanDraft) -> Unit)? = null,
+    onClearDraft: (() -> Unit)? = null,
     onSubmit: (
         name: String,
         description: String,
@@ -99,20 +114,35 @@ fun CreateTambalBanSheetContent(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var name by remember { mutableStateOf("") }
-    var district by remember { mutableStateOf(defaultDistrict.ifBlank { "Genteng" }) }
-    var address by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var is24Hours by remember { mutableStateOf(false) }
-    var isTubeless by remember { mutableStateOf(true) }
-    var forMotor by remember { mutableStateOf(true) }
-    var forMobil by remember { mutableStateOf(false) }
-    var canCallOut by remember { mutableStateOf(false) }
-    var mapsUrl by remember { mutableStateOf("") }
-    var phoneNumber by remember { mutableStateOf("") }
-    var whatsappNumber by remember { mutableStateOf("") }
-    var photoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val isEditMode = initialSpot != null
+
+    val savedDraft = remember(initialSpot) {
+        if (initialSpot == null) TambalBanDraftManager.loadDraft(context) else null
+    }
+    var hasLoadedDraft by remember { mutableStateOf(savedDraft != null) }
+
+    var name by remember { mutableStateOf(initialSpot?.name ?: savedDraft?.name.orEmpty()) }
+    var district by remember { mutableStateOf(initialSpot?.district ?: savedDraft?.district ?: defaultDistrict.ifBlank { "Genteng" }) }
+    var address by remember { mutableStateOf(initialSpot?.address ?: savedDraft?.address.orEmpty()) }
+    var description by remember { mutableStateOf(initialSpot?.description ?: savedDraft?.description.orEmpty()) }
+    var is24Hours by remember { mutableStateOf(initialSpot?.is24Hours ?: savedDraft?.is24Hours ?: false) }
+    var isTubeless by remember { mutableStateOf(initialSpot?.isTubeless ?: savedDraft?.isTubeless ?: true) }
+    var forMotor by remember { mutableStateOf(initialSpot?.forMotor ?: savedDraft?.forMotor ?: true) }
+    var forMobil by remember { mutableStateOf(initialSpot?.forMobil ?: savedDraft?.forMobil ?: false) }
+    var canCallOut by remember { mutableStateOf(initialSpot?.canCallOut ?: savedDraft?.canCallOut ?: false) }
+    var mapsUrl by remember { mutableStateOf(initialSpot?.mapsUrl ?: savedDraft?.mapsUrl.orEmpty()) }
+    var phoneNumber by remember { mutableStateOf(initialSpot?.phoneNumber ?: savedDraft?.phoneNumber.orEmpty()) }
+    var whatsappNumber by remember { mutableStateOf(initialSpot?.whatsappNumber ?: savedDraft?.whatsappNumber.orEmpty()) }
+    var photoUris by remember {
+        mutableStateOf<List<Uri>>(
+            if (initialSpot == null && savedDraft != null && savedDraft.photoUri.isNotBlank()) {
+                listOfNotNull(try { Uri.parse(savedDraft.photoUri) } catch (_: Exception) { null })
+            } else emptyList()
+        )
+    }
     var gpsCoordinatesApplied by remember { mutableStateOf(false) }
+    var showDraftSavedNotice by remember { mutableStateOf(false) }
+    var showUnsavedDialog by remember { mutableStateOf(false) }
 
     val applyTambalBanGps = rememberLocationPermissionWithDisclosure(
         usageContext = LocationUsageContext.TAMBAL_BAN,
@@ -141,6 +171,72 @@ fun CreateTambalBanSheetContent(
     val hasVehicleType = forMotor || forMobil
     val canSubmit = isNameValid && isAddressValid && hasVehicleType && !isSubmitting && !isScanningPhoto
 
+    val currentDraft = remember(name, description, district, address, mapsUrl, phoneNumber, whatsappNumber, is24Hours, isTubeless, forMotor, forMobil, canCallOut, photoUris) {
+        TambalBanDraft(
+            name = name.trim(),
+            description = description.trim(),
+            district = district,
+            address = address.trim(),
+            mapsUrl = mapsUrl.trim(),
+            phoneNumber = phoneNumber.trim(),
+            whatsappNumber = whatsappNumber.trim(),
+            is24Hours = is24Hours,
+            isTubeless = isTubeless,
+            forMotor = forMotor,
+            forMobil = forMobil,
+            canCallOut = canCallOut,
+            photoUri = photoUris.firstOrNull()?.toString().orEmpty(),
+        )
+    }
+
+    val handleAttemptClose: () -> Unit = {
+        if (!isEditMode && currentDraft.hasContent()) {
+            showUnsavedDialog = true
+        } else {
+            onClose()
+        }
+    }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("Simpan Draf Sebelum Keluar?") },
+            text = {
+                Text("Anda sudah mengisi rincian lokasi tambal ban ini. Simpan sebagai draf agar data tersimpan saat Anda mencari titik Maps atau nomor kontak.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        TambalBanDraftManager.saveDraft(context, currentDraft)
+                        onSaveDraft?.invoke(currentDraft)
+                        showUnsavedDialog = false
+                        onClose()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                ) {
+                    Text("Simpan Draf & Keluar")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = {
+                            TambalBanDraftManager.clearDraft(context)
+                            onClearDraft?.invoke()
+                            showUnsavedDialog = false
+                            onClose()
+                        }
+                    ) {
+                        Text("Buang", color = AlertCrimson)
+                    }
+                    TextButton(onClick = { showUnsavedDialog = false }) {
+                        Text("Lanjut Mengisi")
+                    }
+                }
+            },
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -158,19 +254,19 @@ fun CreateTambalBanSheetContent(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Tambah Tambal Ban",
+                    text = if (isEditMode) "Edit Lokasi Tambal Ban" else "Tambah Tambal Ban",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Bantu warga menemukan tambal ban saat darurat",
+                    text = if (isEditMode) "Perbarui informasi titik bengkel/tambal ban, layanan, atau nomor darurat" else "Bantu warga menemukan tambal ban saat darurat",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             IconButton(
-                onClick = onClose,
+                onClick = handleAttemptClose,
                 modifier = Modifier.testTag("btn_close_sheet"),
             ) {
                 Icon(
@@ -178,6 +274,89 @@ fun CreateTambalBanSheetContent(
                     contentDescription = "Tutup",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        if (hasLoadedDraft && !isEditMode) {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ToskaPrimary.copy(alpha = 0.12f)),
+                border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = Icons.Filled.Bookmark,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Melanjutkan draf tambal ban tersimpan",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ToskaPrimaryDeep,
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            TambalBanDraftManager.clearDraft(context)
+                            onClearDraft?.invoke()
+                            hasLoadedDraft = false
+                            name = ""
+                            district = defaultDistrict.ifBlank { "Genteng" }
+                            address = ""
+                            description = ""
+                            is24Hours = false
+                            isTubeless = true
+                            forMotor = true
+                            forMobil = false
+                            canCallOut = false
+                            mapsUrl = ""
+                            phoneNumber = ""
+                            whatsappNumber = ""
+                            photoUris = emptyList()
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text("Bersihkan Draf", color = AlertCrimson, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        if (showDraftSavedNotice) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = ToskaPrimary.copy(alpha = 0.15f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Draf lokasi tambal ban berhasil disimpan! Anda aman mencari link/alamat di aplikasi lain.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ToskaPrimaryDeep,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
             }
         }
 
@@ -453,7 +632,7 @@ fun CreateTambalBanSheetContent(
             onPhotosChanged = { photoUris = it },
             maxPhotos = 3,
             title = "Foto Plang / Lokasi Tambal Ban (Opsional)",
-            subtitle = "Bisa unggah hingga 3 foto plang, gerobak, atau bengkel tambal ban",
+            subtitle = if (isEditMode) "Tambahkan foto baru jika ingin mengganti/memperbarui foto bengkel/lokasi" else "Bisa unggah hingga 3 foto plang, gerobak, atau bengkel tambal ban",
         )
 
         // --- LINK GOOGLE MAPS ---
@@ -533,6 +712,27 @@ fun CreateTambalBanSheetContent(
             ),
         )
 
+        // --- SAVE DRAFT BUTTON (NEW FORM ONLY) ---
+        if (!isEditMode) {
+            OutlinedButton(
+                onClick = {
+                    TambalBanDraftManager.saveDraft(context, currentDraft)
+                    onSaveDraft?.invoke(currentDraft)
+                    showDraftSavedNotice = true
+                },
+                enabled = !isSubmitting && currentDraft.hasContent(),
+                shape = CircleShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .testTag("btn_save_tambal_draft"),
+            ) {
+                Icon(Icons.Filled.Bookmark, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Simpan Sebagai Draf Tambal Ban")
+            }
+        }
+
         // --- SUBMIT BUTTON ---
         Button(
             onClick = {
@@ -575,7 +775,7 @@ fun CreateTambalBanSheetContent(
                 Text(if (isScanningPhoto) "Memindai Keamanan Foto..." else "Menyimpan Data...")
             } else {
                 Text(
-                    text = "Simpan Lokasi Tambal Ban",
+                    text = if (isEditMode) "Simpan Perubahan Tambal Ban" else "Simpan Lokasi Tambal Ban",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )

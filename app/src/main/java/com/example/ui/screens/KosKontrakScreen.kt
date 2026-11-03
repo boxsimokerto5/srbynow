@@ -624,8 +624,6 @@ private fun KosListingCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 7.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onOpenDetail)
             .testTag("kos_card_${item.id}"),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -637,6 +635,7 @@ private fun KosListingCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(176.dp)
+                    .clickable(onClick = onOpenDetail)
                     .background(
                         Brush.linearGradient(
                             colors = listOf(Color(0xFFE5F7F0), Color(0xFFD2EFE4)),
@@ -733,8 +732,14 @@ private fun KosListingCard(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenDetail),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -868,6 +873,7 @@ private fun KosListingCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                }
                 }
 
                 if (isOwner || isAdmin) {

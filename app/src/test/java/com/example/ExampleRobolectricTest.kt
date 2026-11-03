@@ -65,7 +65,11 @@ import com.example.ui.sheets.CreateTambalBanSheetContent
 import com.example.ui.sheets.RadioPlayerSheetContent
 import com.example.ui.theme.SurabayaHariIniTheme
 import com.example.ui.viewmodel.NearbyPeerItem
+import com.example.data.model.TambalBanDraft
+import com.example.data.util.TambalBanDraftManager
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -1521,5 +1525,38 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("event_comment_send_btn").performClick()
     composeTestRule.waitForIdle()
     assertEquals("Aku budhal bareng mbak!", sentComment)
+  }
+
+  @Test
+  fun `tambal ban draft manager saves and loads and clears draft properly`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    TambalBanDraftManager.clearDraft(context)
+    assertNull(TambalBanDraftManager.loadDraft(context))
+
+    val draft = TambalBanDraft(
+      name = "Tambal Ban Cacing Cak Munir",
+      description = "Siap 24 jam tambal ban tubeless dan bakar",
+      district = "Gubeng",
+      address = "Jl. Karang Menjangan No. 42",
+      mapsUrl = "https://maps.app.goo.gl/sample123",
+      phoneNumber = "081234567890",
+      whatsappNumber = "081234567890",
+      is24Hours = true,
+      isTubeless = true,
+      forMotor = true,
+      forMobil = false,
+      canCallOut = true,
+    )
+
+    TambalBanDraftManager.saveDraft(context, draft)
+    val loaded = TambalBanDraftManager.loadDraft(context)
+    assertNotNull(loaded)
+    assertEquals("Tambal Ban Cacing Cak Munir", loaded?.name)
+    assertEquals("Gubeng", loaded?.district)
+    assertEquals(true, loaded?.is24Hours)
+    assertEquals(true, loaded?.canCallOut)
+
+    TambalBanDraftManager.clearDraft(context)
+    assertNull(TambalBanDraftManager.loadDraft(context))
   }
 }

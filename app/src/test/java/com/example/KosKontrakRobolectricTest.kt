@@ -203,15 +203,13 @@ class KosKontrakRobolectricTest {
         }
         composeTestRule.waitForIdle()
 
-        // Filter Sewa Tahunan -> only yearly kontrakan shows
-        composeTestRule.onNodeWithTag("kos_period_TAHUNAN").performClick()
-        composeTestRule.waitForIdle()
-        composeTestRule.onAllNodesWithTag("kos_card_kos_mine_001").assertCountEquals(0)
-        composeTestRule.onNodeWithTag("kos_card_ktr_other_002").assertIsDisplayed()
+        // Owner sees toggle button on own card, but NOT on someone else's card
+        composeTestRule.onNodeWithTag("kos_card_toggle_full_kos_mine_001")
+            .assertExists()
+        composeTestRule.onAllNodesWithTag("kos_card_toggle_full_ktr_other_002")
+            .assertCountEquals(0)
 
-        // Switch back to Semua Durasi & mark own kos as PENUH / TERSEWA
-        composeTestRule.onNodeWithTag("kos_period_ALL").performClick()
-        composeTestRule.waitForIdle()
+        // Owner clicks Tandai Tersewa Penuh
         composeTestRule.onNodeWithTag("kos_card_toggle_full_kos_mine_001")
             .performScrollTo()
             .performClick()
@@ -224,6 +222,12 @@ class KosKontrakRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("kos_card_kos_mine_001").performScrollTo()
         composeTestRule.onNodeWithTag("kos_full_badge_kos_mine_001", useUnmergedTree = true).assertIsDisplayed()
+
+        // Filter Sewa Tahunan -> only yearly kontrakan shows
+        composeTestRule.onNodeWithTag("kos_period_TAHUNAN").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithTag("kos_card_kos_mine_001").assertCountEquals(0)
+        composeTestRule.onNodeWithTag("kos_card_ktr_other_002").assertIsDisplayed()
     }
 
     @Test

@@ -1571,6 +1571,11 @@ fun SurabayaMainHub(
                             isAdmin = isAdmin,
                             onVerify = { viewModel.verifyTambalBan(activeTambal.id) },
                             onSendComment = { text -> viewModel.submitTambalBanComment(activeTambal.id, text) },
+                            onEditSpot = if ((activeTambal.authorId.isNotBlank() && activeTambal.authorId == currentUserId) || isAdmin) {
+                                { viewModel.openSheet(ActiveBottomSheet.EditTambalBan(activeTambal)) }
+                            } else {
+                                null
+                            },
                             onDeleteSpot = { viewModel.deleteTambalBan(activeTambal.id) },
                             onClose = { viewModel.dismissSheet() },
                         )
@@ -1579,12 +1584,45 @@ fun SurabayaMainHub(
                 ActiveBottomSheet.CreateTambalBan -> {
                     CreateTambalBanSheetContent(
                         defaultDistrict = currentDistrict,
+                        initialSpot = null,
+                        isSubmitting = isSubmitting,
+                        isScanningPhoto = isScanningPhoto,
+                        isLiveGpsActive = isLiveGps,
+                        onRequestGpsRefresh = { viewModel.refreshGpsLocation() },
+                        onSaveDraft = { draft -> viewModel.saveTambalBanDraft(context, draft) },
+                        onClearDraft = { viewModel.clearTambalBanDraft(context) },
+                        onSubmit = { name, description, district, address, is24Hours, isTubeless, forMotor, forMobil, canCallOut, mapsUrl, phoneNumber, whatsappNumber, photoUri ->
+                            viewModel.submitTambalBanSpot(
+                                name = name,
+                                description = description,
+                                district = district,
+                                address = address,
+                                is24Hours = is24Hours,
+                                isTubeless = isTubeless,
+                                forMotor = forMotor,
+                                forMobil = forMobil,
+                                canCallOut = canCallOut,
+                                mapsUrl = mapsUrl,
+                                phoneNumber = phoneNumber,
+                                whatsappNumber = whatsappNumber,
+                                photoUri = photoUri,
+                                context = context,
+                            )
+                        },
+                        onClose = { viewModel.dismissSheet() },
+                    )
+                }
+                is ActiveBottomSheet.EditTambalBan -> {
+                    CreateTambalBanSheetContent(
+                        defaultDistrict = sheetTarget.spot.district,
+                        initialSpot = sheetTarget.spot,
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
                         isLiveGpsActive = isLiveGps,
                         onRequestGpsRefresh = { viewModel.refreshGpsLocation() },
                         onSubmit = { name, description, district, address, is24Hours, isTubeless, forMotor, forMobil, canCallOut, mapsUrl, phoneNumber, whatsappNumber, photoUri ->
-                            viewModel.submitTambalBanSpot(
+                            viewModel.updateTambalBanSpot(
+                                spotId = sheetTarget.spot.id,
                                 name = name,
                                 description = description,
                                 district = district,

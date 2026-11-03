@@ -35,6 +35,7 @@ import com.example.data.model.PollOption
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
 import com.example.data.model.TambalBanComment
+import com.example.data.model.TambalBanDraft
 import com.example.data.model.TambalBanSpot
 import com.example.data.model.UiState
 import com.example.data.model.UserAccount
@@ -48,6 +49,7 @@ import com.example.data.util.ImageSafetyScanResult
 import com.example.data.util.ChatMediaManager
 import com.example.data.util.DestinationDraftManager
 import com.example.data.util.EventDraftManager
+import com.example.data.util.TambalBanDraftManager
 import com.example.data.util.ImageSafetyScanner
 import com.example.data.util.ImageUploadHelper
 import com.example.data.util.PreparedPhoto
@@ -126,6 +128,7 @@ sealed interface ActiveBottomSheet {
     data object AdminPendingPolls : ActiveBottomSheet
     data class TambalBanDetail(val spotId: String) : ActiveBottomSheet
     data object CreateTambalBan : ActiveBottomSheet
+    data class EditTambalBan(val spot: TambalBanSpot) : ActiveBottomSheet
     data class BarkasDetail(val barkasId: String) : ActiveBottomSheet
     data object CreateBarkas : ActiveBottomSheet
     data class KosDetail(val kosId: String) : ActiveBottomSheet
@@ -2643,11 +2646,91 @@ class SurabayaViewModel(
                     whatsappNumber = whatsappNumber,
                     photo = preparedPhoto,
                 )
+                if (appCtx != null) {
+                    TambalBanDraftManager.clearDraft(appCtx)
+                }
                 dismissSheet()
                 notifyMessage("✅ Lokasi tambal ban berhasil ditambahkan! Salam Satu Aspal, matur nuwun dulur!")
                 onComplete(true)
             } catch (e: Exception) {
                 notifyMessage("Gagal menambahkan tambal ban: ${e.message}")
+                onComplete(false)
+            } finally {
+                _isSubmitting.value = false
+            }
+        }
+    }
+
+    fun saveTambalBanDraft(context: Context, draft: TambalBanDraft) {
+        TambalBanDraftManager.saveDraft(context, draft)
+        notifyMessage("Draf tambal ban berhasil disimpan.")
+    }
+
+    fun clearTambalBanDraft(context: Context) {
+        TambalBanDraftManager.clearDraft(context)
+        notifyMessage("Draf tambal ban dibersihkan.")
+    }
+
+    fun updateTambalBanSpot(
+        spotId: String,
+        name: String,
+        description: String,
+        district: String,
+        address: String,
+        is24Hours: Boolean,
+        isTubeless: Boolean,
+        forMotor: Boolean,
+        forMobil: Boolean,
+        canCallOut: Boolean,
+        mapsUrl: String = "",
+        phoneNumber: String = "",
+        whatsappNumber: String = "",
+        photoUri: Uri? = null,
+        context: Context? = null,
+        onComplete: (Boolean) -> Unit = {},
+    ) {
+        if (_isSubmitting.value || isCurrentUserFrozen()) return
+
+        val appCtx = context?.applicationContext
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            try {
+                val preparedPhoto = if (photoUri != null && appCtx != null) {
+                    ImageUploadHelper.preparePhotoFromUri(
+                        context = appCtx,
+                        uri = photoUri,
+                        prefix = "tambalban_edit",
+                        maxDimensionPx = 1024,
+                        initialJpegQuality = 80,
+                    )
+                } else null
+
+                if (preparedPhoto != null && !verifyPhotosAreSafe(listOf(preparedPhoto))) {
+                    onComplete(false)
+                    return@launch
+                }
+
+                repository.updateTambalBanSpot(
+                    spotId = spotId,
+                    name = name,
+                    description = description,
+                    district = district,
+                    address = address,
+                    is24Hours = is24Hours,
+                    isTubeless = isTubeless,
+                    forMotor = forMotor,
+                    forMobil = forMobil,
+                    canCallOut = canCallOut,
+                    mapsUrl = mapsUrl,
+                    phoneNumber = phoneNumber,
+                    whatsappNumber = whatsappNumber,
+                    photo = preparedPhoto,
+                )
+                dismissSheet()
+                notifyMessage("✅ Lokasi tambal ban berhasil diperbarui! Salam Satu Aspal!")
+                onComplete(true)
+            } catch (e: Exception) {
+                notifyMessage("Gagal memperbarui tambal ban: ${e.message}")
                 onComplete(false)
             } finally {
                 _isSubmitting.value = false

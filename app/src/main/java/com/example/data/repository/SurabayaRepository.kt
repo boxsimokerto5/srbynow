@@ -4886,6 +4886,130 @@ class SurabayaRepository(
         }
     }
 
+    suspend fun updateTambalBanSpot(
+        spotId: String,
+        name: String,
+        description: String,
+        district: String,
+        address: String,
+        is24Hours: Boolean,
+        isTubeless: Boolean,
+        forMotor: Boolean,
+        forMobil: Boolean,
+        canCallOut: Boolean,
+        mapsUrl: String = "",
+        phoneNumber: String = "",
+        whatsappNumber: String = "",
+        photo: PreparedPhoto? = null,
+    ): Boolean {
+        val uid = requireUserId()
+        val cur = inMemoryTambalBan[spotId]
+        val userRec = pb.getOneOrNull("users", uid)
+        val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
+        val isAdmin = isOfficialAdminEmail(email) ||
+            userRec?.optBoolean("is_admin", false) == true ||
+            (pb.currentSession?.isAdmin == true)
+        val isOwner = cur == null || cur.authorId == uid || isAdmin || isCurrentSessionAdmin(uid)
+        if (!isOwner) {
+            throw IllegalStateException("Hanya pembuat atau Admin yang memiliki hak untuk mengubah informasi tambal ban ini.")
+        }
+
+        if (name.trim().length < 4) {
+            throw IllegalArgumentException("Nama lokasi tambal ban minimal 4 karakter.")
+        }
+        if (address.trim().length < 5) {
+            throw IllegalArgumentException("Alamat lokasi tambal ban minimal 5 karakter.")
+        }
+
+        val cleanMapsUrl = if (mapsUrl.isNotBlank()) {
+            requireSafeOptionalUrl(mapsUrl, SafeLinkCategory.GOOGLE_MAPS)
+        } else {
+            ""
+        }
+
+        val cleanName = name.trim().take(120)
+        val cleanDesc = description.trim().take(1000)
+        val cleanDistrict = district.trim().ifEmpty { "Genteng" }.take(60)
+        val cleanAddress = address.trim().take(200)
+        val cleanPhone = phoneNumber.trim().take(30)
+        val cleanWa = whatsappNumber.trim().take(30)
+        val (lat, lng) = extractLatLngFromMapsUrl(cleanMapsUrl) ?: SurabayaDistricts.coordinateFor(cleanDistrict)
+        val now = System.currentTimeMillis()
+
+        var uploadedPhotoUrl = cur?.photoUrl.orEmpty()
+        try {
+            if (photo != null) {
+                val fields = mapOf(
+                    "name" to cleanName,
+                    "description" to cleanDesc,
+                    "district" to cleanDistrict,
+                    "address" to cleanAddress,
+                    "lat" to lat.toString(),
+                    "lng" to lng.toString(),
+                    "is_24_hours" to is24Hours.toString(),
+                    "is_tubeless" to isTubeless.toString(),
+                    "for_motor" to forMotor.toString(),
+                    "for_mobil" to forMobil.toString(),
+                    "can_call_out" to canCallOut.toString(),
+                    "maps_url" to cleanMapsUrl,
+                    "phone_number" to cleanPhone,
+                    "whatsapp_number" to cleanWa,
+                )
+                val fileParts = listOf(MultipartFilePart("photo", photo.fileName, photo.mimeType, photo.bytes))
+                val updated = pb.updateRecordMultipartFiles("tambal_ban", spotId, fields, fileParts)
+                val storedFile = extractFileNames(updated, "photo").firstOrNull()
+                if (!storedFile.isNullOrBlank()) {
+                    uploadedPhotoUrl = pb.buildFileUrl("tambal_ban", spotId, storedFile)
+                } else if (photo.dataUri.isNotBlank()) {
+                    uploadedPhotoUrl = photo.dataUri
+                }
+            } else {
+                val patch = JSONObject().apply {
+                    put("name", cleanName)
+                    put("description", cleanDesc)
+                    put("district", cleanDistrict)
+                    put("address", cleanAddress)
+                    put("lat", lat)
+                    put("lng", lng)
+                    put("is_24_hours", is24Hours)
+                    put("is_tubeless", isTubeless)
+                    put("for_motor", forMotor)
+                    put("for_mobil", forMobil)
+                    put("can_call_out", canCallOut)
+                    put("maps_url", cleanMapsUrl)
+                    put("phone_number", cleanPhone)
+                    put("whatsapp_number", cleanWa)
+                }
+                pb.updateRecord("tambal_ban", spotId, patch)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "updateTambalBanSpot PB sync fallback: ${e.message}")
+        }
+
+        val updatedSpot = (cur ?: TambalBanSpot(id = spotId, authorId = uid)).copy(
+            name = cleanName,
+            description = cleanDesc,
+            district = cleanDistrict,
+            address = cleanAddress,
+            latitude = lat,
+            longitude = lng,
+            is24Hours = is24Hours,
+            isTubeless = isTubeless,
+            forMotor = forMotor,
+            forMobil = forMobil,
+            canCallOut = canCallOut,
+            photoUrl = uploadedPhotoUrl,
+            mapsUrl = cleanMapsUrl,
+            phoneNumber = cleanPhone,
+            whatsappNumber = cleanWa,
+            updatedAt = now,
+        )
+
+        inMemoryTambalBan[spotId] = updatedSpot
+        bumpMutationTick()
+        return true
+    }
+
     // --- BARKAS WARGA (JUAL BELI BARANG BEKAS SURABAYA) OPERATIONS ---
 
     private fun mapBarkasItem(j: JSONObject): BarkasItem {
