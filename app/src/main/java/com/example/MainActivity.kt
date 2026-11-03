@@ -258,7 +258,7 @@ fun SurabayaMainHub(
                 ChatMediaManager.init(app)
                 val pbClient = PocketBaseClient.getInstance(app)
                 SurabayaViewModel(
-                    repository = SurabayaRepository(pbClient),
+                    repository = SurabayaRepository(pbClient, app),
                     locationHelper = LocationHelper(app),
                     currentUserId = currentUserId,
                     initialDisplayName = displayName,
@@ -336,6 +336,7 @@ fun SurabayaMainHub(
     val activeSelectedKos by viewModel.activeSelectedKos.collectAsStateWithLifecycle()
     val activeKosComments by viewModel.activeKosComments.collectAsStateWithLifecycle()
     val bannedProfiles by viewModel.bannedProfiles.collectAsStateWithLifecycle()
+    val homeShortcutOrder by viewModel.homeShortcutOrder.collectAsStateWithLifecycle()
 
     val pendingPollsList = (pendingPollsState as? UiState.Success)?.data.orEmpty()
     val flaggedItems = remember(
@@ -675,6 +676,8 @@ fun SurabayaMainHub(
                                 onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
                                 onOpenProfileAndAdmin = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
                                 onOpenRadio = { viewModel.openRadioPlayer(autoPlay = true) },
+                                shortcutOrderIds = homeShortcutOrder,
+                                onSaveShortcutOrder = { viewModel.saveHomeShortcutOrder(it) },
                             )
                             MainTab.MOMEN -> MomenScreen(
                                 momentsState = momentsState,

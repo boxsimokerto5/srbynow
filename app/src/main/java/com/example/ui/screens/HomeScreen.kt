@@ -116,6 +116,9 @@ import com.example.data.util.formatDistanceLabel
 import com.example.data.util.formatRelativeTimestamp
 import com.example.data.util.resolveImageDrawable
 import com.example.ui.components.AboutAppDialog
+import com.example.ui.components.HomeShortcutGridSection
+import com.example.ui.components.HomeShortcutIds
+import com.example.ui.components.HomeShortcutItem
 import com.example.ui.components.PrivacyPolicyDialog
 import com.example.ui.components.openEmergencyDialer112
 import com.example.ui.components.rateArekSurabayaOnPlayStore
@@ -131,15 +134,6 @@ import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
 import com.example.ui.viewmodel.MainTab
-
-data class HomeShortcutItem(
-    val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val badge: String? = null,
-    val testTag: String,
-    val onClick: () -> Unit,
-)
 
 @Composable
 fun HomeScreen(
@@ -178,6 +172,8 @@ fun HomeScreen(
     onOpenBookmarks: () -> Unit,
     onOpenProfileAndAdmin: () -> Unit,
     onOpenRadio: () -> Unit = {},
+    shortcutOrderIds: List<String> = HomeShortcutIds.DEFAULT_ORDER,
+    onSaveShortcutOrder: (List<String>) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -199,6 +195,7 @@ fun HomeScreen(
 
     val shortcuts = listOf(
         HomeShortcutItem(
+            id = HomeShortcutIds.KULINER,
             title = stringResource(R.string.nav_kuliner),
             subtitle = "GPS Terdekat",
             icon = Icons.Filled.Restaurant,
@@ -207,6 +204,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.KULINER) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.POLLING,
             title = "Polling Warga",
             subtitle = "Suara Rakyat",
             icon = Icons.Filled.HowToVote,
@@ -215,6 +213,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.POLLING) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.MOMEN,
             title = stringResource(R.string.nav_momen),
             subtitle = "Foto Warga",
             icon = Icons.Filled.PhotoCamera,
@@ -223,6 +222,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.MOMEN) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.LENSA_WARGA,
             title = stringResource(R.string.lensa_warga_title),
             subtitle = "Potret Kota",
             icon = Icons.Filled.CameraAlt,
@@ -231,6 +231,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.MOMEN) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.RADIO_SS,
             title = stringResource(R.string.radio_ss_title),
             subtitle = "Streaming Live",
             icon = Icons.Filled.Radio,
@@ -239,6 +240,7 @@ fun HomeScreen(
             onClick = onOpenRadio,
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.KEJADIAN,
             title = stringResource(R.string.nav_kejadian),
             subtitle = "Lapor & Pantau",
             icon = Icons.Filled.WarningAmber,
@@ -246,6 +248,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.KEJADIAN) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.DESTINASI,
             title = stringResource(R.string.nav_destinasi),
             subtitle = "Wisata Resmi",
             icon = Icons.Filled.Place,
@@ -254,6 +257,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.DESTINASI) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.EVENT,
             title = stringResource(R.string.nav_event),
             subtitle = "Agenda Kota",
             icon = Icons.Filled.CalendarMonth,
@@ -261,6 +265,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.EVENT) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.SEKITAR,
             title = stringResource(R.string.nav_sekitar),
             subtitle = "Cak & Ning",
             icon = Icons.Filled.People,
@@ -268,6 +273,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.SEKITAR) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.CHAT,
             title = stringResource(R.string.nav_chat),
             subtitle = "Ngobrol Warga",
             icon = Icons.Filled.ChatBubble,
@@ -275,6 +281,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.CHAT) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.JASA,
             title = "Jasa Warga",
             subtitle = "Tukang & Usaha",
             icon = Icons.Filled.Build,
@@ -282,6 +289,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.JASA) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.BARKAS,
             title = "Barkas Warga",
             subtitle = "Jual Beli Bekas",
             icon = Icons.Filled.Storefront,
@@ -290,6 +298,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.BARKAS) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.KOS,
             title = "Info Kos & Kontrak",
             subtitle = "Bulanan & Tahunan",
             icon = Icons.Filled.HomeWork,
@@ -298,6 +307,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.KOS_KONTRAK) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.TAMBAL_BAN,
             title = "Tambal Ban",
             subtitle = "Salam 1 Aspal",
             icon = Icons.Filled.TwoWheeler,
@@ -306,6 +316,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.TAMBAL_BAN) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.TRANSIT,
             title = "Rute Bis & Feeder",
             subtitle = "WiraWiri & Bus",
             icon = Icons.Filled.DirectionsBus,
@@ -314,6 +325,7 @@ fun HomeScreen(
             onClick = { onNavigateTab(MainTab.TRANSIT) },
         ),
         HomeShortcutItem(
+            id = HomeShortcutIds.BOOKMARKS,
             title = stringResource(R.string.btn_bookmarks),
             subtitle = "Favorit Saya",
             icon = Icons.Filled.Bookmark,
@@ -486,54 +498,14 @@ fun HomeScreen(
             }
         }
 
-        // 3. Shortcut Grid (16 shortcuts in 4x4 super-app grid)
+        // 3. Shortcut Grid (2x4 horizontal swipeable carousel + Admin drag-and-drop layout arrangement)
         item(key = "home_shortcuts_section") {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.home_shortcuts_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = "${shortcuts.size} Layanan Warga",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ToskaPrimaryDeep,
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Render grid 4 columns (4x4 super-app style)
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    val rows = shortcuts.chunked(4)
-                    for (rowItems in rows) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            for (item in rowItems) {
-                                HomeShortcutButton(
-                                    item = item,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            val emptySlots = 4 - rowItems.size
-                            repeat(emptySlots) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
+            HomeShortcutGridSection(
+                shortcuts = shortcuts,
+                shortcutOrderIds = shortcutOrderIds,
+                isAdmin = isAdmin,
+                onSaveShortcutOrder = onSaveShortcutOrder,
+            )
         }
 
         // 3a. Kuliner Terdekat di Sekitarmu (Prioritized right at the top per GPS distance!)
@@ -1542,81 +1514,7 @@ private fun HomeHeaderSection(
     }
 }
 
-@Composable
-private fun HomeShortcutButton(
-    item: HomeShortcutItem,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        onClick = item.onClick,
-        shape = RoundedCornerShape(13.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.6f)),
-        shadowElevation = 1.dp,
-        modifier = modifier
-            .testTag(item.testTag)
-            .minimumInteractiveComponentSize(),
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 7.dp, horizontal = 3.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MintSoftGradient),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = null,
-                        tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(19.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = item.subtitle,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
 
-            if (item.badge != null) {
-                Surface(
-                    shape = RoundedCornerShape(bottomStart = 6.dp, topEnd = 13.dp),
-                    color = AlertCrimson,
-                    modifier = Modifier.align(Alignment.TopEnd),
-                ) {
-                    Text(
-                        text = item.badge,
-                        color = Color.White,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun HomeSectionHeader(

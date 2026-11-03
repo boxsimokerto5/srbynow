@@ -54,6 +54,7 @@ import com.example.data.util.defaultEventImageKey
 import com.example.data.util.defaultIncidentImageKey
 import com.example.data.util.logBackendError
 import com.example.data.util.parsePocketBaseTimestamp
+import com.example.ui.components.HomeShortcutIds
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -77,8 +78,12 @@ const val OFFICIAL_AREK_SURABAYA_DISTRICT = "Balaikota Surabaya"
 
 class SurabayaRepository(
     private val pb: PocketBaseClient,
+    private val appContext: Context? = null,
 ) {
-    constructor(context: Context) : this(PocketBaseClient.getInstance(context))
+    constructor(context: Context) : this(
+        pb = PocketBaseClient.getInstance(context),
+        appContext = context.applicationContext,
+    )
 
     private data class LocalContentReportOverlay(
         val count: Int,
@@ -117,6 +122,7 @@ class SurabayaRepository(
     private val cachedCulinary = ConcurrentHashMap<String, CulinarySpot>()
     private val inMemoryNotifications = ConcurrentHashMap<String, AppNotification>()
     private val localNotificationsTick = MutableStateFlow(0L)
+    private val localShortcutOrderFlow = MutableStateFlow<List<String>?>(null)
 
     init {
         // Initialize rich starter moments
@@ -3355,13 +3361,28 @@ class SurabayaRepository(
             },
             localMutationTick,
         ) { remoteList, _ ->
-            val remoteDestinations = remoteList.map(::mapDestination)
+            val remoteDestinations = remoteList
+                .filter { obj ->
+                    val recId = obj.optString("id")
+                    val cat = obj.optString("category")
+                    val ttl = obj.optString("title")
+                    recId != HOME_SHORTCUT_RECORD_ID &&
+                        cat != SYSTEM_CONFIG_CATEGORY &&
+                        ttl != HOME_SHORTCUT_CONFIG_TITLE
+                }
+                .map(::mapDestination)
             val combinedMap = inMemoryDestinations.toMutableMap()
             for (d in remoteDestinations) {
                 combinedMap[d.id] = d
             }
             combinedMap.values
-                .filter { "destinations:${it.id}" !in localDeletedRecords && it.createdBy !in localBannedUids }
+                .filter {
+                    "destinations:${it.id}" !in localDeletedRecords &&
+                        it.createdBy !in localBannedUids &&
+                        it.id != HOME_SHORTCUT_RECORD_ID &&
+                        it.category != SYSTEM_CONFIG_CATEGORY &&
+                        it.title != HOME_SHORTCUT_CONFIG_TITLE
+                }
                 .sortedByDescending { it.ratingAvg }
         }.catch { e ->
             Log.w(TAG, "observeDestinations fallback: ${e.message}")
@@ -5925,8 +5946,146 @@ class SurabayaRepository(
         }
     }
 
+    // --- HOME SHORTCUT LAYOUT ORDER (GLOBAL ADMIN CONFIG + LOCAL CACHE) ---
+
+    private fun readCachedHomeShortcutOrder(): List<String>? {
+        localShortcutOrderFlow.value?.let { return it }
+        val prefs = appContext?.getSharedPreferences(HOME_LAYOUT_PREFS_NAME, Context.MODE_PRIVATE) ?: return null
+        val raw = prefs.getString(KEY_HOME_SHORTCUT_ORDER, null)?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        val parsed = HomeShortcutIds.parseSerializedOrder(raw)
+        localShortcutOrderFlow.value = parsed
+        return parsed
+    }
+
+    private fun writeCachedHomeShortcutOrder(order: List<String>) {
+        val normalized = HomeShortcutIds.normalizeOrder(order)
+        localShortcutOrderFlow.value = normalized
+        val serialized = HomeShortcutIds.serializeOrder(normalized)
+        appContext?.getSharedPreferences(HOME_LAYOUT_PREFS_NAME, Context.MODE_PRIVATE)
+            ?.edit()
+            ?.putString(KEY_HOME_SHORTCUT_ORDER, serialized)
+            ?.apply()
+    }
+
+    private suspend fun fetchRemoteHomeShortcutOrder(): List<String>? {
+        // 1. Check dedicated app_settings collection if available
+        runCatching {
+            val appSettingRec = pb.getOneOrNull("app_settings", HOME_SHORTCUT_RECORD_ID)
+            val rawVal = appSettingRec?.optString("config_value").orEmpty().trim()
+            if (rawVal.isNotEmpty()) {
+                val parsed = HomeShortcutIds.parseSerializedOrder(rawVal)
+                writeCachedHomeShortcutOrder(parsed)
+                return parsed
+            }
+        }
+        // 2. Fallback to live Admin-protected system config entry in destinations (works without schema re-import)
+        runCatching {
+            val sysRec = pb.getOneOrNull("destinations", HOME_SHORTCUT_RECORD_ID)
+            if (sysRec != null && sysRec.optString("category") == SYSTEM_CONFIG_CATEGORY) {
+                val rawDesc = sysRec.optString("description").trim()
+                if (rawDesc.isNotEmpty()) {
+                    val parsed = HomeShortcutIds.parseSerializedOrder(rawDesc)
+                    writeCachedHomeShortcutOrder(parsed)
+                    return parsed
+                }
+            }
+        }
+        return null
+    }
+
+    fun observeHomeShortcutOrder(): Flow<List<String>> {
+        val initialCached = readCachedHomeShortcutOrder()
+        return combine(
+            pb.observeCollection("destinations", pollIntervalMs = 15_000L) {
+                fetchRemoteHomeShortcutOrder()
+            },
+            localShortcutOrderFlow,
+        ) { remoteOrder, localOverride ->
+            localOverride ?: remoteOrder ?: initialCached ?: HomeShortcutIds.DEFAULT_ORDER
+        }.catch {
+            emit(localShortcutOrderFlow.value ?: initialCached ?: HomeShortcutIds.DEFAULT_ORDER)
+        }
+    }
+
+    suspend fun saveHomeShortcutOrder(orderedIds: List<String>) {
+        val uid = requireUserId()
+        val userRec = runCatching { pb.getOneOrNull("users", uid) }.getOrNull()
+        val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
+        val isAdmin = isOfficialAdminEmail(email) ||
+            userRec?.optBoolean("is_admin", false) == true ||
+            (pb.currentSession?.isAdmin == true)
+        if (!isAdmin) {
+            throw IllegalStateException("Hanya akun Admin resmi yang dapat mengatur tata letak menu cepat.")
+        }
+
+        val normalized = HomeShortcutIds.normalizeOrder(orderedIds)
+        val serialized = HomeShortcutIds.serializeOrder(normalized)
+        writeCachedHomeShortcutOrder(normalized)
+
+        // 1. Sync to app_settings if collection exists on server
+        runCatching {
+            val existing = pb.getOneOrNull("app_settings", HOME_SHORTCUT_RECORD_ID)
+            if (existing != null) {
+                pb.updateRecord(
+                    "app_settings",
+                    HOME_SHORTCUT_RECORD_ID,
+                    JSONObject().apply {
+                        put("config_key", "home_shortcut_order")
+                        put("config_value", serialized)
+                        put("updated_by", uid)
+                    },
+                )
+            } else {
+                pb.createRecord(
+                    "app_settings",
+                    JSONObject().apply {
+                        put("id", HOME_SHORTCUT_RECORD_ID)
+                        put("config_key", "home_shortcut_order")
+                        put("config_value", serialized)
+                        put("updated_by", uid)
+                    },
+                )
+            }
+        }
+
+        // 2. Sync to live destinations system config record so all citizens receive realtime updates even without re-importing schema
+        runCatching {
+            val existingSys = pb.getOneOrNull("destinations", HOME_SHORTCUT_RECORD_ID)
+            if (existingSys != null) {
+                pb.updateRecord(
+                    "destinations",
+                    HOME_SHORTCUT_RECORD_ID,
+                    JSONObject().apply {
+                        put("title", HOME_SHORTCUT_CONFIG_TITLE)
+                        put("category", SYSTEM_CONFIG_CATEGORY)
+                        put("description", serialized)
+                    },
+                )
+            } else {
+                pb.createRecord(
+                    "destinations",
+                    JSONObject().apply {
+                        put("id", HOME_SHORTCUT_RECORD_ID)
+                        put("created_by", uid)
+                        put("author_name", "System Config")
+                        put("title", HOME_SHORTCUT_CONFIG_TITLE)
+                        put("category", SYSTEM_CONFIG_CATEGORY)
+                        put("description", serialized)
+                        put("district", "Genteng")
+                    },
+                )
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "SurabayaRepoPB"
+        private const val HOME_LAYOUT_PREFS_NAME = "surabaya_home_layout_prefs"
+        private const val KEY_HOME_SHORTCUT_ORDER = "home_shortcut_order_json"
+        const val SYSTEM_CONFIG_CATEGORY = "__SYSTEM_CONFIG__"
+        const val HOME_SHORTCUT_CONFIG_TITLE = "__SYSTEM_HOME_SHORTCUT_ORDER__"
+        val HOME_SHORTCUT_RECORD_ID: String = PocketBaseClient.deterministicPbId("sys_cfg_home_shortcuts")
         const val PRIMARY_ADMIN_EMAIL = PocketBaseClient.PRIMARY_ADMIN_EMAIL
         const val BOOTSTRAPPED_ADMIN_EMAIL = PocketBaseClient.BOOTSTRAPPED_ADMIN_EMAIL
 

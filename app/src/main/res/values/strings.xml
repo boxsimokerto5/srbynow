@@ -354,5 +354,16 @@
     <string name="mandatory_profile_district_label">Kecamatan Domisili Surabaya</string>
     <string name="mandatory_profile_submit_btn">Simpan Profil &amp; Masuk Aplikasi</string>
     <string name="mandatory_profile_loading_check">Memeriksa kelengkapan profil warga…</string>
+    <string name="home_shortcuts_admin_arrange">Atur Urutan</string>
+    <string name="home_shortcuts_swipe_hint">Hal %1$d/%2$d • Geser ↔</string>
+    <string name="admin_shortcut_sheet_title">Atur Tata Letak Menu Cepat</string>
+    <string name="admin_shortcut_sheet_subtitle">Tahan &amp; geser ikon ke posisi mana pun (atau ketuk 2 ikon untuk menukar tempat). Tata letak berlaku otomatis untuk semua warga.</string>
+    <string name="admin_shortcut_page1_label">Halaman 1 • Tampil Utama (2×4 Pertama)</string>
+    <string name="admin_shortcut_page2_label">Halaman 2 • Geser ke Kanan (2×4 Kedua)</string>
+    <string name="admin_shortcut_page_extra_label">Halaman %1$d • Menu Tambahan</string>
+    <string name="admin_shortcut_reset_btn">Reset Default</string>
+    <string name="admin_shortcut_save_btn">Simpan Tata Letak</string>
+    <string name="admin_shortcut_selected_hint">Dipilih: %1$s • Ketuk ikon tujuan untuk menukar</string>
+    <string name="admin_shortcut_move_first">Ke #1</string>
 </resources>
 

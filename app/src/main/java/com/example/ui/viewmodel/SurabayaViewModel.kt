@@ -46,6 +46,7 @@ import com.example.data.model.effectiveCitizenAvatarUrl
 import com.example.data.model.isValidCitizenDisplayName
 import com.example.data.model.normalizeCitizenGender
 import com.example.data.repository.SurabayaRepository
+import com.example.ui.components.HomeShortcutIds
 import com.example.data.util.PollImageExporter
 import com.example.data.util.GeminiExplicitImageScanner
 import com.example.data.util.ImageSafetyScanResult
@@ -227,6 +228,10 @@ class SurabayaViewModel(
     val bannedProfiles: StateFlow<List<NearbyProfile>> = repository.observeBannedProfiles()
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), emptyList())
+
+    val homeShortcutOrder: StateFlow<List<String>> = repository.observeHomeShortcutOrder()
+        .catch { emit(HomeShortcutIds.DEFAULT_ORDER) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), HomeShortcutIds.DEFAULT_ORDER)
 
     val bookmarks: StateFlow<List<BookmarkItem>> = repository.observeBookmarks(currentUserId)
         .catch { e ->
@@ -3202,6 +3207,28 @@ class SurabayaViewModel(
             district = item.district.ifBlank { "Surabaya" },
         )
         greetNearbyPeer(ownerProfile)
+    }
+
+    fun saveHomeShortcutOrder(orderedIds: List<String>) {
+        if (!isAdmin.value) {
+            notifyMessage("Hanya Admin resmi yang dapat mengatur tata letak menu cepat.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.saveHomeShortcutOrder(orderedIds)
+                val isDefault = HomeShortcutIds.normalizeOrder(orderedIds) == HomeShortcutIds.DEFAULT_ORDER
+                notifyMessage(
+                    if (isDefault) {
+                        "Tata letak Menu Cepat dikembalikan ke urutan standar untuk semua warga."
+                    } else {
+                        "Tata letak Menu Cepat berhasil disimpan dan diterapkan untuk semua warga."
+                    },
+                )
+            } catch (e: Exception) {
+                notifyMessage("Gagal menyimpan tata letak menu: ${e.message}")
+            }
+        }
     }
 
     private companion object {
