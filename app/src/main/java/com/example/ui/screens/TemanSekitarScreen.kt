@@ -40,6 +40,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +61,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.model.NearbyProfile
 import com.example.data.model.UiState
@@ -135,118 +137,126 @@ fun TemanSekitarScreen(
     }
 
     LazyColumn(
-        contentPadding = PaddingValues(top = 6.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
         modifier = Modifier
             .fillMaxSize()
             .testTag("teman_sekitar_list"),
     ) {
-        // Compact GPS Radar & Privacy Control Header Card (Soft Light-Green Gradient)
+        // Slim GPS Radar & Privacy Control Header Bar
         item(key = "gps_radar_header") {
-            Box(
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, OutlineVariantLight),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MintSoftGradient)
-                    .border(1.dp, OutlineVariantLight, RoundedCornerShape(16.dp)),
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MintSoftGradient),
             ) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        modifier = Modifier.weight(1f),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f),
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(FreshGreenGradient),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(FreshGreenGradient, CircleShape),
-                            ) {
-                                Icon(
-                                    imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.MyLocation,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier
-                                        .padding(6.dp)
-                                        .size(17.dp),
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = if (isLiveGpsActive) "GPS Aktif • Kec. $district" else "Area Kec. $district",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ToskaOnPrimaryContainer,
-                                )
-                                Text(
-                                    text = "Radius pantauan $radiusKm km • ${if (discoverable) "Profil Terlihat" else "Mode Privat"}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ToskaOnPrimaryContainer.copy(alpha = 0.85f),
-                                )
-                            }
+                            Icon(
+                                imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.MyLocation,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(17.dp),
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = if (isLiveGpsActive) "GPS Aktif • Kec. $district" else "Area Kec. $district",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ToskaOnPrimaryContainer,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = "Radius $radiusKm km • ${if (discoverable) "Profil Terlihat" else "Mode Privat"}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ToskaOnPrimaryContainer.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Button(
-                            onClick = requestOrRefreshGps,
+                        Surface(
                             shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = Color.White,
-                            ),
-                            contentPadding = PaddingValues(horizontal = 11.dp, vertical = 6.dp),
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
-                                .weight(1f)
+                                .clickable(onClick = requestOrRefreshGps)
                                 .testTag("update_gps_button"),
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.MyLocation,
-                                contentDescription = null,
-                                modifier = Modifier.size(15.dp),
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = stringResource(R.string.btn_update_gps),
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.MyLocation,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(13.dp),
+                                )
+                                Text(
+                                    text = "GPS",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                )
+                            }
                         }
 
-                        FilledTonalButton(
-                            onClick = onOpenPrivacySheet,
+                        Surface(
                             shape = CircleShape,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = Color.White,
-                                contentColor = ToskaOnPrimaryContainer,
-                            ),
-                            contentPadding = PaddingValues(horizontal = 11.dp, vertical = 6.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, OutlineVariantLight),
                             modifier = Modifier
-                                .weight(1f)
+                                .clickable(onClick = onOpenPrivacySheet)
                                 .testTag("privacy_radius_button"),
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Tune,
-                                contentDescription = null,
-                                tint = ToskaPrimaryDeep,
-                                modifier = Modifier.size(15.dp),
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = stringResource(R.string.btn_privacy_radius),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = null,
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(13.dp),
+                                )
+                                Text(
+                                    text = "Radius",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = ToskaOnPrimaryContainer,
+                                )
+                            }
                         }
                     }
                 }
@@ -458,239 +468,233 @@ private fun NearbyPeerCard(
 
     Surface(
         onClick = onOpenProfile,
-        shape = RoundedCornerShape(16.dp),
         color = Color.White,
-        border = BorderStroke(1.dp, OutlineVariantLight),
-        shadowElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp)
             .testTag("nearby_peer_card_${peer.id}"),
     ) {
-        Column(
-            modifier = Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                // Foto Avatar Rounded Square (Gaya Ramping ala MiChat) dengan zoom hint
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(onClick = onOpenPhotoZoom)
+                        .testTag("peer_avatar_photo_${peer.id}"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    InitialsAvatar(
+                        name = peer.displayName,
+                        colorHex = peer.avatarColorHex,
+                        sizeDp = 52,
+                        avatarUrl = peer.avatarUrl,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.55f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ZoomIn,
+                            contentDescription = stringResource(R.string.profile_tap_photo_to_zoom),
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp),
+                        )
+                    }
+                }
+
+                // Kolom Informasi Utama: Nama + Gender, Jarak + Lokasi Lengkap, dan Bio / Hobi
+                Column(
                     modifier = Modifier
                         .weight(1f)
                         .padding(vertical = 1.dp)
                         .testTag("peer_profile_click_${peer.id}"),
+                    verticalArrangement = Arrangement.spacedBy(2.5.dp),
                 ) {
-                    // Tapping the photo opens the 2-finger pinch-to-zoom dialog directly
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onOpenPhotoZoom)
-                            .testTag("peer_avatar_photo_${peer.id}"),
-                        contentAlignment = Alignment.Center,
+                    // Baris 1: Nama Warga + Badge Gender
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        InitialsAvatar(
-                            name = peer.displayName,
-                            colorHex = peer.avatarColorHex,
-                            sizeDp = 42,
-                            avatarUrl = peer.avatarUrl,
+                        Text(
+                            text = peer.displayName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(ToskaPrimaryDeep)
-                                .border(1.5.dp, Color.White, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.ZoomIn,
-                                contentDescription = stringResource(R.string.profile_tap_photo_to_zoom),
-                                tint = Color.White,
-                                modifier = Modifier.size(9.dp),
-                            )
-                        }
-                    }
 
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
-                            Text(
-                                text = peer.displayName,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false),
-                            )
-                            if (genderLabel.isNotBlank()) {
-                                val isFemale = peer.normalizedGender == "PEREMPUAN"
-                                val badgeBg = if (isFemale) Color(0xFFFCE4EC) else Color(0xFFE3F2FD)
-                                val badgeFg = if (isFemale) Color(0xFFAD1457) else Color(0xFF1565C0)
-                                Surface(
-                                    shape = CircleShape,
-                                    color = badgeBg,
-                                    modifier = Modifier.testTag("peer_gender_badge_${peer.id}"),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isFemale) Icons.Filled.Female else Icons.Filled.Male,
-                                            contentDescription = null,
-                                            tint = badgeFg,
-                                            modifier = Modifier.size(11.dp),
-                                        )
-                                        Text(
-                                            text = genderLabel,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = badgeFg,
-                                            fontWeight = FontWeight.SemiBold,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
+                        if (genderLabel.isNotBlank()) {
+                            val isFemale = peer.normalizedGender == "PEREMPUAN"
+                            val badgeBg = if (isFemale) Color(0xFFFCE4EC) else Color(0xFFE3F2FD)
+                            val badgeFg = if (isFemale) Color(0xFFAD1457) else Color(0xFF1565C0)
                             Surface(
                                 shape = CircleShape,
-                                color = OpenGreenBg,
-                                border = BorderStroke(1.dp, OpenGreenText.copy(alpha = 0.30f)),
-                                modifier = Modifier.testTag("peer_distance_badge_${peer.id}"),
+                                color = badgeBg,
+                                modifier = Modifier.testTag("peer_gender_badge_${peer.id}"),
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.NearMe,
+                                        imageVector = if (isFemale) Icons.Filled.Female else Icons.Filled.Male,
                                         contentDescription = null,
-                                        tint = OpenGreenText,
-                                        modifier = Modifier.size(11.dp),
+                                        tint = badgeFg,
+                                        modifier = Modifier.size(10.dp),
                                     )
                                     Text(
-                                        text = estimatedDistanceBadge,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = OpenGreenText,
-                                        fontWeight = FontWeight.Bold,
+                                        text = genderLabel,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        color = badgeFg,
+                                        fontWeight = FontWeight.SemiBold,
                                     )
                                 }
                             }
+                        }
+                    }
 
+                    // Baris 2: Estimasi Jarak GPS & Kecamatan (Lengkap tanpa terpotong!)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.testTag("peer_distance_badge_${peer.id}"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.NearMe,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(11.dp),
+                        )
+                        Text(
+                            text = estimatedDistanceBadge,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ToskaPrimaryDeep,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        )
+                        Icon(
+                            imageVector = Icons.Filled.LocationOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(11.dp),
+                        )
+                        Text(
+                            text = "Kec. ${peer.district}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+
+                    // Baris 3: Bio Warga & Minat / Hobi (Tetap tercantum semua tanpa terlewat)
+                    val statusText = when {
+                        peer.bio.isNotBlank() && tags.isNotEmpty() -> "${peer.bio} • ${tags.joinToString(", ")}"
+                        peer.bio.isNotBlank() -> peer.bio
+                        tags.isNotEmpty() -> tags.joinToString(" • ")
+                        else -> "Warga aktif Arek Surabaya"
+                    }
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                // Sisi Kanan: Status Tag Pill Abu-abu (ala MiChat) + Tombol Sapa & Opsi Blokir
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    val rightTag = tags.firstOrNull() ?: if (peer.bio.isNotBlank()) "Warga" else "Aktif"
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFF1F3F4),
+                    ) {
+                        Text(
+                            text = rightTag,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            color = Color(0xFF5F6368),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clickable(onClick = onGreet)
+                                .testTag("greet_peer_${peer.id}"),
+                        ) {
                             Row(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.LocationOn,
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
                                     contentDescription = null,
-                                    tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(12.dp),
+                                    tint = Color.White,
+                                    modifier = Modifier.size(10.dp),
                                 )
                                 Text(
-                                    text = peer.district,
+                                    text = stringResource(R.string.btn_greet_chat),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = ToskaPrimaryDeep,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
                                 )
                             }
                         }
-                    }
-                }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Button(
-                        onClick = onGreet,
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        contentPadding = PaddingValues(horizontal = 11.dp, vertical = 6.dp),
-                        modifier = Modifier.testTag("greet_peer_${peer.id}"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = null,
-                            modifier = Modifier.size(13.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = stringResource(R.string.btn_greet_chat),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { showBlockDialog = true },
-                        modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .testTag("block_peer_${peer.id}"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Block,
-                            contentDescription = "Blokir ${peer.displayName}",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
-            }
-
-            if (peer.bio.isNotBlank()) {
-                Text(
-                    text = peer.bio,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            if (tags.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    tags.forEach { hobby ->
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
+                        IconButton(
+                            onClick = { showBlockDialog = true },
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("block_peer_${peer.id}"),
                         ) {
-                            Text(
-                                text = hobby,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            Icon(
+                                imageVector = Icons.Filled.Block,
+                                contentDescription = "Blokir ${peer.displayName}",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                modifier = Modifier.size(15.dp),
                             )
                         }
                     }
                 }
             }
+
+            // Garis Pembatas Tipis & Rapi antar item (indentasi setelah avatar ala MiChat)
+            HorizontalDivider(
+                color = OutlineVariantLight.copy(alpha = 0.5f),
+                thickness = 0.7.dp,
+                modifier = Modifier.padding(start = 78.dp, end = 12.dp),
+            )
         }
     }
 }
