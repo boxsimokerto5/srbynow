@@ -167,13 +167,13 @@ fun SurabayaCompactTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f),
                 ) {
                     Image(
@@ -181,8 +181,8 @@ fun SurabayaCompactTopBar(
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(10.dp)),
                     )
                     Column {
                         Row(
@@ -220,7 +220,7 @@ fun SurabayaCompactTopBar(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
                     // Notification Bell button with Unread Badge
                     IconButton(
@@ -239,7 +239,7 @@ fun SurabayaCompactTopBar(
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .size(16.dp)
+                                        .size(15.dp)
                                         .clip(CircleShape)
                                         .background(AlertCrimson),
                                     contentAlignment = Alignment.Center,
@@ -293,13 +293,13 @@ fun SurabayaCompactTopBar(
                             .minimumInteractiveComponentSize()
                             .clip(CircleShape)
                             .clickable(onClick = onOpenProfile)
-                            .padding(4.dp)
+                            .padding(2.dp)
                             .testTag("top_profile_button"),
                         contentAlignment = Alignment.Center,
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(32.dp)
                                 .clip(CircleShape)
                                 .background(FreshGreenGradient),
                             contentAlignment = Alignment.Center,
@@ -351,8 +351,8 @@ fun CategoryCardRow(
     modifier: Modifier = Modifier,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
         items(items, key = { it.key }) { item ->
@@ -364,20 +364,20 @@ fun CategoryCardRow(
 
             Surface(
                 onClick = { onSelect(item.key) },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = containerColor,
                 border = BorderStroke(borderWidth, borderColor),
                 shadowElevation = elevation,
                 modifier = Modifier
-                    .widthIn(min = 124.dp, max = 156.dp)
-                    .heightIn(min = 82.dp)
+                    .widthIn(min = 106.dp, max = 138.dp)
+                    .heightIn(min = 64.dp)
                     .testTag("${tagPrefix}_card_${item.key.lowercase()}")
                     .testTag("${tagPrefix}_chip_${item.key.lowercase()}"),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 9.dp),
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(
@@ -386,13 +386,13 @@ fun CategoryCardRow(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(8.dp),
                             color = if (isSelected) {
                                 item.accentColor ?: ToskaPrimaryDeep
                             } else {
                                 (item.accentColor ?: ToskaPrimary).copy(alpha = 0.12f)
                             },
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(26.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 if (item.icon != null) {
@@ -400,7 +400,7 @@ fun CategoryCardRow(
                                         imageVector = item.icon,
                                         contentDescription = null,
                                         tint = if (isSelected) Color.White else (item.accentColor ?: ToskaPrimaryDeep),
-                                        modifier = Modifier.size(17.dp),
+                                        modifier = Modifier.size(15.dp),
                                     )
                                 }
                             }
@@ -418,7 +418,7 @@ fun CategoryCardRow(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 9.sp,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                 )
                             }
                         } else if (item.count != null && item.count > 0) {
@@ -433,13 +433,13 @@ fun CategoryCardRow(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 10.sp,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Column {
                         Text(
@@ -454,7 +454,7 @@ fun CategoryCardRow(
                             Text(
                                 text = item.subtitle,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 color = if (isSelected) ToskaPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -475,8 +475,8 @@ fun CategoryFilterRow(
     tagPrefix: String,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        contentPadding = PaddingValues(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         items(categories, key = { it.first }) { (key, label) ->
@@ -487,7 +487,7 @@ fun CategoryFilterRow(
                         .clip(CircleShape)
                         .background(FreshGreenGradient)
                         .clickable { onSelect(key) }
-                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                        .padding(horizontal = 11.dp, vertical = 5.dp)
                         .testTag("${tagPrefix}_chip_${key.lowercase()}"),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -513,7 +513,7 @@ fun CategoryFilterRow(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
                     )
                 }
             }
@@ -529,22 +529,23 @@ fun GoogleMapsSheetHandleHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 2.dp),
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (!subtitle.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
     }
 }
 
@@ -555,22 +556,22 @@ fun EmptyFeedPlaceholder(
     subtitle: String,
 ) {
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
                     .background(MintSoftGradient),
                 contentAlignment = Alignment.Center,
@@ -579,12 +580,13 @@ fun EmptyFeedPlaceholder(
                     imageVector = icon,
                     contentDescription = null,
                     tint = ToskaPrimaryDeep,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(20.dp),
                 )
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
@@ -704,23 +706,23 @@ fun FormPhotoPickerSection(
 
     if (selectedPhotoUri == null) {
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(14.dp),
             color = Color(0xFFF3FBF7),
             border = BorderStroke(1.dp, OutlineVariantLight),
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .clickable(enabled = enabled, onClick = launchGallery)
                 .testTag("form_pick_photo_btn"),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(MintSoftGradient),
                     contentAlignment = Alignment.Center,
@@ -729,7 +731,7 @@ fun FormPhotoPickerSection(
                         imageVector = Icons.Filled.AddAPhoto,
                         contentDescription = title,
                         tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
@@ -897,7 +899,7 @@ fun SurabayaDistrictDropdown(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 11.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -1033,7 +1035,7 @@ fun SurabayaDistrictFilterBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                    .padding(horizontal = 11.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {

@@ -132,8 +132,8 @@ fun EventScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(top = 10.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 6.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("event_feed_list"),
@@ -146,11 +146,11 @@ fun EventScreen(
                     border = BorderStroke(1.dp, OutlineVariantLight),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp),
+                        .padding(horizontal = 10.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         EventSubTabPill(
                             label = "Agenda Kota",
@@ -269,23 +269,23 @@ fun EventScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp)
-                            .clip(RoundedCornerShape(20.dp))
+                            .padding(horizontal = 10.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .then(
                                 if (isAdmin) {
-                                    Modifier.background(MintSoftGradient, RoundedCornerShape(20.dp))
+                                    Modifier.background(MintSoftGradient, RoundedCornerShape(14.dp))
                                 } else {
-                                    Modifier.background(PendingAmberBg, RoundedCornerShape(20.dp))
+                                    Modifier.background(PendingAmberBg, RoundedCornerShape(14.dp))
                                 },
                             )
                             .border(
                                 1.dp,
                                 if (isAdmin) OutlineVariantLight else Color(0xFFFDE68A),
-                                RoundedCornerShape(20.dp),
+                                RoundedCornerShape(14.dp),
                             ),
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier.padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -388,7 +388,7 @@ private fun EventSubTabPill(
                 },
             )
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 6.dp),
+            .padding(vertical = 6.dp, horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -413,14 +413,14 @@ private fun ApprovedEventCard(
     onToggleBookmark: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .clip(RoundedCornerShape(22.dp))
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag("event_card_${event.id}"),
     ) {
@@ -428,7 +428,7 @@ private fun ApprovedEventCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(148.dp),
+                    .height(118.dp),
             ) {
                 CulinaryPhotoCarousel(
                     photoUrls = event.allPhotos,
@@ -443,14 +443,14 @@ private fun ApprovedEventCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(10.dp),
+                        .padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Box(
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(FreshGreenGradient, CircleShape)
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                     ) {
                         Text(
                             text = formatEventCategoryLabel(event.category),
@@ -469,7 +469,7 @@ private fun ApprovedEventCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = OpenGreenText,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             )
                         }
                     }
@@ -480,26 +480,27 @@ private fun ApprovedEventCard(
                         color = Color.White.copy(alpha = 0.94f),
                         modifier = Modifier
                             .align(Alignment.BottomStart)
-                            .padding(10.dp),
+                            .padding(8.dp),
                     ) {
                         Text(
                             text = event.priceLabel,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = OpenGreenText,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
                 }
             }
 
             Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
                     text = event.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -614,19 +615,19 @@ private fun MyProposalEventCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             if (event.allPhotos.isNotEmpty()) {
                 CulinaryPhotoCarousel(
@@ -639,8 +640,8 @@ private fun MyProposalEventCard(
                     onPhotoClick = onOpenFullscreenPhoto,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(126.dp)
-                        .clip(RoundedCornerShape(14.dp)),
+                        .height(108.dp)
+                        .clip(RoundedCornerShape(12.dp)),
                 )
             }
             Row(
@@ -706,20 +707,20 @@ private fun PendingModerationCard(
     onClearLinks: () -> Unit = {},
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag("pending_event_card_${event.id}"),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             if (event.allPhotos.isNotEmpty()) {
                 CulinaryPhotoCarousel(
@@ -732,8 +733,8 @@ private fun PendingModerationCard(
                     onPhotoClick = onOpenFullscreenPhoto,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(128.dp)
-                        .clip(RoundedCornerShape(14.dp)),
+                        .height(108.dp)
+                        .clip(RoundedCornerShape(12.dp)),
                 )
             }
             Row(

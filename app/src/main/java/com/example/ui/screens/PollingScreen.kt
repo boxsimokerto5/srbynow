@@ -259,35 +259,35 @@ fun PollingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(top = 6.dp, bottom = 84.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 // 1. Compact Hero Banner ala Kejadian 112 Bar
                 item(key = "poll_hero_banner") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp)
-                            .clip(RoundedCornerShape(14.dp))
+                            .padding(horizontal = 10.dp)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(HeaderMintGradient)
-                            .border(1.dp, ToskaPrimary.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .border(1.dp, ToskaPrimary.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Surface(
                                 shape = CircleShape,
                                 color = ToskaPrimary.copy(alpha = 0.2f),
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(30.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.HowToVote,
                                         contentDescription = null,
                                         tint = ToskaPrimaryDeep,
-                                        modifier = Modifier.size(18.dp),
+                                        modifier = Modifier.size(16.dp),
                                     )
                                 }
                             }
@@ -319,13 +319,13 @@ fun PollingScreen(
                         border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.4f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp)
+                            .padding(horizontal = 10.dp)
                             .clickable { onOpenAdminPending() },
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -334,9 +334,9 @@ fun PollingScreen(
                                     imageVector = Icons.Default.Security,
                                     contentDescription = null,
                                     tint = AlertCrimson,
-                                    modifier = Modifier.size(18.dp),
+                                    modifier = Modifier.size(17.dp),
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "$pendingCount Usulan Polling Menunggu Moderasi",
                                     style = MaterialTheme.typography.bodySmall,
@@ -357,7 +357,7 @@ fun PollingScreen(
 
             // 3. Search Bar
             item(key = "poll_search_bar") {
-                Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+                Box(modifier = Modifier.padding(horizontal = 10.dp)) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -449,8 +449,8 @@ fun PollingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(horizontal = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     POLL_CATEGORIES.forEach { (catKey, catLabel) ->
                         val isSelected = selectedCategory == catKey
@@ -555,7 +555,7 @@ fun PollingScreen(
                                 onDelete = { onDeletePoll(poll.id) },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp),
+                                    .padding(horizontal = 10.dp),
                             )
                         }
                     }
@@ -714,15 +714,15 @@ fun PollCardItem(
     }
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
         modifier = modifier
             .fillMaxWidth()
             .testTag("poll_card_${poll.id}"),
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(10.dp)) {
             // Category, District, and Vote Count Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -780,7 +780,7 @@ fun PollCardItem(
 
             // Moderation Status Badge if pending or rejected
             if (poll.status != "APPROVED") {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(5.dp))
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = if (poll.status == "PENDING") Color(0xFFFFF3CD) else AlertCrimson.copy(alpha = 0.12f),
@@ -795,19 +795,19 @@ fun PollCardItem(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Title
             Text(
                 text = poll.title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable { onOpenDetail() },
             )
 
             if (poll.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = poll.description,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
@@ -817,12 +817,12 @@ fun PollCardItem(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(7.dp))
 
             // Options List with Direct Voting
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 poll.options.forEach { opt ->
                     val isChosenByMe = opt.id == userVotedOptionId
@@ -834,7 +834,7 @@ fun PollCardItem(
                     )
 
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(9.dp),
                         color = if (isChosenByMe) ToskaPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                         border = BorderStroke(
                             width = if (isChosenByMe) 1.5.dp else 1.dp,
@@ -845,7 +845,7 @@ fun PollCardItem(
                             .clickable { onVote(opt.id) }
                             .testTag("btn_card_vote_opt_${opt.id}"),
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -913,7 +913,7 @@ fun PollCardItem(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Bottom Actions Row: Comments, Share Text, Share JPG, Download JPG
             Row(

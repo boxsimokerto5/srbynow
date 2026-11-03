@@ -169,7 +169,7 @@ fun BarkasScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
@@ -336,16 +336,16 @@ fun BarkasScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 6.dp, bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(top = 4.dp, bottom = 5.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     // Status Filter Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(horizontal = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         FilterChip(
                             selected = statusFilter == BarkasStatusFilter.AVAILABLE,
@@ -421,7 +421,7 @@ fun BarkasScreen(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp)
+                            .padding(horizontal = 10.dp)
                             .testTag("barkas_search_input"),
                     )
 
@@ -448,7 +448,7 @@ fun BarkasScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                                .padding(horizontal = 12.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -465,8 +465,8 @@ fun BarkasScreen(
                             )
                         }
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             items(filteredItems.take(6), key = { "feat_barkas_${it.id}" }) { barkas ->
@@ -566,16 +566,16 @@ private fun BarkasCodSafetyBanner() {
         border = BorderStroke(1.dp, OutlineVariantLight),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
             .testTag("barkas_safety_banner"),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MintSoftGradient)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.Security,
@@ -608,11 +608,11 @@ fun BarkasItemCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onOpenDetail)
             .testTag("barkas_card_${item.id}"),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(
             width = 1.dp,
@@ -625,7 +625,7 @@ fun BarkasItemCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (item.allPhotos.isNotEmpty()) 176.dp else 94.dp)
+                    .height(if (item.allPhotos.isNotEmpty()) 136.dp else 76.dp)
                     .background(
                         Brush.linearGradient(
                             colors = if (item.isSold) {
@@ -750,8 +750,8 @@ fun BarkasItemCard(
             }
 
             Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 // Price + Negotiable Pill
                 Row(
@@ -905,19 +905,19 @@ private fun HorizontalBarkasFeaturedCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.75f)),
         shadowElevation = 2.dp,
         modifier = Modifier
-            .width(210.dp)
+            .width(186.dp)
             .testTag("barkas_featured_${item.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(115.dp),
+                    .height(94.dp),
             ) {
                 val photoModel = item.firstPhotoUrl.ifBlank { null } ?: R.drawable.app_logo_mascot
                 AsyncImage(
@@ -959,7 +959,7 @@ private fun HorizontalBarkasFeaturedCard(
                     )
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.titleSmall,

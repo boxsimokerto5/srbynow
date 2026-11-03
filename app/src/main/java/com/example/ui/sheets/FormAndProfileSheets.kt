@@ -216,8 +216,8 @@ fun CreateIncidentSheetContent(
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         GoogleMapsSheetHandleHeader(
             title = "Laporkan Kejadian Surabaya",
@@ -596,8 +596,8 @@ fun ProposeEventSheetContent(
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1070,8 +1070,8 @@ fun CreateCulinarySheetContent(
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         GoogleMapsSheetHandleHeader(
             title = "Rekomendasikan Kuliner Surabaya",
@@ -1599,8 +1599,8 @@ fun BookmarksSheetContent(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         GoogleMapsSheetHandleHeader(
             title = "Daftar Tersimpan Warga",
@@ -1810,8 +1810,8 @@ fun ProfileAndPrivacySheetContent(
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         GoogleMapsSheetHandleHeader(
             title = if (focusPrivacyOnly) "Pengaturan Radius GPS & Privasi" else "Profil Warga Surabaya",
@@ -3110,8 +3110,8 @@ fun CreateMomentSheetContent(
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         GoogleMapsSheetHandleHeader(
             title = if (isLensaWarga) "Posting ke Lensa Warga" else "Posting Momen Arek Surabaya",
@@ -3412,8 +3412,8 @@ fun CreateDestinationSheetContent(
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // Header with Close Action
         Row(

@@ -332,13 +332,13 @@ fun IncidentDetailSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = sheetMaxHeight)
-                .padding(horizontal = 18.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // ================= ZONA 1: ATAS (TETAP DI POSISI, FOTO ADAPTIF GAYA 2) =================
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 6.dp else 10.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 5.dp else 7.dp),
             ) {
                 AnimatedVisibility(
                     visible = !isKeyboardOpen,
@@ -849,13 +849,13 @@ fun EventDetailSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = sheetMaxHeight)
-                .padding(horizontal = 18.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             // ================= ZONA 1: ATAS (TETAP DI POSISI, FOTO ADAPTIF GAYA 2) =================
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 4.dp else 8.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 4.dp else 7.dp),
             ) {
                 AnimatedVisibility(
                     visible = !isKeyboardOpen,
@@ -1496,13 +1496,13 @@ fun CulinaryDetailSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = sheetMaxHeight)
-                .padding(horizontal = 18.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // ================= ZONA 1: ATAS (TETAP DI POSISI, FOTO ADAPTIF GAYA 2) =================
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 6.dp else 10.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isKeyboardOpen) 5.dp else 7.dp),
             ) {
                 AnimatedVisibility(
                     visible = !isKeyboardOpen,
@@ -2193,8 +2193,8 @@ fun ChatConversationSheetContent(
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         val isDirect = room.roomType == "DIRECT"
         val isOfficial = room.isOfficialAccount
@@ -2842,7 +2842,7 @@ fun MomentDetailSheetContent(
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         // Sheet Drag Handle & Close
         Box(
@@ -2853,13 +2853,13 @@ fun MomentDetailSheetContent(
                 .background(OutlineVariantLight),
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             // Author row
             item {
@@ -3138,7 +3138,7 @@ fun DestinationDetailSheetContent(
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
         // Drag Handle
         Box(
@@ -3149,13 +3149,13 @@ fun DestinationDetailSheetContent(
                 .background(OutlineVariantLight),
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             // Header Image / Carousel
             item {
@@ -3517,9 +3517,9 @@ fun NotificationsSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(max = 680.dp)
-            .padding(horizontal = 18.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
             .navigationBarsPadding(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // --- Header ---
         Row(

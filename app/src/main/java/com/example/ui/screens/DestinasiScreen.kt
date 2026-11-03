@@ -103,6 +103,8 @@ fun DestinasiScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.height(4.dp))
+
             // Category horizontal filter chips
             CategoryFilterRow(
                 categories = destinationCategories,
@@ -118,29 +120,29 @@ fun DestinasiScreen(
                 testTag = "destinasi_district_filter_dropdown",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(horizontal = 10.dp, vertical = 3.dp),
             )
 
             // Admin notice banner
             if (!isAdmin) {
                 Surface(
                     color = ToskaPrimaryDeep.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                        .padding(horizontal = 10.dp, vertical = 2.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Info,
                             contentDescription = null,
                             tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(14.dp),
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = stringResource(R.string.admin_post_destination_notice),
                             style = MaterialTheme.typography.labelSmall,
@@ -151,13 +153,13 @@ fun DestinasiScreen(
             } else {
                 Surface(
                     color = ToskaPrimaryDeep,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                        .padding(horizontal = 10.dp, vertical = 2.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
@@ -166,9 +168,9 @@ fun DestinasiScreen(
                                 imageVector = Icons.Filled.AdminPanelSettings,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(14.dp),
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Mode Kurator Destinasi: Anda dapat menerbitkan destinasi baru",
                                 style = MaterialTheme.typography.labelSmall,
@@ -219,8 +221,8 @@ fun DestinasiScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .testTag("destinations_list"),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 84.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(filtered, key = { it.id }) { destination ->
                                 val isBookmarked = bookmarks.any { it.targetId == destination.id }
@@ -292,7 +294,7 @@ private fun DestinationCard(
 
     Surface(
         onClick = onOpenDetail,
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
         shadowElevation = 2.dp,
@@ -304,7 +306,7 @@ private fun DestinationCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp),
+                    .height(132.dp),
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -320,7 +322,7 @@ private fun DestinationCard(
 
                 // Category pill
                 Surface(
-                    shape = RoundedCornerShape(bottomEnd = 12.dp),
+                    shape = RoundedCornerShape(bottomEnd = 10.dp),
                     color = ToskaPrimaryDeep.copy(alpha = 0.92f),
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
@@ -329,7 +331,7 @@ private fun DestinationCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
 
@@ -338,8 +340,9 @@ private fun DestinationCard(
                     onClick = onToggleBookmark,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .size(38.dp)
+                        .padding(4.dp)
+                        .size(34.dp)
+                        .minimumInteractiveComponentSize()
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.85f)),
                 ) {
@@ -347,29 +350,29 @@ private fun DestinationCard(
                         imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                         contentDescription = "Simpan ke favorit",
                         tint = if (isBookmarked) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                 }
 
                 // Rating overlay
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = Color.Black.copy(alpha = 0.75f),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(8.dp),
+                        .padding(6.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Star,
                             contentDescription = null,
                             tint = Color(0xFFFFB300),
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(12.dp),
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = String.format("%.1f (%d ulasan)", destination.rating, destination.reviewsCount),
                             color = Color.White,
@@ -380,22 +383,22 @@ private fun DestinationCard(
                 }
             }
 
-            Column(modifier = Modifier.padding(14.dp)) {
+            Column(modifier = Modifier.padding(10.dp)) {
                 Text(
                     text = destination.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.LocationOn,
                         contentDescription = null,
                         tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(13.dp),
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
@@ -407,15 +410,15 @@ private fun DestinationCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(5.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(6.dp),
                         color = OpenGreenBg,
                     ) {
                         Text(
@@ -423,7 +426,7 @@ private fun DestinationCard(
                             color = OpenGreenText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                         )
                     }
 
@@ -432,9 +435,9 @@ private fun DestinationCard(
                             imageVector = Icons.Filled.Schedule,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(13.dp),
+                            modifier = Modifier.size(12.dp),
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = destination.operationalHours,
                             style = MaterialTheme.typography.labelSmall,
@@ -443,16 +446,17 @@ private fun DestinationCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(7.dp))
 
                 // Actions: Google Maps rute & Detail
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     FilledTonalButton(
                         onClick = onNavigateMaps,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = ToskaPrimaryDeep.copy(alpha = 0.12f),
                             contentColor = ToskaPrimaryDeep,
@@ -464,20 +468,21 @@ private fun DestinationCard(
                         Icon(
                             imageVector = Icons.Filled.Directions,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(15.dp),
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "Rute Peta", fontWeight = FontWeight.Bold)
+                        Text(text = "Rute Peta", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
 
                     OutlinedButton(
                         onClick = onOpenDetail,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
                             .minimumInteractiveComponentSize(),
                     ) {
-                        Text(text = "Detail Wisata", fontWeight = FontWeight.Bold)
+                        Text(text = "Detail Wisata", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
                 }
             }

@@ -114,7 +114,7 @@ fun MomenScreen(
                 testTag = "moment_district_filter_dropdown",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
             )
 
             val allMoments = (momentsState as? UiState.Success)?.data.orEmpty()
@@ -185,14 +185,14 @@ fun MomenScreen(
                     border = BorderStroke(1.dp, ToskaPrimaryDeep.copy(alpha = 0.25f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 4.dp),
+                        .padding(horizontal = 10.dp, vertical = 2.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("🏙️", fontSize = 20.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("🏙️", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
                         Column {
                             Text(
                                 text = "Lensa Warga Surabaya",
@@ -253,20 +253,20 @@ fun MomenScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .testTag("moments_feed_list"),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 84.dp),
+                            verticalArrangement = Arrangement.spacedBy(9.dp),
                         ) {
                             if (filtered.isNotEmpty() && selectedCategory == "ALL" && selectedDistrict == "ALL") {
                                 item(key = "moments_featured_carousel") {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(bottom = 6.dp),
+                                            .padding(bottom = 2.dp),
                                     ) {
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(bottom = 6.dp),
+                                                .padding(bottom = 4.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                         ) {
@@ -283,7 +283,7 @@ fun MomenScreen(
                                             )
                                         }
                                         LazyRow(
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             modifier = Modifier.fillMaxWidth(),
                                         ) {
                                             items(filtered.take(6), key = { "feat_mom_${it.id}" }) { mom ->
@@ -374,7 +374,7 @@ private fun MomentFeedCard(
     val photos = moment.allPhotos
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
         shadowElevation = 2.dp,
@@ -387,7 +387,7 @@ private fun MomentFeedCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -395,14 +395,14 @@ private fun MomentFeedCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .clickable(onClick = onOpenAuthorProfile)
-                        .padding(vertical = 2.dp)
+                        .padding(vertical = 1.dp)
                         .testTag("moment_author_header_${moment.id}"),
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.sweepGradient(
@@ -428,11 +428,11 @@ private fun MomentFeedCard(
                                 text = moment.authorName.take(1).uppercase(),
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.labelLarge,
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -559,7 +559,7 @@ private fun MomentFeedCard(
                     onPhotoClick = onOpenFullscreenPhoto,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(240.dp),
+                        .height(196.dp),
                 )
             } else if (moment.imageKey.isNotBlank()) {
                 val resId = resolveImageDrawable(moment.imageKey)
@@ -572,7 +572,7 @@ private fun MomentFeedCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(240.dp)
+                        .height(196.dp)
                         .clickable { onOpenFullscreenPhoto(0) },
                 )
             }
@@ -581,7 +581,7 @@ private fun MomentFeedCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -603,7 +603,7 @@ private fun MomentFeedCard(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     IconButton(
                         onClick = onOpenDetail,
@@ -629,7 +629,7 @@ private fun MomentFeedCard(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .clickable(onClick = onOpenDetail)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
                 )
             }
 
@@ -638,12 +638,12 @@ private fun MomentFeedCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+                        .padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
                         .clickable(onClick = onOpenDetail),
                 ) {
                     Text(
                         text = moment.caption,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
@@ -661,19 +661,19 @@ private fun HorizontalMomentFeaturedCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(15.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.75f)),
         shadowElevation = 2.dp,
         modifier = Modifier
-            .width(200.dp)
+            .width(172.dp)
             .testTag("moment_featured_${moment.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(115.dp),
+                    .height(94.dp),
             ) {
                 val photoModel = moment.allPhotos.firstOrNull()?.ifBlank { null }
                     ?: resolveImageDrawable(moment.imageKey)

@@ -1783,7 +1783,7 @@ fun SurabayaRadioMiniPlayer(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -1793,7 +1793,7 @@ fun SurabayaRadioMiniPlayer(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(30.dp)
                         .clip(CircleShape)
                         .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center,
@@ -1802,10 +1802,10 @@ fun SurabayaRadioMiniPlayer(
                         imageVector = Icons.Filled.Radio,
                         contentDescription = null,
                         tint = androidx.compose.ui.graphics.Color.White,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(17.dp),
                     )
                 }
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

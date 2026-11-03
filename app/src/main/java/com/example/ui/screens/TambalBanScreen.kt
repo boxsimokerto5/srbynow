@@ -151,7 +151,7 @@ fun TambalBanScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
@@ -258,36 +258,36 @@ fun TambalBanScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .testTag("tambal_ban_list"),
-                        contentPadding = PaddingValues(start = 14.dp, top = 4.dp, end = 14.dp, bottom = 80.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(start = 10.dp, top = 4.dp, end = 10.dp, bottom = 80.dp),
+                        verticalArrangement = Arrangement.spacedBy(7.dp),
                     ) {
                         // --- 1. SALAM SATU ASPAL CALLOUT CARD ---
                         item(key = "salam_satu_aspal_banner") {
                             Surface(
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 color = Color.Transparent,
                                 border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(
                                         brush = SoftEmergencyLightGradient,
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = RoundedCornerShape(14.dp),
                                     ),
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(14.dp),
+                                    modifier = Modifier.padding(10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 ) {
                                     Surface(
                                         shape = CircleShape,
                                         color = ToskaPrimary.copy(alpha = 0.15f),
-                                        modifier = Modifier.size(46.dp),
+                                        modifier = Modifier.size(38.dp),
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
                                                 text = "🛵",
-                                                fontSize = 22.sp,
+                                                fontSize = 18.sp,
                                             )
                                         }
                                     }
@@ -298,7 +298,7 @@ fun TambalBanScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = ToskaPrimaryDeep,
                                         )
-                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Spacer(modifier = Modifier.height(1.dp))
                                         Text(
                                             text = "Bantu sesama pemotor & driver Surabaya. Laporkan titik tambal ban & saling bantu saat ban bocor di jalanan!",
                                             style = MaterialTheme.typography.bodySmall,
@@ -313,7 +313,7 @@ fun TambalBanScreen(
                         item(key = "tambal_ban_gps_banner") {
                             Surface(
                                 onClick = requestOrRefreshGps,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 color = if (isLiveGpsActive) OpenGreenBg else Color.Transparent,
                                 border = BorderStroke(
                                     1.dp,
@@ -323,7 +323,7 @@ fun TambalBanScreen(
                                     .fillMaxWidth()
                                     .then(
                                         if (!isLiveGpsActive) {
-                                            Modifier.background(MintSoftGradient, RoundedCornerShape(14.dp))
+                                            Modifier.background(MintSoftGradient, RoundedCornerShape(12.dp))
                                         } else {
                                             Modifier
                                         },
@@ -331,9 +331,9 @@ fun TambalBanScreen(
                                     .testTag("tambal_ban_gps_status_banner"),
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     Icon(
                                         imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.MyLocation,
@@ -634,8 +634,8 @@ fun TambalBanCardItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             // Badges row: Distance, 24 Hours, Tubeless, Verified
             Row(

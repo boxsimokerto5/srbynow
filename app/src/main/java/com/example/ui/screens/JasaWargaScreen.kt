@@ -208,8 +208,8 @@ fun JasaWargaScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(top = 6.dp, bottom = 84.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
             // 1. MANDATORY SAFETY WARNING BANNER AT THE VERY TOP
             item(key = "safety_warning_banner") {
@@ -221,7 +221,7 @@ fun JasaWargaScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp),
+                        .padding(horizontal = 10.dp),
                 ) {
                     OutlinedTextField(
                         value = searchQuery,
@@ -242,7 +242,7 @@ fun JasaWargaScreen(
                                 tint = ToskaPrimaryDeep,
                             )
                         },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = ToskaPrimary,
@@ -250,14 +250,14 @@ fun JasaWargaScreen(
                         ),
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     // Category Chips (Horizontal Scrollable)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         categories.forEach { (key, label) ->
                             val selected = selectedCategory == key
@@ -377,9 +377,9 @@ fun ServiceSafetyWarningBanner(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
+            .padding(horizontal = 10.dp)
             .testTag("jasa_safety_warning_banner"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent,
         ),
@@ -393,16 +393,16 @@ fun ServiceSafetyWarningBanner(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(SoftEmergencyLightGradient)
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(AlertCrimson.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center,
@@ -411,7 +411,7 @@ fun ServiceSafetyWarningBanner(
                             imageVector = Icons.Filled.Security,
                             contentDescription = null,
                             tint = AlertCrimson,
-                            modifier = Modifier.size(22.dp),
+                            modifier = Modifier.size(19.dp),
                         )
                     }
 
@@ -440,15 +440,15 @@ fun ServiceSafetyWarningBanner(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = stringResource(R.string.services_safety_warning_body),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface,
-                            lineHeight = 18.sp,
+                            lineHeight = 16.sp,
                         )
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -457,7 +457,7 @@ fun ServiceSafetyWarningBanner(
                                 imageVector = Icons.Outlined.Info,
                                 contentDescription = null,
                                 tint = AlertCrimson,
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(13.dp),
                             )
                             Text(
                                 text = "Gunakan pembayaran tunai / transfer hanya saat pengerjaan telah dicek selesai.",
@@ -467,7 +467,7 @@ fun ServiceSafetyWarningBanner(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(5.dp))
                         Surface(
                             onClick = { showSafetyGuideDialog = true },
                             shape = RoundedCornerShape(8.dp),
@@ -570,14 +570,14 @@ fun CitizenServiceCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
+            .padding(horizontal = 10.dp)
             .clickable { onClick() }
             .testTag("service_card_${service.id}"),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -586,7 +586,7 @@ fun CitizenServiceCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp)
+                        .height(124.dp)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     AsyncImage(
@@ -602,17 +602,17 @@ fun CitizenServiceCard(
                     // Price Tag Badge floating on image
                     Surface(
                         color = ToskaPrimaryDeep,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
                             .align(Alignment.BottomStart)
-                            .padding(12.dp),
+                            .padding(8.dp),
                     ) {
                         Text(
                             text = service.priceDisplay,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
                 }
@@ -621,7 +621,7 @@ fun CitizenServiceCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(11.dp),
             ) {
                 // Category Chip & Verified Badge
                 Row(
@@ -661,19 +661,19 @@ fun CitizenServiceCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // Title
                 Text(
                     text = service.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 // If no photo was uploaded, display the price tag here
                 if (service.allPhotos.isEmpty()) {
@@ -695,24 +695,24 @@ fun CitizenServiceCard(
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = ToskaPrimaryDeep,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
 
                 // Provider Name & District
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.LocationOn,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(15.dp),
+                        modifier = Modifier.size(14.dp),
                     )
                     Text(
                         text = "${service.providerName} • Kec. ${service.district}",
@@ -724,7 +724,7 @@ fun CitizenServiceCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Brief Description
                 Text(
@@ -735,7 +735,7 @@ fun CitizenServiceCard(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(9.dp))
 
                 // Action Buttons Row: WhatsApp & Call
                 Row(

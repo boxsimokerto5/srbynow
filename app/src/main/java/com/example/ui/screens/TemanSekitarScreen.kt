@@ -135,8 +135,8 @@ fun TemanSekitarScreen(
     }
 
     LazyColumn(
-        contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(top = 6.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
         modifier = Modifier
             .fillMaxSize()
             .testTag("teman_sekitar_list"),
@@ -146,14 +146,14 @@ fun TemanSekitarScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp)
-                    .clip(RoundedCornerShape(22.dp))
+                    .padding(horizontal = 10.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(MintSoftGradient)
-                    .border(1.dp, OutlineVariantLight, RoundedCornerShape(22.dp)),
+                    .border(1.dp, OutlineVariantLight, RoundedCornerShape(16.dp)),
             ) {
                 Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -162,7 +162,7 @@ fun TemanSekitarScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.weight(1f),
                         ) {
                             Box(
@@ -175,8 +175,8 @@ fun TemanSekitarScreen(
                                     contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier
-                                        .padding(8.dp)
-                                        .size(20.dp),
+                                        .padding(6.dp)
+                                        .size(17.dp),
                                 )
                             }
                             Column {
@@ -197,7 +197,7 @@ fun TemanSekitarScreen(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Button(
                             onClick = requestOrRefreshGps,
@@ -206,7 +206,7 @@ fun TemanSekitarScreen(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = Color.White,
                             ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                            contentPadding = PaddingValues(horizontal = 11.dp, vertical = 6.dp),
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("update_gps_button"),
@@ -214,9 +214,9 @@ fun TemanSekitarScreen(
                             Icon(
                                 imageVector = Icons.Filled.MyLocation,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(15.dp),
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = stringResource(R.string.btn_update_gps),
                                 style = MaterialTheme.typography.labelMedium,
@@ -230,7 +230,7 @@ fun TemanSekitarScreen(
                                 containerColor = Color.White,
                                 contentColor = ToskaOnPrimaryContainer,
                             ),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                            contentPadding = PaddingValues(horizontal = 11.dp, vertical = 6.dp),
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("privacy_radius_button"),
@@ -239,9 +239,9 @@ fun TemanSekitarScreen(
                                 imageVector = Icons.Filled.Tune,
                                 contentDescription = null,
                                 tint = ToskaPrimaryDeep,
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(15.dp),
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = stringResource(R.string.btn_privacy_radius),
                                 style = MaterialTheme.typography.labelMedium,
@@ -258,10 +258,10 @@ fun TemanSekitarScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp)
+                    .padding(horizontal = 10.dp)
                     .horizontalScroll(rememberScrollState())
                     .testTag("teman_sekitar_gender_filter_row"),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val allLabel = if (nearbyPeersState is UiState.Success) {
@@ -458,18 +458,18 @@ private fun NearbyPeerCard(
 
     Surface(
         onClick = onOpenProfile,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
+            .padding(horizontal = 10.dp)
             .testTag("nearby_peer_card_${peer.id}"),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -478,16 +478,16 @@ private fun NearbyPeerCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(11.dp),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(vertical = 2.dp)
+                        .padding(vertical = 1.dp)
                         .testTag("peer_profile_click_${peer.id}"),
                 ) {
                     // Tapping the photo opens the 2-finger pinch-to-zoom dialog directly
                     Box(
                         modifier = Modifier
-                            .size(50.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onOpenPhotoZoom)
                             .testTag("peer_avatar_photo_${peer.id}"),
@@ -496,13 +496,13 @@ private fun NearbyPeerCard(
                         InitialsAvatar(
                             name = peer.displayName,
                             colorHex = peer.avatarColorHex,
-                            sizeDp = 48,
+                            sizeDp = 42,
                             avatarUrl = peer.avatarUrl,
                         )
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .size(18.dp)
+                                .size(16.dp)
                                 .clip(CircleShape)
                                 .background(ToskaPrimaryDeep)
                                 .border(1.5.dp, Color.White, CircleShape),
@@ -512,22 +512,23 @@ private fun NearbyPeerCard(
                                 imageVector = Icons.Filled.ZoomIn,
                                 contentDescription = stringResource(R.string.profile_tap_photo_to_zoom),
                                 tint = Color.White,
-                                modifier = Modifier.size(10.dp),
+                                modifier = Modifier.size(9.dp),
                             )
                         }
                     }
 
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier.weight(1f),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
                         ) {
                             Text(
                                 text = peer.displayName,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -543,7 +544,7 @@ private fun NearbyPeerCard(
                                     modifier = Modifier.testTag("peer_gender_badge_${peer.id}"),
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                                     ) {
@@ -566,7 +567,7 @@ private fun NearbyPeerCard(
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
                         ) {
                             Surface(
                                 shape = CircleShape,
@@ -575,7 +576,7 @@ private fun NearbyPeerCard(
                                 modifier = Modifier.testTag("peer_distance_badge_${peer.id}"),
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(3.dp),
                                 ) {
@@ -619,7 +620,7 @@ private fun NearbyPeerCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Button(
                         onClick = onGreet,
@@ -627,18 +628,18 @@ private fun NearbyPeerCard(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                         ),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(horizontal = 11.dp, vertical = 6.dp),
                         modifier = Modifier.testTag("greet_peer_${peer.id}"),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(13.dp),
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = stringResource(R.string.btn_greet_chat),
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelMedium,
                         )
                     }
 

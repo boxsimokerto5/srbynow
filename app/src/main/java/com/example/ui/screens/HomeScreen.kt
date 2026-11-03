@@ -326,7 +326,7 @@ fun HomeScreen(
         modifier = modifier
             .fillMaxSize()
             .testTag("home_screen_content"),
-        contentPadding = PaddingValues(bottom = 96.dp),
+        contentPadding = PaddingValues(bottom = 84.dp),
     ) {
         // 1. Hero Header
         item(key = "home_header") {
@@ -338,69 +338,68 @@ fun HomeScreen(
             )
         }
 
-        // 2. Emergency 112 Card
-        item(key = "home_emergency_card") {
-            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        // 2. Side-by-Side Quick Action Bar: Command Center 112 + SS 100.0 FM Live
+        item(key = "home_quick_action_banners") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Emergency 112 Compact Card
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = Color.Transparent,
-                    border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.25f)),
+                    border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.28f)),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
                         .background(SoftEmergencyLightGradient),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(horizontal = 8.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(AlertCrimson.copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center,
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Emergency,
                                     contentDescription = null,
                                     tint = AlertCrimson,
-                                    modifier = Modifier.size(26.dp),
+                                    modifier = Modifier.size(14.dp),
                                 )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
                                 Text(
-                                    text = "Command Center 112 Surabaya",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    text = "Darurat 112",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = AlertCrimson,
-                                )
-                                Text(
-                                    text = "Bebas pulsa 24 jam untuk darurat medis, laka & damkar",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
+                            Text(
+                                text = "Medis, Laka & Damkar",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         FilledTonalButton(
                             onClick = { openEmergencyDialer112(context) },
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = AlertCrimson,
                                 contentColor = Color.White,
                             ),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             modifier = Modifier
                                 .testTag("home_btn_dial_112")
                                 .minimumInteractiveComponentSize(),
@@ -408,96 +407,68 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Filled.PhoneInTalk,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(13.dp),
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "112", fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(text = "112", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
-            }
-        }
 
-        // 2b. Radio Suara Surabaya 100.0 FM Live Banner
-        item(key = "home_radio_banner") {
-            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                // SS 100.0 FM Live Compact Card
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = Color.Transparent,
                     border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
+                        .weight(1f)
+                        .clip(RoundedCornerShape(14.dp))
                         .background(HeaderMintGradient),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(horizontal = 8.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(ToskaPrimary.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center,
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Radio,
                                     contentDescription = null,
                                     tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(24.dp),
+                                    modifier = Modifier.size(14.dp),
                                 )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    Text(
-                                        text = "SS 100.0 FM Live",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ToskaPrimaryDeep,
-                                    )
-                                    Surface(
-                                        color = AlertCrimson,
-                                        shape = RoundedCornerShape(4.dp),
-                                    ) {
-                                        Text(
-                                            text = "ON AIR",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color.White,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                        )
-                                    }
-                                }
                                 Text(
-                                    text = "Kelana Kota • Pantauan lalu lintas & berita realtime",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
+                                    text = "SS 100 FM",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ToskaPrimaryDeep,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
+                            Text(
+                                text = "LIVE • Kelana Kota",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         FilledTonalButton(
                             onClick = onOpenRadio,
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = ToskaPrimary,
                                 contentColor = Color.White,
                             ),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             modifier = Modifier
                                 .testTag("home_btn_listen_radio")
                                 .minimumInteractiveComponentSize(),
@@ -505,22 +476,22 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Filled.PlayArrow,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(13.dp),
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "Putar", fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(text = "Putar", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
 
-        // 3. Shortcut Grid (9 shortcuts in 3 rows of 3)
+        // 3. Shortcut Grid (16 shortcuts in 4x4 super-app grid)
         item(key = "home_shortcuts_section") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -529,7 +500,7 @@ fun HomeScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.home_shortcuts_title),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -539,15 +510,15 @@ fun HomeScreen(
                         color = ToskaPrimaryDeep,
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                // Render grid 3 columns
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    val rows = shortcuts.chunked(3)
+                // Render grid 4 columns (4x4 super-app style)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val rows = shortcuts.chunked(4)
                     for (rowItems in rows) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             for (item in rowItems) {
                                 HomeShortcutButton(
@@ -555,7 +526,7 @@ fun HomeScreen(
                                     modifier = Modifier.weight(1f),
                                 )
                             }
-                            val emptySlots = 3 - rowItems.size
+                            val emptySlots = 4 - rowItems.size
                             repeat(emptySlots) {
                                 Spacer(modifier = Modifier.weight(1f))
                             }
@@ -567,7 +538,7 @@ fun HomeScreen(
 
         // 3a. Kuliner Terdekat di Sekitarmu (Prioritized right at the top per GPS distance!)
         item(key = "home_culinary_header") {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = stringResource(R.string.home_culinary_title),
                 subtitle = stringResource(R.string.home_culinary_subtitle_gps),
@@ -576,7 +547,7 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                    .padding(horizontal = 10.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -591,15 +562,15 @@ fun HomeScreen(
                     modifier = Modifier.testTag("home_culinary_gps_chip"),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Icon(
                             imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.NearMe,
                             contentDescription = null,
                             tint = if (isLiveGpsActive) OpenGreenText else ToskaPrimaryDeep,
-                            modifier = Modifier.size(13.dp),
+                            modifier = Modifier.size(12.dp),
                         )
                         Text(
                             text = if (isLiveGpsActive) {
@@ -654,8 +625,8 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("home_culinary_lazy_row"),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             itemsIndexed(list, key = { _, spot -> spot.id }) { index, spot ->
                                 val distanceKm = calculateDistanceKm(userLat, userLng, spot.lat, spot.lng)
@@ -674,7 +645,7 @@ fun HomeScreen(
 
         // 3b. Ruang Promosi Jasa Warga (Featured Community Services Showcase)
         item(key = "home_services_section") {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = "Ruang Promosi Jasa Warga",
                 subtitle = "AC, ledeng, servis & keahlian Arek Surabaya",
@@ -682,29 +653,29 @@ fun HomeScreen(
             )
 
             // Anti-Fraud / Anti-DP Quick Alert Banner
-            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)) {
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = Color.Transparent,
                     border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.35f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(SoftEmergencyLightGradient)
                         .clickable { onNavigateTab(MainTab.JASA) },
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Security,
                             contentDescription = null,
                             tint = AlertCrimson,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(17.dp),
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -725,14 +696,14 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             when (servicesState) {
                 is UiState.Loading -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(110.dp),
+                            .height(96.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(24.dp))
@@ -743,15 +714,15 @@ fun HomeScreen(
                         text = "Belum ada data promosi jasa warga",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp),
                     )
                 }
                 is UiState.Success -> {
                     val list = servicesState.data
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(list.take(6), key = { it.id }) { service ->
                             HomeServiceCard(
@@ -762,24 +733,24 @@ fun HomeScreen(
 
                         item(key = "create_service_card") {
                             Surface(
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 color = ToskaPrimary.copy(alpha = 0.08f),
                                 border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.4f)),
                                 modifier = Modifier
-                                    .width(160.dp)
-                                    .height(130.dp)
+                                    .width(142.dp)
+                                    .height(106.dp)
                                     .clickable { onOpenCreateService() },
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(12.dp),
+                                        .padding(8.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center,
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(36.dp)
+                                            .size(30.dp)
                                             .clip(CircleShape)
                                             .background(ToskaPrimary),
                                         contentAlignment = Alignment.Center,
@@ -788,10 +759,10 @@ fun HomeScreen(
                                             imageVector = Icons.Filled.Add,
                                             contentDescription = null,
                                             tint = Color.White,
-                                            modifier = Modifier.size(20.dp),
+                                            modifier = Modifier.size(17.dp),
                                         )
                                     }
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(5.dp))
                                     Text(
                                         text = "Pasang Jasa Anda",
                                         style = MaterialTheme.typography.labelMedium,
@@ -815,7 +786,7 @@ fun HomeScreen(
 
         // 3c. Polling Warga & Suara Kota
         item(key = "home_polls_section") {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = "Polling Warga & Suara Kota",
                 subtitle = "Beri suara & tentukan kebijakan kota Surabaya",
@@ -823,7 +794,7 @@ fun HomeScreen(
             )
 
             if (isAdmin && pendingPollsCount > 0) {
-                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = Color.Transparent,
@@ -837,7 +808,7 @@ fun HomeScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -846,9 +817,9 @@ fun HomeScreen(
                                     imageVector = Icons.Filled.Security,
                                     contentDescription = null,
                                     tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(18.dp),
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "$pendingPollsCount Usulan Polling Menunggu Moderasi",
                                     style = MaterialTheme.typography.bodySmall,
@@ -929,8 +900,8 @@ fun HomeScreen(
                         }
                     } else {
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(polls, key = { it.id }) { poll ->
                                 HomePollCard(
@@ -946,7 +917,7 @@ fun HomeScreen(
 
         // 3d. Tambal Ban Terdekat (Salam Satu Aspal)
         item(key = "home_tambal_ban_section") {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = "Tambal Ban Terdekat",
                 subtitle = "Salam Satu Aspal • Solusi saat ban bocor di Surabaya",
@@ -958,7 +929,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(100.dp),
+                            .height(90.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(24.dp))
@@ -970,8 +941,8 @@ fun HomeScreen(
                     if (spots.isNotEmpty()) {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(spots.take(6), key = { it.id }) { spot ->
                                 HomeTambalBanCard(
@@ -982,24 +953,24 @@ fun HomeScreen(
 
                             item(key = "create_tambal_ban_card") {
                                 Surface(
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(14.dp),
                                     color = ToskaPrimary.copy(alpha = 0.08f),
                                     border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.4f)),
                                     modifier = Modifier
-                                        .width(160.dp)
-                                        .height(115.dp)
+                                        .width(142.dp)
+                                        .height(100.dp)
                                         .clickable { onOpenCreateTambalBan() },
                                 ) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .padding(12.dp),
+                                            .padding(8.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.Center,
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(34.dp)
+                                                .size(28.dp)
                                                 .clip(CircleShape)
                                                 .background(ToskaPrimary),
                                             contentAlignment = Alignment.Center,
@@ -1008,10 +979,10 @@ fun HomeScreen(
                                                 imageVector = Icons.Filled.Add,
                                                 contentDescription = null,
                                                 tint = Color.White,
-                                                modifier = Modifier.size(18.dp),
+                                                modifier = Modifier.size(16.dp),
                                             )
                                         }
-                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = "Tambah Tambal Ban",
                                             style = MaterialTheme.typography.labelMedium,
@@ -1036,7 +1007,7 @@ fun HomeScreen(
 
         // 3e. Rute Bis & Feeder Surabaya
         item(key = "home_transit_section") {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = "Rute Bis & Feeder Surabaya",
                 subtitle = "WiraWiri • Suroboyo Bus • Trans Semanggi",
@@ -1051,8 +1022,8 @@ fun HomeScreen(
 
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(previewRoutes, key = { it.id }) { route ->
                     HomeTransitPreviewCard(
@@ -1063,24 +1034,24 @@ fun HomeScreen(
 
                 item(key = "see_all_transit_card") {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = ToskaPrimary.copy(alpha = 0.08f),
                         border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.4f)),
                         modifier = Modifier
-                            .width(160.dp)
-                            .height(130.dp)
+                            .width(142.dp)
+                            .height(112.dp)
                             .clickable { onNavigateTab(MainTab.TRANSIT) },
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(12.dp),
+                                .padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(ToskaPrimary),
                                 contentAlignment = Alignment.Center,
@@ -1089,10 +1060,10 @@ fun HomeScreen(
                                     imageVector = Icons.Filled.DirectionsBus,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(17.dp),
                                 )
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(5.dp))
                             Text(
                                 text = "Semua Rute (22)",
                                 style = MaterialTheme.typography.labelMedium,
@@ -1114,6 +1085,7 @@ fun HomeScreen(
 
         // 4. Highlight: Kabar Kejadian Terhangat
         item(key = "home_incidents_header") {
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = stringResource(R.string.home_highlights_title),
                 subtitle = "Update situasi kota dari warga & petugas",
@@ -1127,7 +1099,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(120.dp),
+                            .height(100.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
@@ -1138,7 +1110,7 @@ fun HomeScreen(
                         text = "Belum ada laporan terkini",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
                 }
                 is UiState.Success -> {
@@ -1148,13 +1120,13 @@ fun HomeScreen(
                             text = "Situasi Surabaya aman dan kondusif",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         )
                     } else {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(topIncidents, key = { it.id }) { incident ->
                                 HomeIncidentCard(
@@ -1170,7 +1142,7 @@ fun HomeScreen(
 
         // 5. Destinasi Ikonik Surabaya
         item(key = "home_destinations_header") {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = stringResource(R.string.home_destinations_title),
                 subtitle = "Wisata sejarah, taman kota & edukasi resmi Surabaya",
@@ -1184,7 +1156,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp),
+                            .height(110.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
@@ -1194,15 +1166,15 @@ fun HomeScreen(
                     Text(
                         text = "Gagal memuat destinasi",
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp),
                     )
                 }
                 is UiState.Success -> {
                     val list = destinationsState.data
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(list, key = { it.id }) { dest ->
                             HomeDestinationCard(
@@ -1217,7 +1189,7 @@ fun HomeScreen(
 
         // 5c. Agenda & Event Surabaya
         item(key = "home_events_header") {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = stringResource(R.string.home_events_title),
                 subtitle = "Festival budaya, bazar UMKM, musik & kegiatan kota",
@@ -1231,7 +1203,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp),
+                            .height(110.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
@@ -1241,7 +1213,7 @@ fun HomeScreen(
                     Text(
                         text = "Gagal memuat event",
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp),
                     )
                 }
                 is UiState.Success -> {
@@ -1251,13 +1223,13 @@ fun HomeScreen(
                             text = "Belum ada event terjadwal",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp),
                         )
                     } else {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(list, key = { it.id }) { event ->
                                 HomeEventCard(
@@ -1273,7 +1245,7 @@ fun HomeScreen(
 
         // 6. Momen Warga Terkini
         item(key = "home_moments_header") {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             HomeSectionHeader(
                 title = stringResource(R.string.home_moments_title),
                 subtitle = "Potret keseharian warga di sudut-sudut kota",
@@ -1287,7 +1259,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(120.dp),
+                            .height(100.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
@@ -1297,7 +1269,7 @@ fun HomeScreen(
                     Text(
                         text = "Gagal memuat momen warga",
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp),
                     )
                 }
                 is UiState.Success -> {
@@ -1307,13 +1279,13 @@ fun HomeScreen(
                             text = "Belum ada momen dibagikan hari ini",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp),
                         )
                     } else {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(list, key = { it.id }) { moment ->
                                 HomeMomentCard(
@@ -1329,20 +1301,20 @@ fun HomeScreen(
 
         // 7. Community Support & Footer Banner
         item(key = "home_community_footer") {
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = Color(0xFFF2FBF6),
                 border = BorderStroke(1.dp, ToskaPrimaryDeep.copy(alpha = 0.2f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 10.dp)
                     .testTag("home_footer_support_card"),
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -1500,7 +1472,7 @@ private fun HomeHeaderSection(
         modifier = Modifier
             .fillMaxWidth()
             .background(HeaderMintGradient)
-            .padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
+            .padding(top = 8.dp, start = 12.dp, end = 12.dp, bottom = 6.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1511,14 +1483,14 @@ private fun HomeHeaderSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Surabaya Hari Ini",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = ToskaOnPrimaryContainer,
                     )
                     if (isAdmin) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(6.dp),
                             color = ToskaPrimaryDeep,
                         ) {
                             Text(
@@ -1526,23 +1498,22 @@ private fun HomeHeaderSection(
                                 color = Color.White,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.LocationOn,
                         contentDescription = null,
                         tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(13.dp),
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         text = "Halo Cak & Ning $greetingName • $district",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1554,7 +1525,8 @@ private fun HomeHeaderSection(
             IconButton(
                 onClick = onOpenProfile,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(38.dp)
+                    .minimumInteractiveComponentSize()
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.85f))
                     .testTag("home_btn_profile"),
@@ -1563,6 +1535,7 @@ private fun HomeHeaderSection(
                     imageVector = Icons.Filled.AdminPanelSettings,
                     contentDescription = "Pengaturan Akun & Admin",
                     tint = ToskaPrimaryDeep,
+                    modifier = Modifier.size(19.dp),
                 )
             }
         }
@@ -1576,7 +1549,7 @@ private fun HomeShortcutButton(
 ) {
     Surface(
         onClick = item.onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(13.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.6f)),
         shadowElevation = 1.dp,
@@ -1588,14 +1561,14 @@ private fun HomeShortcutButton(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                    .padding(vertical = 7.dp, horizontal = 3.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MintSoftGradient),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -1603,13 +1576,13 @@ private fun HomeShortcutButton(
                         imageVector = item.icon,
                         contentDescription = null,
                         tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(19.dp),
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = item.title,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
@@ -1618,7 +1591,7 @@ private fun HomeShortcutButton(
                 )
                 Text(
                     text = item.subtitle,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
@@ -1628,16 +1601,16 @@ private fun HomeShortcutButton(
 
             if (item.badge != null) {
                 Surface(
-                    shape = RoundedCornerShape(bottomStart = 8.dp, topEnd = 16.dp),
+                    shape = RoundedCornerShape(bottomStart = 6.dp, topEnd = 13.dp),
                     color = AlertCrimson,
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Text(
                         text = item.badge,
                         color = Color.White,
-                        fontSize = 9.sp,
+                        fontSize = 8.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                     )
                 }
             }
@@ -1654,31 +1627,31 @@ private fun HomeSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clickable(onClick = onSeeAllClick)
-                .padding(4.dp),
+                .padding(horizontal = 4.dp, vertical = 2.dp),
         ) {
             Text(
                 text = "Semua",
@@ -1690,7 +1663,7 @@ private fun HomeSectionHeader(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
                 tint = ToskaPrimaryDeep,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(14.dp),
             )
         }
     }
@@ -1703,19 +1676,19 @@ private fun HomeIncidentCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(15.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
         shadowElevation = 2.dp,
         modifier = Modifier
-            .width(220.dp)
+            .width(188.dp)
             .testTag("home_incident_${incident.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp),
+                    .height(90.dp),
             ) {
                 val photoModel = incident.allPhotos.firstOrNull()?.ifBlank { null }
                     ?: resolveImageDrawable(incident.imageKey)
@@ -1729,7 +1702,7 @@ private fun HomeIncidentCard(
                     modifier = Modifier.fillMaxSize(),
                 )
                 Surface(
-                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    shape = RoundedCornerShape(bottomEnd = 8.dp),
                     color = if (incident.severity == "DARURAT") AlertCrimson else ToskaPrimaryDeep.copy(alpha = 0.9f),
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
@@ -1738,48 +1711,48 @@ private fun HomeIncidentCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = Color.Black.copy(alpha = 0.65f),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(6.dp),
+                        .padding(5.dp),
                 ) {
                     Text(
                         text = formatRelativeTimestamp(incident.createdAt),
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                     )
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = incident.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.LocationOn,
                         contentDescription = null,
                         tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(13.dp),
+                        modifier = Modifier.size(12.dp),
                     )
                     Text(
                         text = "Kec. ${incident.district}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = ToskaPrimaryDeep,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -1798,19 +1771,19 @@ private fun HomeDestinationCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(15.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
         shadowElevation = 2.dp,
         modifier = Modifier
-            .width(220.dp)
+            .width(188.dp)
             .testTag("home_dest_${destination.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp),
+                    .height(90.dp),
             ) {
                 val photoModel = destination.allPhotos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(destination.imageKey)
                 AsyncImage(
@@ -1823,7 +1796,7 @@ private fun HomeDestinationCard(
                     modifier = Modifier.fillMaxSize(),
                 )
                 Surface(
-                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    shape = RoundedCornerShape(bottomEnd = 8.dp),
                     color = ToskaPrimaryDeep.copy(alpha = 0.9f),
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
@@ -1832,25 +1805,26 @@ private fun HomeDestinationCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = Color.Black.copy(alpha = 0.7f),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(6.dp),
+                        .padding(5.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Star,
                             contentDescription = null,
                             tint = Color(0xFFFFB300),
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(11.dp),
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
@@ -1862,17 +1836,17 @@ private fun HomeDestinationCard(
                     }
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = destination.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = "${destination.district} • ${destination.ticketPrice}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = ToskaPrimaryDeep,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1891,7 +1865,7 @@ private fun HomeCulinaryCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(15.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(
             width = if (isNearestTopSpot) 1.5.dp else 1.dp,
@@ -1899,14 +1873,14 @@ private fun HomeCulinaryCard(
         ),
         shadowElevation = 2.dp,
         modifier = Modifier
-            .width(220.dp)
+            .width(188.dp)
             .testTag("home_culinary_${spot.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp),
+                    .height(90.dp),
             ) {
                 val photoModel = spot.allPhotos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(spot.imageKey)
                 AsyncImage(
@@ -1919,7 +1893,7 @@ private fun HomeCulinaryCard(
                     modifier = Modifier.fillMaxSize(),
                 )
                 Surface(
-                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    shape = RoundedCornerShape(bottomEnd = 8.dp),
                     color = if (isNearestTopSpot) OpenGreenText.copy(alpha = 0.94f) else ToskaPrimaryDeep.copy(alpha = 0.9f),
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
@@ -1939,11 +1913,12 @@ private fun HomeCulinaryCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(bottomStart = 10.dp),
+                    shape = RoundedCornerShape(bottomStart = 8.dp),
                     color = Color.Black.copy(alpha = 0.72f),
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
@@ -1952,27 +1927,28 @@ private fun HomeCulinaryCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
+                        fontSize = 9.sp,
                         modifier = Modifier
-                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                             .testTag("home_culinary_distance_${spot.id}"),
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = Color.Black.copy(alpha = 0.7f),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(6.dp),
+                        .padding(5.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Star,
                             contentDescription = null,
                             tint = Color(0xFFFFB300),
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(11.dp),
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
@@ -1984,17 +1960,17 @@ private fun HomeCulinaryCard(
                     }
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = spot.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = "${spot.district} • ${formatDistanceLabel(distanceKm)} • ${spot.priceRange}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = ToskaPrimaryDeep,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -2011,19 +1987,19 @@ private fun HomeEventCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(15.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
         shadowElevation = 2.dp,
         modifier = Modifier
-            .width(220.dp)
+            .width(188.dp)
             .testTag("home_event_${event.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp),
+                    .height(90.dp),
             ) {
                 val photoModel = event.allPhotos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(event.imageKey)
                 AsyncImage(
@@ -2036,7 +2012,7 @@ private fun HomeEventCard(
                     modifier = Modifier.fillMaxSize(),
                 )
                 Surface(
-                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    shape = RoundedCornerShape(bottomEnd = 8.dp),
                     color = Color(0xFF1E88E5).copy(alpha = 0.9f),
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
@@ -2052,25 +2028,26 @@ private fun HomeEventCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = Color.Black.copy(alpha = 0.7f),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(6.dp),
+                        .padding(5.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.CalendarMonth,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(11.dp),
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
@@ -2083,17 +2060,17 @@ private fun HomeEventCard(
                     }
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = event.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = "${event.venueName.ifBlank { event.district }} • ${event.priceLabel}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFF1E88E5),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -2110,11 +2087,11 @@ private fun HomeMomentCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.7f)),
         modifier = Modifier
-            .width(140.dp)
+            .width(126.dp)
             .testTag("home_moment_${moment.id}"),
     ) {
         Column {
@@ -2128,9 +2105,9 @@ private fun HomeMomentCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp),
+                    .height(104.dp),
             )
-            Column(modifier = Modifier.padding(8.dp)) {
+            Column(modifier = Modifier.padding(7.dp)) {
                 Text(
                     text = moment.authorName,
                     style = MaterialTheme.typography.labelMedium,
@@ -2156,7 +2133,7 @@ private fun HomeMomentCard(
                             imageVector = Icons.Filled.Favorite,
                             contentDescription = null,
                             tint = AlertCrimson,
-                            modifier = Modifier.size(12.dp),
+                            modifier = Modifier.size(11.dp),
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
@@ -2180,15 +2157,15 @@ private fun HomeServiceCard(
 ) {
     Card(
         modifier = modifier
-            .width(220.dp)
+            .width(196.dp)
             .clickable { onClick() }
             .testTag("home_service_card_${service.id}"),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(9.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2225,11 +2202,11 @@ private fun HomeServiceCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = service.title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -2244,7 +2221,7 @@ private fun HomeServiceCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Surface(
                 color = ToskaPrimaryDeep,
@@ -2255,7 +2232,7 @@ private fun HomeServiceCard(
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                 )
             }
         }
@@ -2269,16 +2246,16 @@ fun HomePollCard(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier
-            .width(280.dp)
+            .width(240.dp)
             .clickable(onClick = onClick)
             .testTag("home_poll_card_${poll.id}"),
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2299,15 +2276,15 @@ fun HomePollCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.HowToVote,
                         contentDescription = null,
                         tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(13.dp),
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "${poll.totalVotes} Suara",
                         style = MaterialTheme.typography.labelSmall,
@@ -2319,22 +2296,22 @@ fun HomePollCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
             Text(
                 text = poll.title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             poll.options.take(2).forEach { opt ->
                 val pct = poll.percentageForOption(opt.id)
-                Column(modifier = Modifier.padding(vertical = 2.dp)) {
+                Column(modifier = Modifier.padding(vertical = 1.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2368,7 +2345,7 @@ fun HomePollCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2398,19 +2375,19 @@ private fun HomeTambalBanCard(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 1.dp,
         modifier = modifier
-            .width(220.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .width(196.dp)
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .testTag("home_tambal_card_${spot.id}"),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(9.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2424,7 +2401,7 @@ private fun HomeTambalBanCard(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = OpenGreenText,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                         )
                     }
                 }
@@ -2435,7 +2412,7 @@ private fun HomeTambalBanCard(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = ToskaPrimaryDeep,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                         )
                     }
                 }
@@ -2458,7 +2435,7 @@ private fun HomeTambalBanCard(
                     imageVector = Icons.Filled.LocationOn,
                     contentDescription = null,
                     tint = ToskaPrimary,
-                    modifier = Modifier.size(13.dp),
+                    modifier = Modifier.size(12.dp),
                 )
                 Text(
                     text = "Kec. ${spot.district}",
@@ -2487,19 +2464,19 @@ fun HomeTransitPreviewCard(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         modifier = modifier
-            .width(220.dp)
-            .height(130.dp)
+            .width(196.dp)
+            .height(112.dp)
             .clickable { onClick() }
             .testTag("home_transit_card_${route.code}"),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(9.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
@@ -2516,7 +2493,7 @@ fun HomeTransitPreviewCard(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                     )
                 }
 
@@ -2537,7 +2514,7 @@ fun HomeTransitPreviewCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = route.fleetType,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),

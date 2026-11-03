@@ -190,8 +190,8 @@ fun KejadianScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(top = 10.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 6.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("kejadian_feed_list"),
@@ -201,24 +201,24 @@ fun KejadianScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp)
-                        .clip(RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp)
+                        .clip(RoundedCornerShape(14.dp))
                         .background(SoftEmergencyLightGradient)
-                        .border(1.dp, Color(0xFFFFD6D6), RoundedCornerShape(20.dp)),
+                        .border(1.dp, Color(0xFFFFD6D6), RoundedCornerShape(14.dp)),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.weight(1f),
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(AlertCrimson),
                                 contentAlignment = Alignment.Center,
@@ -227,7 +227,7 @@ fun KejadianScreen(
                                     imageVector = Icons.Filled.Emergency,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(19.dp),
+                                    modifier = Modifier.size(16.dp),
                                 )
                             }
                             Column {
@@ -286,7 +286,7 @@ fun KejadianScreen(
                     selectedDistrict = selectedDistrict,
                     onSelect = { selectedDistrict = it },
                     testTag = "incident_district_filter_dropdown",
-                    modifier = Modifier.padding(horizontal = 14.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp),
                 )
             }
 
@@ -296,12 +296,12 @@ fun KejadianScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 2.dp, bottom = 4.dp),
+                            .padding(top = 0.dp, bottom = 2.dp),
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                                .padding(horizontal = 12.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -318,8 +318,8 @@ fun KejadianScreen(
                             )
                         }
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             items(allIncidents.take(6), key = { "feat_inc_${it.id}" }) { inc ->
@@ -435,14 +435,14 @@ private fun IncidentCompactCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .clip(RoundedCornerShape(22.dp))
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag("incident_card_${report.id}"),
     ) {
@@ -451,7 +451,7 @@ private fun IncidentCompactCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(148.dp),
+                    .height(118.dp),
             ) {
                 CulinaryPhotoCarousel(
                     photoUrls = report.allPhotos,
@@ -466,7 +466,7 @@ private fun IncidentCompactCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .height(44.dp)
                         .align(Alignment.BottomCenter)
                         .background(
                             Brush.verticalGradient(
@@ -479,18 +479,18 @@ private fun IncidentCompactCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(10.dp),
+                        .padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Surface(shape = CircleShape, color = badgeBg) {
                             Text(
                                 text = report.severity,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
                         Surface(
@@ -502,7 +502,7 @@ private fun IncidentCompactCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = ToskaOnPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
                     }
@@ -517,7 +517,7 @@ private fun IncidentCompactCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                             )
                         }
                     }
@@ -528,9 +528,9 @@ private fun IncidentCompactCard(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(
-                            start = 12.dp,
-                            end = 78.dp,
-                            bottom = if (report.allPhotos.size > 1) 18.dp else 8.dp,
+                            start = 10.dp,
+                            end = 74.dp,
+                            bottom = if (report.allPhotos.size > 1) 16.dp else 6.dp,
                         ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -538,12 +538,12 @@ private fun IncidentCompactCard(
                         imageVector = Icons.Filled.LocationOn,
                         contentDescription = null,
                         tint = Color(0xFFA7F3D0),
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(13.dp),
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "${report.district} • ${report.address}",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -553,12 +553,13 @@ private fun IncidentCompactCard(
 
             // Dense & proportional body
             Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = report.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -660,19 +661,19 @@ private fun HorizontalIncidentFeaturedCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(15.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.75f)),
         shadowElevation = 2.dp,
         modifier = Modifier
-            .width(220.dp)
+            .width(188.dp)
             .testTag("incident_featured_${incident.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp),
+                    .height(90.dp),
             ) {
                 val photoModel = incident.allPhotos.firstOrNull()?.ifBlank { null }
                     ?: resolveImageDrawable(incident.imageKey)
@@ -686,7 +687,7 @@ private fun HorizontalIncidentFeaturedCard(
                     modifier = Modifier.fillMaxSize(),
                 )
                 Surface(
-                    shape = RoundedCornerShape(bottomEnd = 10.dp),
+                    shape = RoundedCornerShape(bottomEnd = 8.dp),
                     color = if (incident.category == "DARURAT") AlertCrimson else ToskaPrimaryDeep.copy(alpha = 0.9f),
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
@@ -695,48 +696,48 @@ private fun HorizontalIncidentFeaturedCard(
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = Color.Black.copy(alpha = 0.65f),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(6.dp),
+                        .padding(5.dp),
                 ) {
                     Text(
                         text = formatRelativeTimestamp(incident.createdAt),
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                     )
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = incident.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.LocationOn,
                         contentDescription = null,
                         tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(13.dp),
+                        modifier = Modifier.size(12.dp),
                     )
                     Text(
                         text = incident.district,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = ToskaPrimaryDeep,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,

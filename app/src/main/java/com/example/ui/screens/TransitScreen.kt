@@ -138,7 +138,7 @@ fun TransitScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
@@ -154,14 +154,14 @@ fun TransitScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Rute Bis & Feeder Surabaya",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = ToskaPrimaryDeep,
                         maxLines = 1,
                     )
                     Text(
                         text = "WiraWiri • Suroboyo Bus • Trans Semanggi",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
@@ -181,11 +181,11 @@ fun TransitScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 96.dp)
+            contentPadding = PaddingValues(bottom = 80.dp)
         ) {
             // 2. Search Field
             item(key = "transit_search") {
-                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -231,8 +231,8 @@ fun TransitScreen(
             // 3. Category Filter Chips
             item(key = "transit_categories") {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 1.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(TransitCategory.entries.toTypedArray(), key = { it.name }) { cat ->
                         val count = if (cat == TransitCategory.SEMUA) {
@@ -268,26 +268,26 @@ fun TransitScreen(
 
             // 4. Integrated 2-Hour Ticket Highlight Banner
             item(key = "transit_ticket_banner") {
-                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = Color.Transparent,
                         border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(HeaderMintGradient)
                             .clickable { showGuideDialog = true }
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
+                                .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(36.dp)
                                     .clip(CircleShape)
                                     .background(ToskaPrimary.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
@@ -296,10 +296,10 @@ fun TransitScreen(
                                     imageVector = Icons.Filled.SyncAlt,
                                     contentDescription = null,
                                     tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
@@ -322,7 +322,7 @@ fun TransitScreen(
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(1.dp))
                                 Text(
                                     text = "Pindah antar Feeder WiraWiri & Suroboyo Bus dalam 2 jam tanpa bayar lagi. Ketuk untuk panduan & cara naik →",
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
@@ -341,7 +341,7 @@ fun TransitScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                        .padding(horizontal = 10.dp, vertical = 3.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -437,20 +437,20 @@ fun TransitRouteCard(
     var expandedStops by remember { mutableStateOf(false) }
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
             .animateContentSize()
             .testTag("transit_card_${route.code}")
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .padding(10.dp)
         ) {
             // Header: Code Badge + Category & Fleet Type
             Row(
@@ -518,17 +518,17 @@ fun TransitRouteCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Origin -> Destination Title
             Text(
                 text = route.name,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             // Description
             Text(
@@ -539,7 +539,7 @@ fun TransitRouteCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Key info chips: Jam Operasional, Interval, Tarif
             Row(
@@ -579,12 +579,12 @@ fun TransitRouteCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Transfer Hubs preview
             if (route.transferHubs.isNotEmpty()) {
                 FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -617,9 +617,9 @@ fun TransitRouteCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(7.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
             // Bottom Actions: Toggle Halte Preview / Buka Detail Lengkap
             Row(

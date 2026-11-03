@@ -177,7 +177,7 @@ fun KosKontrakScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
@@ -346,8 +346,8 @@ fun KosKontrakScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(16.dp),
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                     border = BorderStroke(1.dp, OutlineVariantLight),
                 ) {
@@ -355,21 +355,21 @@ fun KosKontrakScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(MintSoftGradient)
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Security,
                             contentDescription = null,
                             tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                         )
                         Text(
                             text = stringResource(R.string.kos_safety_notice),
                             style = MaterialTheme.typography.bodySmall,
                             color = ToskaOnPrimaryContainer,
-                            lineHeight = 17.sp,
+                            lineHeight = 16.sp,
                         )
                     }
                 }
@@ -379,15 +379,15 @@ fun KosKontrakScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(top = 2.dp, bottom = 5.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(horizontal = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         FilterChip(
                             selected = availabilityFilter == KosAvailabilityFilter.AVAILABLE,
@@ -425,8 +425,8 @@ fun KosKontrakScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(horizontal = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         billingPeriods.forEach { (key, label) ->
                             FilterChip(
@@ -464,7 +464,7 @@ fun KosKontrakScreen(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp)
+                            .padding(horizontal = 10.dp)
                             .testTag("kos_search_input"),
                     )
 
@@ -472,7 +472,7 @@ fun KosKontrakScreen(
                         selectedDistrict = selectedDistrict,
                         onSelect = { selectedDistrict = it },
                         testTag = "kos_district_filter",
-                        modifier = Modifier.padding(horizontal = 14.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp),
                     )
 
                 }
@@ -498,7 +498,7 @@ fun KosKontrakScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                                .padding(horizontal = 12.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
@@ -515,8 +515,8 @@ fun KosKontrakScreen(
                             )
                         }
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             items(filteredItems.take(6), key = { "feat_kos_${it.id}" }) { kos ->
@@ -623,9 +623,9 @@ private fun KosListingCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 7.dp)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
             .testTag("kos_card_${item.id}"),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, if (item.isFull) ClosedGrayBg else OutlineVariantLight),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -634,7 +634,7 @@ private fun KosListingCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(176.dp)
+                    .height(136.dp)
                     .clickable(onClick = onOpenDetail)
                     .background(
                         Brush.linearGradient(
@@ -729,14 +729,14 @@ private fun KosListingCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MintCardSubtleGradient)
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                    .padding(11.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onOpenDetail),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -917,19 +917,19 @@ private fun HorizontalKosFeaturedCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.75f)),
         shadowElevation = 2.dp,
         modifier = Modifier
-            .width(220.dp)
+            .width(196.dp)
             .testTag("kos_featured_${item.id}"),
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(115.dp),
+                    .height(94.dp),
             ) {
                 val photoModel = item.firstPhotoUrl.ifBlank { null } ?: R.drawable.app_logo_mascot
                 AsyncImage(
@@ -971,7 +971,7 @@ private fun HorizontalKosFeaturedCard(
                     )
                 }
             }
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.titleSmall,

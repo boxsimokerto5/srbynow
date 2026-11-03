@@ -110,8 +110,8 @@ fun ChatScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(top = 10.dp, bottom = if (isAdmin && selectedSubTab == 0) 88.dp else 28.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp),
+            contentPadding = PaddingValues(top = 6.dp, bottom = if (isAdmin && selectedSubTab == 0) 80.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("chat_rooms_list"),
@@ -123,11 +123,11 @@ fun ChatScreen(
                     border = BorderStroke(1.dp, OutlineVariantLight),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp),
+                        .padding(horizontal = 10.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         ChatModeTabPill(
                             label = "Ruang Publik SBY (${publicRooms.size})",
@@ -153,9 +153,9 @@ fun ChatScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp),
+                        .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     OutlinedTextField(
                         value = searchQuery,
@@ -226,14 +226,14 @@ fun ChatScreen(
                     if (isAdmin) {
                         Surface(
                             color = ToskaPrimaryDeep,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp)
+                                .padding(horizontal = 10.dp)
                                 .testTag("chat_group_admin_banner"),
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
@@ -241,7 +241,7 @@ fun ChatScreen(
                                     imageVector = Icons.Filled.AdminPanelSettings,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(17.dp),
+                                    modifier = Modifier.size(16.dp),
                                 )
                                 Text(
                                     text = stringResource(R.string.admin_create_group_banner),
@@ -255,14 +255,14 @@ fun ChatScreen(
                     } else {
                         Surface(
                             color = ToskaPrimaryDeep.copy(alpha = 0.08f),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp)
+                                .padding(horizontal = 10.dp)
                                 .testTag("chat_group_admin_notice"),
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
@@ -353,7 +353,7 @@ private fun ChatModeTabPill(
                 },
             )
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 10.dp),
+            .padding(vertical = 6.dp, horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -377,28 +377,28 @@ private fun ChatRoomRowCard(
     val displayTitle = room.displayTitleFor(currentUserId)
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag("chat_room_card_${room.id}"),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (isPublic) {
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(MintSoftGradient),
                     contentAlignment = Alignment.Center,
@@ -407,13 +407,13 @@ private fun ChatRoomRowCard(
                         imageVector = Icons.Filled.Groups,
                         contentDescription = null,
                         tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(21.dp),
                     )
                 }
             } else if (room.isOfficialAccount) {
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(FreshGreenGradient),
                     contentAlignment = Alignment.Center,
@@ -422,20 +422,20 @@ private fun ChatRoomRowCard(
                         imageVector = Icons.Filled.Verified,
                         contentDescription = "Akun Resmi Arek Surabaya",
                         tint = Color.White,
-                        modifier = Modifier.size(26.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             } else {
                 InitialsAvatar(
                     name = displayTitle,
                     colorHex = "#10B981",
-                    sizeDp = 46,
+                    sizeDp = 40,
                 )
             }
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -534,12 +534,13 @@ fun StartDirectChatSheetContent(
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Text(
             text = "Mulai Chat Dua Arah Warga Surabaya",
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
         )
         Text(
             text = "Pilih warga untuk terhubung pada Room ID yang sama secara otomatis & real-time.",
@@ -565,15 +566,15 @@ fun StartDirectChatSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 200.dp, max = 380.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(vertical = 2.dp),
         ) {
             if (filtered.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
+                            .padding(20.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -590,26 +591,26 @@ fun StartDirectChatSheetContent(
                         peer.id.ifBlank { peer.userId },
                     )
                     Surface(
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = Color(0xFFF3FBF7),
                         border = BorderStroke(1.dp, OutlineVariantLight),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable { onSelectCitizen(peer) }
                             .testTag("citizen_chat_item_${peer.id}"),
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             InitialsAvatar(
                                 name = peer.displayName,
                                 colorHex = peer.avatarColorHex,
-                                sizeDp = 42,
+                                sizeDp = 38,
                                 avatarUrl = peer.avatarUrl,
                             )
                             Column(modifier = Modifier.weight(1f)) {
@@ -668,9 +669,9 @@ fun CreatePublicGroupSheetContent(
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
             .imePadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
             .testTag("create_public_group_sheet"),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         GoogleMapsSheetHandleHeader(
             title = stringResource(R.string.create_group_sheet_title),

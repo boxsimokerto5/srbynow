@@ -170,8 +170,8 @@ fun KulinerScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(top = 10.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 6.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
             modifier = Modifier
                 .fillMaxSize()
                 .testTag("kuliner_feed_list"),
@@ -181,9 +181,9 @@ fun KulinerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp),
+                        .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     OutlinedTextField(
                         value = searchQuery,
@@ -257,7 +257,7 @@ fun KulinerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 2.dp),
+                        .padding(horizontal = 10.dp, vertical = 0.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -337,22 +337,22 @@ fun KulinerScreen(
                 item(key = "kuliner_gps_prompt_banner") {
                     Surface(
                         onClick = requestOrRefreshGps,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = Color.Transparent,
                         border = BorderStroke(1.dp, OutlineVariantLight),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .padding(horizontal = 10.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(MintSoftGradient)
                             .testTag("kuliner_gps_prompt_banner"),
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.MyLocation,
@@ -476,7 +476,7 @@ private fun CulinaryCompactCard(
     val isOpen = isCulinaryOpenNow(spot.openHour, spot.closeHour)
 
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(16.dp),
         color = Color.White,
         border = BorderStroke(
             width = if (isNearestTopSpot) 1.5.dp else 1.dp,
@@ -485,16 +485,16 @@ private fun CulinaryCompactCard(
         shadowElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .clip(RoundedCornerShape(22.dp))
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag("kuliner_card_${spot.id}"),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(11.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CulinaryPhotoCarousel(
@@ -506,14 +506,14 @@ private fun CulinaryCompactCard(
                 sensitiveReportCount = spot.contentReportCount,
                 onPhotoClick = onPhotoClick,
                 modifier = Modifier
-                    .size(104.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(86.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .testTag("kuliner_card_carousel_${spot.id}"),
             )
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -588,7 +588,8 @@ private fun CulinaryCompactCard(
 
                 Text(
                     text = spot.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -598,7 +599,7 @@ private fun CulinaryCompactCard(
                     text = spot.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
 

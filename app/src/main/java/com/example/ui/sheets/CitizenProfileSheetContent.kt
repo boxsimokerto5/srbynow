@@ -302,8 +302,8 @@ fun CitizenProfileSheetContent(
             .navigationBarsPadding()
             .imePadding()
             .testTag("citizen_profile_sheet"),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         // 1. Google Maps style header handle
         item {
@@ -352,12 +352,12 @@ fun CitizenProfileSheetContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(top = 2.dp, bottom = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     FilterChip(
                         selected = selectedCategoryIndex == 0,
@@ -521,7 +521,7 @@ fun InstagramProfileHeaderCard(
     onAvatarClick: (() -> Unit)? = null,
 ) {
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(18.dp),
         color = Color.White,
         border = BorderStroke(1.dp, OutlineVariantLight),
         shadowElevation = 2.dp,
@@ -530,19 +530,19 @@ fun InstagramProfileHeaderCard(
             .testTag("instagram_profile_header"),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             // Row 1: Avatar with Instagram gradient ring + Stats
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // Avatar with modern Toska-Green Instagram-like ring (tap to open 2-finger zoom viewer)
                 Box(
                     modifier = Modifier
-                        .size(78.dp)
+                        .size(70.dp)
                         .then(
                             if (onAvatarClick != null) {
                                 Modifier
@@ -557,7 +557,7 @@ fun InstagramProfileHeaderCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(76.dp)
+                            .size(68.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.sweepGradient(
@@ -570,7 +570,7 @@ fun InstagramProfileHeaderCard(
                                 ),
                                 CircleShape
                             )
-                            .padding(3.dp),
+                            .padding(2.5.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Box(
@@ -584,7 +584,7 @@ fun InstagramProfileHeaderCard(
                             InitialsAvatar(
                                 name = name,
                                 colorHex = avatarColorHex,
-                                sizeDp = 66,
+                                sizeDp = 59,
                                 avatarUrl = avatarUrl,
                             )
                         }
