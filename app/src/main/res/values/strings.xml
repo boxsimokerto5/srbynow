@@ -132,10 +132,10 @@
     <string name="nav_momen">Momen</string>
     <string name="nav_destinasi">Destinasi</string>
     <string name="home_greeting_cak">Halo, Cak &amp; Ning</string>
-    <string name="home_shortcuts_title">Menu &amp; Layanan Cepat</string>
+    <string name="home_shortcuts_title">Pilihan buat kamu</string>
     <string name="home_highlights_title">Kabar Terhangat Hari Ini</string>
     <string name="home_destinations_title">Destinasi Ikonik Surabaya</string>
-    <string name="home_culinary_title">Kuliner Terdekat di Sekitarmu</string>
+    <string name="home_culinary_title">Resto yummy di dekatmu</string>
     <string name="home_culinary_subtitle_gps">Diurutkan otomatis dari lokasi GPS terdekat Anda</string>
     <string name="kuliner_gps_active_pill">GPS Aktif</string>
     <string name="kuliner_gps_enable_pill">Aktifkan GPS</string>

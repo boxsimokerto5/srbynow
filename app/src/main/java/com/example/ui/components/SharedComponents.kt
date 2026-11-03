@@ -88,6 +88,8 @@ import com.example.R
 import com.example.data.util.SurabayaDistricts
 import com.example.data.util.resolveImageDrawable
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AlertCrimson
@@ -97,6 +99,13 @@ import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
+import com.example.ui.theme.SuperAppBorder
+import com.example.ui.theme.SuperAppGold
+import com.example.ui.theme.SuperAppGoldBg
+import com.example.ui.theme.SuperAppGoldBorder
+import com.example.ui.theme.SuperAppGoldText
+import com.example.ui.theme.SuperAppMutedText
+import com.example.ui.theme.SuperAppSearchBg
 import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
@@ -153,21 +162,23 @@ fun SurabayaCompactTopBar(
     onOpenNotifications: () -> Unit = {},
     onOpenAdminDashboard: () -> Unit = {},
     onOpenProfile: () -> Unit,
+    onOpenSearch: (() -> Unit)? = null,
 ) {
     Surface(
         color = Color.White,
-        shadowElevation = 2.dp,
+        shadowElevation = 1.dp,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(HeaderMintGradient),
+                .background(Color.White)
+                .statusBarsPadding(),
         ) {
+            // Row 1: Mascot + Name + Location and Right-side Quick Actions
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -181,18 +192,18 @@ fun SurabayaCompactTopBar(
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(34.dp)
                             .clip(RoundedCornerShape(10.dp)),
                     )
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
                         ) {
                             Text(
                                 text = stringResource(R.string.app_name),
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -206,13 +217,14 @@ fun SurabayaCompactTopBar(
                                 imageVector = Icons.Filled.LocationOn,
                                 contentDescription = null,
                                 tint = ToskaPrimaryDeep,
-                                modifier = Modifier.size(13.dp),
+                                modifier = Modifier.size(12.dp),
                             )
                             Text(
                                 text = "$district, Surabaya",
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -220,13 +232,43 @@ fun SurabayaCompactTopBar(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    // Gojek-style Yellow Star Pill ("⭐ Suroboyo" / "⭐ Admin")
+                    Surface(
+                        shape = CircleShape,
+                        color = SuperAppGoldBg,
+                        border = BorderStroke(1.dp, SuperAppGoldBorder),
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable(onClick = onOpenProfile)
+                            .testTag("top_star_badge"),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = SuperAppGold,
+                                modifier = Modifier.size(13.dp),
+                            )
+                            Text(
+                                text = if (isAdmin) "Admin" else "Suroboyo",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = SuperAppGoldText,
+                            )
+                        }
+                    }
+
                     // Notification Bell button with Unread Badge
                     IconButton(
                         onClick = onOpenNotifications,
                         modifier = Modifier
-                            .minimumInteractiveComponentSize()
+                            .size(36.dp)
                             .testTag("top_notifications_button"),
                     ) {
                         Box {
@@ -234,19 +276,20 @@ fun SurabayaCompactTopBar(
                                 imageVector = if (notificationCount > 0) Icons.Filled.Notifications else Icons.Outlined.Notifications,
                                 contentDescription = stringResource(R.string.btn_notifications),
                                 tint = if (notificationCount > 0) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(21.dp),
                             )
                             if (notificationCount > 0) {
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .size(15.dp)
+                                        .size(14.dp)
                                         .clip(CircleShape)
                                         .background(AlertCrimson),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
                                         text = notificationCount.coerceAtMost(99).toString(),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White,
                                     )
@@ -255,45 +298,12 @@ fun SurabayaCompactTopBar(
                         }
                     }
 
-                    // Bookmarks quick button
-                    IconButton(
-                        onClick = onOpenBookmarks,
-                        modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .testTag("top_bookmarks_button"),
-                    ) {
-                        Box {
-                            Icon(
-                                imageVector = if (bookmarkCount > 0) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = stringResource(R.string.btn_bookmarks),
-                                tint = ToskaPrimaryDeep,
-                            )
-                            if (bookmarkCount > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(15.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.tertiary),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = bookmarkCount.coerceAtMost(9).toString(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White,
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Profile & Admin Avatar Pill with Light-Green Gradient
+                    // Profile Avatar Circle
                     Box(
                         modifier = Modifier
-                            .minimumInteractiveComponentSize()
+                            .size(34.dp)
                             .clip(CircleShape)
                             .clickable(onClick = onOpenProfile)
-                            .padding(2.dp)
                             .testTag("top_profile_button"),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -306,7 +316,7 @@ fun SurabayaCompactTopBar(
                         ) {
                             Text(
                                 text = userInitials,
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -327,7 +337,72 @@ fun SurabayaCompactTopBar(
                     }
                 }
             }
-            HorizontalDivider(thickness = 0.8.dp, color = OutlineVariantLight.copy(alpha = 0.7f))
+
+            // Row 2: Gojek-style Search Capsule Pill
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 3.dp),
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = SuperAppSearchBg,
+                    border = BorderStroke(1.dp, SuperAppBorder),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .clip(CircleShape)
+                        .clickable(enabled = onOpenSearch != null) { onOpenSearch?.invoke() }
+                        .testTag("home_search_capsule_bar"),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "Cari",
+                                tint = SuperAppMutedText,
+                                modifier = Modifier.size(19.dp),
+                            )
+                            Text(
+                                text = "Cari kuliner, info warga, rute bus...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = SuperAppMutedText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            border = BorderStroke(0.5.dp, SuperAppBorder),
+                            modifier = Modifier.size(26.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = "Filter",
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            HorizontalDivider(thickness = 0.8.dp, color = SuperAppBorder)
         }
     }
 }

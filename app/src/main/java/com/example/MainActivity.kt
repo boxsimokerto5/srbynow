@@ -574,6 +574,7 @@ fun SurabayaMainHub(
                     onOpenNotifications = { viewModel.openSheet(ActiveBottomSheet.Notifications) },
                     onOpenAdminDashboard = { viewModel.openAdminDashboard() },
                     onOpenProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
+                    onOpenSearch = { viewModel.selectTab(MainTab.KULINER) },
                 )
             },
             bottomBar = {
@@ -592,39 +593,44 @@ fun SurabayaMainHub(
                             )
                         }
 
-                        NavigationBar(
-                            windowInsets = WindowInsets.navigationBars,
-                            containerColor = androidx.compose.ui.graphics.Color.White,
-                            tonalElevation = 0.dp,
+                        Surface(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            border = BorderStroke(0.6.dp, com.example.ui.theme.SuperAppBorder),
                         ) {
-                            destinations.forEach { dest ->
-                                val selected = selectedTab == dest.tab
-                                NavigationBarItem(
-                                    selected = selected,
-                                    onClick = { viewModel.selectTab(dest.tab) },
-                                    icon = {
-                                        Icon(
-                                            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                            contentDescription = stringResource(dest.labelRes),
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = stringResource(dest.labelRes),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                            maxLines = 1,
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                        selectedIconColor = com.example.ui.theme.ToskaPrimaryDeep,
-                                        selectedTextColor = com.example.ui.theme.ToskaPrimaryDeep,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    ),
-                                    modifier = Modifier.testTag(dest.testTag),
-                                )
+                            NavigationBar(
+                                windowInsets = WindowInsets.navigationBars,
+                                containerColor = androidx.compose.ui.graphics.Color.White,
+                                tonalElevation = 0.dp,
+                            ) {
+                                destinations.forEach { dest ->
+                                    val selected = selectedTab == dest.tab
+                                    NavigationBarItem(
+                                        selected = selected,
+                                        onClick = { viewModel.selectTab(dest.tab) },
+                                        icon = {
+                                            Icon(
+                                                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                                                contentDescription = stringResource(dest.labelRes),
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = stringResource(dest.labelRes),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                                maxLines = 1,
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            indicatorColor = com.example.ui.theme.SuperAppGreenContainer,
+                                            selectedIconColor = com.example.ui.theme.SuperAppGreenDeep,
+                                            selectedTextColor = com.example.ui.theme.SuperAppGreenDeep,
+                                            unselectedIconColor = com.example.ui.theme.SuperAppMutedText,
+                                            unselectedTextColor = com.example.ui.theme.SuperAppMutedText,
+                                        ),
+                                        modifier = Modifier.testTag(dest.testTag),
+                                    )
+                                }
                             }
                         }
                     }

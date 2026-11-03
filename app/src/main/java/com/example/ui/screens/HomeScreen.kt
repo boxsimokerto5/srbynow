@@ -130,6 +130,18 @@ import com.example.ui.theme.OpenGreenBg
 import com.example.ui.theme.OpenGreenText
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.SoftEmergencyLightGradient
+import com.example.ui.theme.SuperAppBorder
+import com.example.ui.theme.SuperAppCoral
+import com.example.ui.theme.SuperAppCoralBg
+import com.example.ui.theme.SuperAppCoralBorder
+import com.example.ui.theme.SuperAppGold
+import com.example.ui.theme.SuperAppGoldBg
+import com.example.ui.theme.SuperAppGoldBorder
+import com.example.ui.theme.SuperAppGoldText
+import com.example.ui.theme.SuperAppGreen
+import com.example.ui.theme.SuperAppGreenContainer
+import com.example.ui.theme.SuperAppGreenDeep
+import com.example.ui.theme.SuperAppMutedText
 import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
@@ -508,106 +520,185 @@ fun HomeScreen(
             )
         }
 
-        // 3a. Kuliner Terdekat di Sekitarmu (Prioritized right at the top per GPS distance!)
-        item(key = "home_culinary_header") {
-            Spacer(modifier = Modifier.height(4.dp))
-            HomeSectionHeader(
-                title = stringResource(R.string.home_culinary_title),
-                subtitle = stringResource(R.string.home_culinary_subtitle_gps),
-                onSeeAllClick = { onNavigateTab(MainTab.KULINER) },
-            )
-            Row(
+        // 3a. Resto yummy di dekatmu (Gojek-Style Pastel Card Container)
+        item(key = "home_culinary_gojek_container") {
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = SuperAppCoralBg,
+                border = BorderStroke(1.dp, SuperAppCoralBorder),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(horizontal = 10.dp)
+                    .testTag("home_culinary_container"),
             ) {
-                Surface(
-                    onClick = requestOrRefreshGps,
-                    shape = CircleShape,
-                    color = if (isLiveGpsActive) OpenGreenBg else ToskaPrimary.copy(alpha = 0.12f),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isLiveGpsActive) OpenGreenText.copy(alpha = 0.35f) else ToskaPrimary.copy(alpha = 0.3f),
-                    ),
-                    modifier = Modifier.testTag("home_culinary_gps_chip"),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
                 ) {
+                    // Header inside card
                     Row(
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.NearMe,
-                            contentDescription = null,
-                            tint = if (isLiveGpsActive) OpenGreenText else ToskaPrimaryDeep,
-                            modifier = Modifier.size(12.dp),
-                        )
-                        Text(
-                            text = if (isLiveGpsActive) {
-                                "GPS Aktif • Urut dari posisi Anda"
-                            } else {
-                                "Aktifkan GPS untuk akurasi terdekat"
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isLiveGpsActive) OpenGreenText else ToskaPrimaryDeep,
-                        )
-                    }
-                }
-            }
-        }
-
-        item(key = "home_culinary_carousel") {
-            when (culinaryState) {
-                is UiState.Loading -> {
-                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp),
-                        contentAlignment = Alignment.Center,
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        CircularProgressIndicator(color = ToskaPrimaryDeep, modifier = Modifier.size(28.dp))
-                    }
-                }
-                is UiState.Error -> {
-                    Text(
-                        text = "Gagal memuat kuliner",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-                is UiState.Success -> {
-                    val list = remember(culinaryState.data, userLat, userLng) {
-                        culinaryState.data.sortedWith(
-                            compareBy<CulinarySpot> { calculateDistanceKm(userLat, userLng, it.lat, it.lng) }
-                                .thenByDescending { it.ratingAvg }
-                        )
-                    }
-                    if (list.isEmpty()) {
-                        Text(
-                            text = "Belum ada kuliner terdaftar",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    } else {
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("home_culinary_lazy_row"),
-                            contentPadding = PaddingValues(horizontal = 10.dp),
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f),
                         ) {
-                            itemsIndexed(list, key = { _, spot -> spot.id }) { index, spot ->
-                                val distanceKm = calculateDistanceKm(userLat, userLng, spot.lat, spot.lng)
-                                HomeCulinaryCard(
-                                    spot = spot,
-                                    distanceKm = distanceKm,
-                                    isNearestTopSpot = index == 0,
-                                    onClick = { onOpenCulinaryDetail(spot.id) },
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .border(BorderStroke(1.dp, SuperAppCoralBorder), CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Restaurant,
+                                    contentDescription = null,
+                                    tint = SuperAppCoral,
+                                    modifier = Modifier.size(17.dp),
                                 )
+                            }
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.home_culinary_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1F2937),
+                                )
+                                Text(
+                                    text = "Rekomendasi enak terdekat dari lokasimu",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                                    color = SuperAppMutedText,
+                                )
+                            }
+                        }
+
+                        // Circular Arrow Button like Gojek
+                        Surface(
+                            onClick = { onNavigateTab(MainTab.KULINER) },
+                            shape = CircleShape,
+                            color = Color.White,
+                            border = BorderStroke(1.dp, SuperAppCoralBorder),
+                            shadowElevation = 0.5.dp,
+                            modifier = Modifier
+                                .size(34.dp)
+                                .testTag("home_culinary_see_all_arrow"),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = "Lihat Semua Kuliner",
+                                    tint = Color(0xFF1F2937),
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // GPS Pill
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            onClick = requestOrRefreshGps,
+                            shape = CircleShape,
+                            color = Color.White,
+                            border = BorderStroke(
+                                1.dp,
+                                if (isLiveGpsActive) SuperAppGreenDeep.copy(alpha = 0.35f) else SuperAppCoralBorder,
+                            ),
+                            modifier = Modifier.testTag("home_culinary_gps_chip"),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = if (isLiveGpsActive) Icons.Filled.GpsFixed else Icons.Filled.NearMe,
+                                    contentDescription = null,
+                                    tint = if (isLiveGpsActive) SuperAppGreenDeep else SuperAppCoral,
+                                    modifier = Modifier.size(12.dp),
+                                )
+                                Text(
+                                    text = if (isLiveGpsActive) {
+                                        "GPS Aktif • Urut dari posisi Anda"
+                                    } else {
+                                        "Aktifkan GPS untuk akurasi terdekat"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isLiveGpsActive) SuperAppGreenDeep else Color(0xFF374151),
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Horizontal Cards
+                    when (culinaryState) {
+                        is UiState.Loading -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(color = SuperAppCoral, modifier = Modifier.size(28.dp))
+                            }
+                        }
+                        is UiState.Error -> {
+                            Text(
+                                text = "Gagal memuat kuliner",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                        }
+                        is UiState.Success -> {
+                            val list = remember(culinaryState.data, userLat, userLng) {
+                                culinaryState.data.sortedWith(
+                                    compareBy<CulinarySpot> { calculateDistanceKm(userLat, userLng, it.lat, it.lng) }
+                                        .thenByDescending { it.ratingAvg }
+                                )
+                            }
+                            if (list.isEmpty()) {
+                                Text(
+                                    text = "Belum ada kuliner terdaftar",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                )
+                            } else {
+                                LazyRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("home_culinary_lazy_row"),
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    itemsIndexed(list, key = { _, spot -> spot.id }) { index, spot ->
+                                        val distanceKm = calculateDistanceKm(userLat, userLng, spot.lat, spot.lng)
+                                        HomeCulinaryCard(
+                                            spot = spot,
+                                            distanceKm = distanceKm,
+                                            isNearestTopSpot = index == 0,
+                                            onClick = { onOpenCulinaryDetail(spot.id) },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

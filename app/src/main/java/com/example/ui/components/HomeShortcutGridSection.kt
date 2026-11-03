@@ -89,6 +89,18 @@ import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.HeaderMintGradient
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OutlineVariantLight
+import com.example.ui.theme.SuperAppBlue
+import com.example.ui.theme.SuperAppBlueBg
+import com.example.ui.theme.SuperAppBorder
+import com.example.ui.theme.SuperAppCoral
+import com.example.ui.theme.SuperAppCoralBg
+import com.example.ui.theme.SuperAppGoldBg
+import com.example.ui.theme.SuperAppGoldText
+import com.example.ui.theme.SuperAppGreenContainer
+import com.example.ui.theme.SuperAppGreenDeep
+import com.example.ui.theme.SuperAppMutedText
+import com.example.ui.theme.SuperAppPurple
+import com.example.ui.theme.SuperAppPurpleBg
 import com.example.ui.theme.ToskaOnPrimaryContainer
 import com.example.ui.theme.ToskaPrimary
 import com.example.ui.theme.ToskaPrimaryDeep
@@ -219,43 +231,63 @@ fun HomeShortcutGridSection(
             .fillMaxWidth()
             .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
-        // Section Header + Optional Admin "Atur Urutan" Control
+        // Section Header + Optional Admin "Atur Urutan" Control (Gojek Style "Pilihan buat kamu")
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f),
+            ) {
                 Text(
                     text = stringResource(R.string.home_shortcuts_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(SuperAppBorder)
+                )
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text(
-                    text = "${orderedShortcuts.size} Layanan",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ToskaPrimaryDeep,
-                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = SuperAppGreenContainer,
+                    border = BorderStroke(1.dp, SuperAppGreenDeep.copy(alpha = 0.25f)),
+                ) {
+                    Text(
+                        text = "${orderedShortcuts.size} Layanan",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = SuperAppGreenDeep,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
 
                 if (isAdmin) {
                     Surface(
                         onClick = { showAdminReorderSheet = true },
-                        shape = CircleShape,
-                        color = ToskaPrimary.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.42f)),
+                        shape = RoundedCornerShape(12.dp),
+                        color = ToskaPrimary.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
                         modifier = Modifier
                             .testTag("home_btn_admin_reorder_shortcuts")
                             .minimumInteractiveComponentSize(),
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
@@ -408,13 +440,23 @@ private fun HomeShortcutButton(
     onAdminLongPress: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val (iconBg, iconTint) = when (item.id) {
+        HomeShortcutIds.KULINER -> SuperAppCoralBg to SuperAppCoral
+        HomeShortcutIds.POLLING -> SuperAppPurpleBg to SuperAppPurple
+        HomeShortcutIds.MOMEN, HomeShortcutIds.LENSA_WARGA -> SuperAppGreenContainer to SuperAppGreenDeep
+        HomeShortcutIds.RADIO_SS -> SuperAppGoldBg to SuperAppGoldText
+        HomeShortcutIds.TAMBAL_BAN, HomeShortcutIds.KEJADIAN -> SuperAppBlueBg to SuperAppBlue
+        HomeShortcutIds.BARKAS, HomeShortcutIds.KOS -> Color(0xFFF0FDF4) to ToskaPrimaryDeep
+        else -> Color(0xFFF3F4F6) to Color(0xFF374151)
+    }
+
     Surface(
-        shape = RoundedCornerShape(13.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, OutlineVariantLight.copy(alpha = 0.6f)),
-        shadowElevation = 1.dp,
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, SuperAppBorder),
+        shadowElevation = 0.5.dp,
         modifier = modifier
-            .clip(RoundedCornerShape(13.dp))
+            .clip(RoundedCornerShape(16.dp))
             .combinedClickable(
                 onClick = item.onClick,
                 onLongClick = onAdminLongPress,
@@ -426,30 +468,30 @@ private fun HomeShortcutButton(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 7.dp, horizontal = 3.dp),
+                    .padding(top = 8.dp, bottom = 8.dp, start = 4.dp, end = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MintSoftGradient),
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(iconBg),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.title,
-                        tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(19.dp),
+                        tint = iconTint,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(5.dp))
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = Color(0xFF1F2937),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -457,7 +499,7 @@ private fun HomeShortcutButton(
                 Text(
                     text = item.subtitle,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = SuperAppMutedText,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -466,8 +508,8 @@ private fun HomeShortcutButton(
 
             if (item.badge != null) {
                 Surface(
-                    shape = RoundedCornerShape(bottomStart = 6.dp, topEnd = 13.dp),
-                    color = AlertCrimson,
+                    shape = RoundedCornerShape(bottomStart = 8.dp, topEnd = 15.dp),
+                    color = SuperAppCoral,
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Text(
@@ -475,7 +517,7 @@ private fun HomeShortcutButton(
                         color = Color.White,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.5.dp),
                     )
                 }
             }
