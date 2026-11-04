@@ -786,6 +786,7 @@ fun SurabayaMainHub(
                                 onOpenRadio = { viewModel.openRadioPlayer(autoPlay = true) },
                                 shortcutOrderIds = homeShortcutOrder,
                                 onSaveShortcutOrder = { viewModel.saveHomeShortcutOrder(it) },
+                                onOpenSearch = { viewModel.selectTab(MainTab.KULINER) },
                             )
                             MainTab.MOMEN -> MomenScreen(
                                 momentsState = momentsState,

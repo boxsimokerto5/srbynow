@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
@@ -190,6 +191,7 @@ fun HomeScreen(
     onOpenRadio: () -> Unit = {},
     shortcutOrderIds: List<String> = HomeShortcutIds.DEFAULT_ORDER,
     onSaveShortcutOrder: (List<String>) -> Unit = {},
+    onOpenSearch: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -413,6 +415,7 @@ fun HomeScreen(
                 district = currentDistrict,
                 isAdmin = isAdmin,
                 onOpenProfile = onOpenProfileAndAdmin,
+                onOpenSearch = onOpenSearch ?: { onNavigateTab(MainTab.KULINER) },
             )
         }
 
@@ -1597,6 +1600,7 @@ private fun HomeHeaderSection(
     district: String,
     isAdmin: Boolean,
     onOpenProfile: () -> Unit,
+    onOpenSearch: () -> Unit,
 ) {
     Surface(
         color = Color.Transparent,
@@ -1653,21 +1657,44 @@ private fun HomeHeaderSection(
                 }
             }
 
-            IconButton(
-                onClick = onOpenProfile,
-                modifier = Modifier
-                    .size(38.dp)
-                    .minimumInteractiveComponentSize()
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.85f))
-                    .testTag("home_btn_profile"),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    imageVector = Icons.Filled.AdminPanelSettings,
-                    contentDescription = "Pengaturan Akun & Admin",
-                    tint = ToskaPrimaryDeep,
-                    modifier = Modifier.size(19.dp),
-                )
+                // Tombol Pencarian (Kaca Pembesar)
+                IconButton(
+                    onClick = onOpenSearch,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .minimumInteractiveComponentSize()
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.85f))
+                        .testTag("home_btn_search"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "Cari di Surabaya",
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                IconButton(
+                    onClick = onOpenProfile,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .minimumInteractiveComponentSize()
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.85f))
+                        .testTag("home_btn_profile"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AdminPanelSettings,
+                        contentDescription = "Pengaturan Akun & Admin",
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(19.dp),
+                    )
+                }
             }
         }
     }

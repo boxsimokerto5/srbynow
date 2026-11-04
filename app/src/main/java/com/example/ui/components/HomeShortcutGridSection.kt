@@ -467,6 +467,8 @@ private data class ShortcutThemeData(
     val displayTitle: String,
     val tagColor: Color,
     val gradient: Brush,
+    val cardBackground: Color,
+    val cardBorder: Color,
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -477,115 +479,149 @@ private fun HomeShortcutButton(
     modifier: Modifier = Modifier,
 ) {
     val theme = when (item.id) {
-        HomeShortcutIds.KULINER -> ShortcutThemeData(
-            tagText = "Sentra",
-            displayTitle = "Kuliner SBY",
-            tagColor = SuperAppCoral,
-            gradient = Brush.verticalGradient(listOf(Color(0xFFFF6B6B), Color(0xFFEE2737))),
-        )
-        HomeShortcutIds.POLLING -> ShortcutThemeData(
-            tagText = "Suara",
-            displayTitle = "Polling SBY",
-            tagColor = SuperAppPurple,
-            gradient = Brush.verticalGradient(listOf(Color(0xFF9333EA), Color(0xFF6B21A8))),
-        )
-        HomeShortcutIds.MOMEN -> ShortcutThemeData(
-            tagText = "Cerita",
-            displayTitle = "Momen Arek",
-            tagColor = SuperAppGreenDeep,
-            gradient = Brush.verticalGradient(listOf(Color(0xFF10B981), Color(0xFF047857))),
-        )
-        HomeShortcutIds.LENSA_WARGA -> ShortcutThemeData(
-            tagText = "Visual",
-            displayTitle = "Lensa SBY",
-            tagColor = Color(0xFF0E7490),
-            gradient = Brush.verticalGradient(listOf(Color(0xFF06B6D4), Color(0xFF0E7490))),
-        )
-        HomeShortcutIds.RADIO_SS -> ShortcutThemeData(
-            tagText = "Live",
-            displayTitle = "Radio SS",
-            tagColor = SuperAppGoldText,
-            gradient = Brush.verticalGradient(listOf(Color(0xFFFBBF24), Color(0xFFD97706))),
-        )
-        HomeShortcutIds.KEJADIAN -> ShortcutThemeData(
-            tagText = "Siaga",
-            displayTitle = "Lapor 112",
-            tagColor = AlertCrimson,
-            gradient = Brush.verticalGradient(listOf(Color(0xFFEF4444), Color(0xFFB91C1C))),
-        )
-        HomeShortcutIds.DESTINASI -> ShortcutThemeData(
-            tagText = "Ikonik",
-            displayTitle = "Destinasi",
-            tagColor = SuperAppBlue,
-            gradient = Brush.verticalGradient(listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8))),
-        )
         HomeShortcutIds.EVENT -> ShortcutThemeData(
             tagText = "Agenda",
             displayTitle = "Event Kota",
             tagColor = Color(0xFFBE185D),
             gradient = Brush.verticalGradient(listOf(Color(0xFFEC4899), Color(0xFFBE185D))),
+            cardBackground = Color(0xFFFFF1F2), // Soft Rose Pastel
+            cardBorder = Color(0xFFFECDD3),
         )
         HomeShortcutIds.SEKITAR -> ShortcutThemeData(
             tagText = "Arek",
             displayTitle = "Sekitar",
             tagColor = SuperAppGreenDeep,
             gradient = Brush.verticalGradient(listOf(Color(0xFF10B981), Color(0xFF059669))),
+            cardBackground = Color(0xFFECFDF5), // Soft Mint Pastel
+            cardBorder = Color(0xFFA7F3D0),
         )
-        HomeShortcutIds.CHAT -> ShortcutThemeData(
-            tagText = "Kongkow",
-            displayTitle = "Ruang Chat",
+        HomeShortcutIds.KULINER -> ShortcutThemeData(
+            tagText = "Sentra",
+            displayTitle = "Kuliner SBY",
+            tagColor = SuperAppCoral,
+            gradient = Brush.verticalGradient(listOf(Color(0xFFFF6B6B), Color(0xFFEE2737))),
+            cardBackground = Color(0xFFFFF7ED), // Soft Peach/Orange Pastel
+            cardBorder = Color(0xFFFFEDD5),
+        )
+        HomeShortcutIds.POLLING -> ShortcutThemeData(
+            tagText = "Suara",
+            displayTitle = "Polling SBY",
+            tagColor = SuperAppPurple,
+            gradient = Brush.verticalGradient(listOf(Color(0xFF9333EA), Color(0xFF6B21A8))),
+            cardBackground = Color(0xFFFAF5FF), // Soft Lilac/Purple Pastel
+            cardBorder = Color(0xFFE9D5FF),
+        )
+        HomeShortcutIds.MOMEN -> ShortcutThemeData(
+            tagText = "Cerita",
+            displayTitle = "Momen Arek",
+            tagColor = SuperAppGreenDeep,
+            gradient = Brush.verticalGradient(listOf(Color(0xFF10B981), Color(0xFF047857))),
+            cardBackground = Color(0xFFF0FDF4), // Soft Sage Pastel
+            cardBorder = Color(0xFFBBF7D0),
+        )
+        HomeShortcutIds.KEJADIAN -> ShortcutThemeData(
+            tagText = "Siaga",
+            displayTitle = "Lapor 112",
+            tagColor = AlertCrimson,
+            gradient = Brush.verticalGradient(listOf(Color(0xFFEF4444), Color(0xFFB91C1C))),
+            cardBackground = Color(0xFFFEF2F2), // Soft Coral/Red Pastel
+            cardBorder = Color(0xFFFECACA),
+        )
+        HomeShortcutIds.RADIO_SS -> ShortcutThemeData(
+            tagText = "Live",
+            displayTitle = "Radio SS",
+            tagColor = SuperAppGoldText,
+            gradient = Brush.verticalGradient(listOf(Color(0xFFFBBF24), Color(0xFFD97706))),
+            cardBackground = Color(0xFFFFFBEB), // Soft Warm Sun Pastel
+            cardBorder = Color(0xFFFDE68A),
+        )
+        HomeShortcutIds.DESTINASI -> ShortcutThemeData(
+            tagText = "Ikonik",
+            displayTitle = "Destinasi",
             tagColor = SuperAppBlue,
-            gradient = Brush.verticalGradient(listOf(Color(0xFF0284C7), Color(0xFF0369A1))),
+            gradient = Brush.verticalGradient(listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8))),
+            cardBackground = Color(0xFFEFF6FF), // Soft Sky Blue Pastel
+            cardBorder = Color(0xFFBFDBFE),
         )
-        HomeShortcutIds.JASA -> ShortcutThemeData(
-            tagText = "Layanan",
-            displayTitle = "Jasa Warga",
-            tagColor = Color(0xFF1E40AF),
-            gradient = Brush.verticalGradient(listOf(Color(0xFF2563EB), Color(0xFF1E40AF))),
+        HomeShortcutIds.LENSA_WARGA -> ShortcutThemeData(
+            tagText = "Visual",
+            displayTitle = "Lensa SBY",
+            tagColor = Color(0xFF0E7490),
+            gradient = Brush.verticalGradient(listOf(Color(0xFF06B6D4), Color(0xFF0E7490))),
+            cardBackground = Color(0xFFECFEFF), // Soft Cyan/Aqua Pastel
+            cardBorder = Color(0xFFA5F3FC),
         )
         HomeShortcutIds.BARKAS -> ShortcutThemeData(
             tagText = "Jual Beli",
             displayTitle = "Barkas SBY",
             tagColor = Color(0xFF15803D),
             gradient = Brush.verticalGradient(listOf(Color(0xFF16A34A), Color(0xFF15803D))),
+            cardBackground = Color(0xFFF7FEE7), // Soft Lime/Fresh Herb Pastel
+            cardBorder = Color(0xFFD9F99D),
         )
         HomeShortcutIds.KOS -> ShortcutThemeData(
             tagText = "Hunian",
             displayTitle = "Info Kos",
             tagColor = Color(0xFF115E59),
             gradient = Brush.verticalGradient(listOf(Color(0xFF0D9488), Color(0xFF115E59))),
+            cardBackground = Color(0xFFF0FDFA), // Soft Teal Pastel
+            cardBorder = Color(0xFF99F6E4),
         )
         HomeShortcutIds.TAMBAL_BAN -> ShortcutThemeData(
             tagText = "Darurat",
             displayTitle = "Tambal Ban",
             tagColor = Color(0xFFB45309),
             gradient = Brush.verticalGradient(listOf(Color(0xFFF59E0B), Color(0xFFB45309))),
+            cardBackground = Color(0xFFFEFCE8), // Soft Canary Yellow Pastel
+            cardBorder = Color(0xFFFEF08A),
         )
         HomeShortcutIds.TRANSIT -> ShortcutThemeData(
             tagText = "Rute Bus",
             displayTitle = "WiraWiri",
             tagColor = Color(0xFF9F1239),
             gradient = Brush.verticalGradient(listOf(Color(0xFFE11D48), Color(0xFF9F1239))),
+            cardBackground = Color(0xFFFFF1F2), // Soft Crimson Pastel
+            cardBorder = Color(0xFFFFE4E6),
+        )
+        HomeShortcutIds.CHAT -> ShortcutThemeData(
+            tagText = "Kongkow",
+            displayTitle = "Ruang Chat",
+            tagColor = SuperAppBlue,
+            gradient = Brush.verticalGradient(listOf(Color(0xFF0284C7), Color(0xFF0369A1))),
+            cardBackground = Color(0xFFF0F9FF), // Soft Ocean/Periwinkle Pastel
+            cardBorder = Color(0xFFBAE6FD),
+        )
+        HomeShortcutIds.JASA -> ShortcutThemeData(
+            tagText = "Layanan",
+            displayTitle = "Jasa Warga",
+            tagColor = Color(0xFF1E40AF),
+            gradient = Brush.verticalGradient(listOf(Color(0xFF2563EB), Color(0xFF1E40AF))),
+            cardBackground = Color(0xFFEEF2FF), // Soft Indigo/Blue Pastel
+            cardBorder = Color(0xFFC7D2FE),
         )
         HomeShortcutIds.BOOKMARKS -> ShortcutThemeData(
             tagText = "Favorit",
             displayTitle = "Tersimpan",
             tagColor = Color(0xFFA16207),
             gradient = Brush.verticalGradient(listOf(Color(0xFFEAB308), Color(0xFFA16207))),
+            cardBackground = Color(0xFFFFFBEB), // Soft Amber Gold Pastel
+            cardBorder = Color(0xFFFDE68A),
         )
         else -> ShortcutThemeData(
             tagText = "Layanan",
             displayTitle = item.title,
             tagColor = Color(0xFF374151),
             gradient = Brush.verticalGradient(listOf(Color(0xFF6B7280), Color(0xFF374151))),
+            cardBackground = Color(0xFFF9FAFB),
+            cardBorder = Color(0xFFE5E7EB),
         )
     }
 
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-        shadowElevation = 0.8.dp,
+        color = theme.cardBackground,
+        border = BorderStroke(1.dp, theme.cardBorder),
+        shadowElevation = 0.5.dp,
         modifier = modifier
             .height(112.dp)
             .clip(RoundedCornerShape(18.dp))
