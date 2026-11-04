@@ -17,10 +17,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +39,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -76,6 +79,7 @@ import com.example.R
 import com.example.data.model.BarkasComment
 import com.example.data.model.BarkasItem
 import com.example.data.util.formatRelativeTimestamp
+import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
 import com.example.ui.components.InitialsAvatar
 import com.example.ui.screens.barkasCategoryIcon
 import com.example.ui.theme.AlertContainerLight
@@ -137,6 +141,7 @@ fun BarkasDetailSheetContent(
     val isOwner = item.isOwnedBy(currentUserId)
     val canManageStatus = isOwner || isAdmin
     var commentDraft by remember { mutableStateOf("") }
+    var fullscreenPhotoInitialIndex by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = modifier
@@ -249,22 +254,54 @@ fun BarkasDetailSheetContent(
                 contentPadding = PaddingValues(vertical = 2.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                items(item.allPhotos) { url ->
+                itemsIndexed(item.allPhotos) { index, url ->
                     Card(
                         shape = RoundedCornerShape(18.dp),
                         modifier = Modifier
                             .width(if (item.allPhotos.size == 1) 320.dp else 250.dp)
-                            .height(200.dp),
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable { fullscreenPhotoInitialIndex = index }
+                            .testTag("barkas_photo_$index"),
                     ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(url)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = item.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(url)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "${item.title} Foto ${index + 1}",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            // Zoom hint pill on the bottom-end corner
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.Black.copy(alpha = 0.6f),
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(8.dp),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ZoomIn,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                    Text(
+                                        text = "Zoom 2 jari",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -325,25 +362,59 @@ fun BarkasDetailSheetContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    InitialsAvatar(
-                        name = item.sellerName.ifBlank { "Warga Surabaya" },
-                        colorHex = "#10B981",
-                        sizeDp = 38,
-                    )
-                    Column {
-                        Text(
-                            text = item.sellerName.ifBlank { "Warga Surabaya" },
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f, fill = false),
+                    ) {
+                        InitialsAvatar(
+                            name = item.sellerName.ifBlank { "Warga Surabaya" },
+                            colorHex = "#10B981",
+                            sizeDp = 38,
                         )
-                        Text(
-                            text = "Penjual Warga • Dipasang ${formatRelativeTimestamp(item.createdAt)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Column {
+                            Text(
+                                text = item.sellerName.ifBlank { "Warga Surabaya" },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = "Penjual Warga • Dipasang ${formatRelativeTimestamp(item.createdAt)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    if (!isOwner && !item.isSold) {
+                        FilledTonalButton(
+                            onClick = onChatSeller,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = ToskaPrimaryDeep.copy(alpha = 0.12f),
+                                contentColor = ToskaPrimaryDeep,
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("barkas_seller_card_chat_btn"),
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.Chat,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Chat",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
                 HorizontalDivider(color = OutlineVariantLight.copy(alpha = 0.6f))
@@ -509,6 +580,35 @@ fun BarkasDetailSheetContent(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("WhatsApp COD", fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+        } else if (isOwner && !item.isSold) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = ToskaPrimaryDeep.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, ToskaPrimaryDeep.copy(alpha = 0.25f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("barkas_owner_chat_info_banner"),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Chat,
+                        contentDescription = null,
+                        tint = ToskaPrimaryDeep,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Text(
+                        text = "Lapak Anda aktif. Tombol \"💬 Chat Penjual\" dan WhatsApp COD otomatis tampil bagi seluruh calon pembeli yang membuka halaman ini.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ToskaPrimaryDeep,
+                        fontWeight = FontWeight.Medium,
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
@@ -728,5 +828,15 @@ fun BarkasDetailSheetContent(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    fullscreenPhotoInitialIndex?.let { initialIndex ->
+        FullscreenZoomablePhotoViewerDialog(
+            photoUrls = item.allPhotos,
+            fallbackImageKey = item.title,
+            title = item.title,
+            initialPage = initialIndex,
+            onDismiss = { fullscreenPhotoInitialIndex = null },
+        )
     }
 }
