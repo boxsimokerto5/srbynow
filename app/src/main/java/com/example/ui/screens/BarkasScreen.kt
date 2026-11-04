@@ -42,8 +42,6 @@ import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.Weekend
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import com.example.ui.components.CategoryCardItem
-import com.example.ui.components.CategoryCardRow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -261,66 +259,6 @@ fun BarkasScreen(
                 }
             }
 
-            val barkasCardCategories = remember(allItems) {
-                listOf(
-                    CategoryCardItem(
-                        key = "ALL",
-                        title = "Semua Lapak",
-                        subtitle = "Katalog Barkas",
-                        icon = Icons.Filled.Storefront,
-                        count = allItems.size,
-                    ),
-                    CategoryCardItem(
-                        key = "ELEKTRONIK",
-                        title = "Elektronik",
-                        subtitle = "HP & Gadget",
-                        icon = Icons.Filled.Devices,
-                        count = allItems.count { it.category.equals("ELEKTRONIK", ignoreCase = true) },
-                        accentColor = Color(0xFF1976D2),
-                    ),
-                    CategoryCardItem(
-                        key = "KENDARAAN",
-                        title = "Kendaraan",
-                        subtitle = "Sepeda & Motor",
-                        icon = Icons.Filled.TwoWheeler,
-                        count = allItems.count { it.category.equals("KENDARAAN", ignoreCase = true) },
-                        accentColor = Color(0xFFEF6C00),
-                    ),
-                    CategoryCardItem(
-                        key = "PERABOT",
-                        title = "Perabot Kos",
-                        subtitle = "Meja & Lemari",
-                        icon = Icons.Filled.Weekend,
-                        count = allItems.count { it.category.equals("PERABOT", ignoreCase = true) },
-                        accentColor = Color(0xFF6D4C41),
-                    ),
-                    CategoryCardItem(
-                        key = "PAKAIAN_HOBI",
-                        title = "Fashion & Hobi",
-                        subtitle = "Pakaian & Musik",
-                        icon = Icons.Filled.Checkroom,
-                        count = allItems.count { it.category.equals("PAKAIAN_HOBI", ignoreCase = true) },
-                        accentColor = Color(0xFF8E24AA),
-                    ),
-                    CategoryCardItem(
-                        key = "GRATIS",
-                        title = "Hibah Gratis",
-                        subtitle = "Ambil Free COD",
-                        icon = Icons.Filled.VolunteerActivism,
-                        count = allItems.count { it.price <= 0L },
-                        badge = "GRATIS",
-                        accentColor = Color(0xFF2E7D32),
-                    ),
-                    CategoryCardItem(
-                        key = "LAINNYA",
-                        title = "Lainnya",
-                        subtitle = "Serba-serbi",
-                        icon = Icons.Filled.ShoppingBag,
-                        count = allItems.count { it.category.equals("LAINNYA", ignoreCase = true) },
-                        accentColor = ToskaPrimaryDeep,
-                    ),
-                )
-            }
 
             LazyColumn(
                 modifier = Modifier
@@ -426,15 +364,6 @@ fun BarkasScreen(
                     )
 
                 }
-            }
-
-            item(key = "barkas_category_cards") {
-                CategoryCardRow(
-                    items = barkasCardCategories,
-                    selectedKey = selectedCategory,
-                    onSelect = { selectedCategory = it },
-                    tagPrefix = "barkas_category",
-                )
             }
 
             // Horizontal Featured Barkas Carousel (Just like Destinasi Cards)

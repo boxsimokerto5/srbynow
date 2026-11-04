@@ -73,8 +73,8 @@ class HomeShortcutCarouselTest {
 
         assertEquals(HomeShortcutIds.TAMBAL_BAN, pages[0].first().id)
         assertTrue(pages[0].any { it.id == HomeShortcutIds.TAMBAL_BAN })
-        // Resetting back to DEFAULT_ORDER restores Kuliner to #1
+        // Resetting back to DEFAULT_ORDER restores Event to #1
         val resetOrdered = orderHomeShortcuts(shortcuts, HomeShortcutIds.DEFAULT_ORDER)
-        assertEquals(HomeShortcutIds.KULINER, resetOrdered.first().id)
+        assertEquals(HomeShortcutIds.EVENT, resetOrdered.first().id)
     }
 }

@@ -37,8 +37,6 @@ import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.outlined.PhotoLibrary
-import com.example.ui.components.CategoryCardItem
-import com.example.ui.components.CategoryCardRow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -118,65 +116,6 @@ fun MomenScreen(
             )
 
             val allMoments = (momentsState as? UiState.Success)?.data.orEmpty()
-            val momentCardCategories = remember(allMoments) {
-                listOf(
-                    CategoryCardItem(
-                        key = "ALL",
-                        title = "Semua Foto",
-                        subtitle = "Galeri Kota",
-                        icon = Icons.Filled.PhotoLibrary,
-                        count = allMoments.size,
-                    ),
-                    CategoryCardItem(
-                        key = "LENSA_WARGA",
-                        title = "Lensa Kota",
-                        subtitle = "Sudut Estetik",
-                        icon = Icons.Filled.LocationCity,
-                        count = allMoments.count { it.isLensaWarga },
-                        badge = "ESTETIK",
-                        accentColor = ToskaPrimaryDeep,
-                    ),
-                    CategoryCardItem(
-                        key = "MOMEN",
-                        title = "Momen Arek",
-                        subtitle = "Cerita Warga",
-                        icon = Icons.Filled.CameraAlt,
-                        count = allMoments.count { !it.isLensaWarga },
-                        badge = "HARIAN",
-                        accentColor = Color(0xFFE91E63),
-                    ),
-                    CategoryCardItem(
-                        key = "KULINER",
-                        title = "Spot Kuliner",
-                        subtitle = "Cafe & Warung",
-                        icon = Icons.Filled.Restaurant,
-                        count = allMoments.count {
-                            val c = it.caption.lowercase()
-                            c.contains("kuliner") || c.contains("makan") || c.contains("warung") || c.contains("kopi")
-                        },
-                        accentColor = Color(0xFFFF9800),
-                    ),
-                    CategoryCardItem(
-                        key = "KOMUNITAS",
-                        title = "Komunitas",
-                        subtitle = "Aksi & Kumpul",
-                        icon = Icons.Filled.Groups,
-                        count = allMoments.count {
-                            val c = it.caption.lowercase()
-                            c.contains("komunitas") || c.contains("arek") || c.contains("bareng") || c.contains("acara")
-                        },
-                        accentColor = Color(0xFF673AB7),
-                    ),
-                )
-            }
-
-            // Category Card Row
-            CategoryCardRow(
-                items = momentCardCategories,
-                selectedKey = selectedCategory,
-                onSelect = { selectedCategory = it },
-                tagPrefix = "moment",
-            )
 
             if (selectedCategory == "LENSA_WARGA") {
                 Surface(

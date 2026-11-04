@@ -42,8 +42,6 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import com.example.ui.components.CategoryCardItem
-import com.example.ui.components.CategoryCardRow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -280,61 +278,6 @@ fun KosKontrakScreen(
                 }
             }
 
-            val kosCardCategories = remember(allItems) {
-                listOf(
-                    CategoryCardItem(
-                        key = "ALL",
-                        title = "Semua Hunian",
-                        subtitle = "Kos & Rumah",
-                        icon = Icons.Filled.Apartment,
-                        count = allItems.size,
-                    ),
-                    CategoryCardItem(
-                        key = "KOS_PUTRI",
-                        title = "Kos Putri",
-                        subtitle = "Aman & Nyaman",
-                        icon = Icons.Filled.Female,
-                        count = allItems.count { it.propertyType.equals("KOS_PUTRI", ignoreCase = true) },
-                        accentColor = Color(0xFFE91E63),
-                    ),
-                    CategoryCardItem(
-                        key = "KOS_PUTRA",
-                        title = "Kos Putra",
-                        subtitle = "Bebas Jam Malam",
-                        icon = Icons.Filled.Male,
-                        count = allItems.count { it.propertyType.equals("KOS_PUTRA", ignoreCase = true) },
-                        accentColor = Color(0xFF1976D2),
-                    ),
-                    CategoryCardItem(
-                        key = "KOS_CAMPUR",
-                        title = "Campur / Pasutri",
-                        subtitle = "Pasutri & Karyawan",
-                        icon = Icons.Filled.Groups,
-                        count = allItems.count { it.propertyType.equals("KOS_CAMPUR", ignoreCase = true) },
-                        accentColor = Color(0xFF7B1FA2),
-                    ),
-                    CategoryCardItem(
-                        key = "KONTRAKAN",
-                        title = "Kontrakan",
-                        subtitle = "Rumah & Paviliun",
-                        icon = Icons.Filled.HomeWork,
-                        count = allItems.count { it.propertyType.equals("KONTRAKAN", ignoreCase = true) },
-                        accentColor = Color(0xFFE65100),
-                    ),
-                    CategoryCardItem(
-                        key = "DEKAT_KAMPUS",
-                        title = "Dekat Kampus",
-                        subtitle = "ITS • UNAIR • UNESA",
-                        icon = Icons.Filled.School,
-                        count = allItems.count {
-                            val t = "${it.title} ${it.description} ${it.address}".lowercase()
-                            t.contains("its") || t.contains("unair") || t.contains("unesa") || t.contains("kampus") || t.contains("ubaya") || t.contains("upn")
-                        },
-                        badge = "KAMPUS",
-                        accentColor = ToskaPrimaryDeep,
-                    ),
-                )
-            }
 
             LazyColumn(
                 modifier = Modifier
@@ -476,15 +419,6 @@ fun KosKontrakScreen(
                     )
 
                 }
-            }
-
-            item(key = "kos_category_cards") {
-                CategoryCardRow(
-                    items = kosCardCategories,
-                    selectedKey = selectedPropertyType,
-                    onSelect = { selectedPropertyType = it },
-                    tagPrefix = "kos_type_filter",
-                )
             }
 
             // Horizontal Featured Kos Carousel (Like Destinasi Cards)

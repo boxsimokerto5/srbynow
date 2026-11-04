@@ -82,8 +82,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.util.resolveImageDrawable
-import com.example.ui.components.CategoryCardItem
-import com.example.ui.components.CategoryCardRow
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.MintSoftGradient
 import com.example.ui.theme.OutlineVariantLight
@@ -135,58 +133,6 @@ fun KejadianScreen(
     }
 
     val allIncidents = (incidentsState as? UiState.Success)?.data.orEmpty()
-    val incidentCardCategories = remember(allIncidents) {
-        listOf(
-            CategoryCardItem(
-                key = "ALL",
-                title = "Semua Info",
-                subtitle = "Pantau Kota",
-                icon = Icons.Filled.NotificationsActive,
-                count = allIncidents.size,
-            ),
-            CategoryCardItem(
-                key = "DARURAT",
-                title = "Darurat 112",
-                subtitle = "Laka & Damkar",
-                icon = Icons.Filled.Emergency,
-                count = allIncidents.count { it.category == "DARURAT" },
-                badge = if (allIncidents.any { it.category == "DARURAT" }) "MENDESAK" else null,
-                accentColor = AlertCrimson,
-            ),
-            CategoryCardItem(
-                key = "CUACA_BANJIR",
-                title = "Cuaca & Banjir",
-                subtitle = "Genangan Air",
-                icon = Icons.Filled.WaterDamage,
-                count = allIncidents.count { it.category == "CUACA_BANJIR" },
-                accentColor = Color(0xFF0288D1),
-            ),
-            CategoryCardItem(
-                key = "LALU_LINTAS",
-                title = "Lalu Lintas",
-                subtitle = "Macet & Rute",
-                icon = Icons.Filled.Traffic,
-                count = allIncidents.count { it.category == "LALU_LINTAS" },
-                accentColor = Color(0xFFF57C00),
-            ),
-            CategoryCardItem(
-                key = "FASILITAS",
-                title = "Fasilitas Kota",
-                subtitle = "PJU & Jalan",
-                icon = Icons.Filled.Construction,
-                count = allIncidents.count { it.category == "FASILITAS" },
-                accentColor = Color(0xFF5D4037),
-            ),
-            CategoryCardItem(
-                key = "INFO_WARGA",
-                title = "Info Warga",
-                subtitle = "Lingkungan",
-                icon = Icons.Filled.Campaign,
-                count = allIncidents.count { it.category == "INFO_WARGA" },
-                accentColor = ToskaPrimaryDeep,
-            ),
-        )
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -268,16 +214,6 @@ fun KejadianScreen(
                         }
                     }
                 }
-            }
-
-            // 1. Horizontal Category Cards
-            item(key = "incident_category_cards") {
-                CategoryCardRow(
-                    items = incidentCardCategories,
-                    selectedKey = selectedCategory,
-                    onSelect = { selectedCategory = it },
-                    tagPrefix = "incident",
-                )
             }
 
             // 2. Compact 31-Kecamatan Surabaya Dropdown Filter
