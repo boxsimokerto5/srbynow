@@ -2,14 +2,32 @@ package com.example
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import com.example.data.model.HomeBannerConfig
+import com.example.ui.components.GojekStyleTicketBanner
 import com.example.ui.components.HomeShortcutIds
 import com.example.ui.components.HomeShortcutItem
 import com.example.ui.components.orderHomeShortcuts
+import com.example.ui.theme.SurabayaHariIniTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36], qualifiers = "w412dp-h892dp-xxhdpi")
 class HomeShortcutCarouselTest {
+
+    @get:Rule
+    val composeTestRule = createComposeRule()
 
     private fun buildSampleShortcuts(): List<HomeShortcutItem> {
         return HomeShortcutIds.DEFAULT_ORDER.map { id ->
@@ -76,5 +94,80 @@ class HomeShortcutCarouselTest {
         // Resetting back to DEFAULT_ORDER restores Event to #1
         val resetOrdered = orderHomeShortcuts(shortcuts, HomeShortcutIds.DEFAULT_ORDER)
         assertEquals(HomeShortcutIds.EVENT, resetOrdered.first().id)
+    }
+
+    @Test
+    fun `HomeBannerConfig supports custom image URL, presets, and target types`() {
+        val defaultConfig = HomeBannerConfig()
+        assertEquals("DEFAULT_TREASURE", defaultConfig.presetKey)
+        assertFalse(defaultConfig.isCustomOrPreset)
+
+        val promoConfig = HomeBannerConfig(
+            title = "Promo Rawon Kalkulator",
+            subtitle = "Diskon 30%",
+            badgeText = "HOT PROMO",
+            imageUrl = "https://images.unsplash.com/photo-banner.gif",
+            targetType = "KULINER",
+        )
+        assertTrue(promoConfig.isCustomOrPreset)
+        assertEquals("https://images.unsplash.com/photo-banner.gif", promoConfig.imageUrl)
+        assertEquals("KULINER", promoConfig.targetType)
+    }
+
+    @Test
+    fun `GojekStyleTicketBanner renders for citizen and displays admin edit button for admin`() {
+        var clickedBanner = false
+
+        composeTestRule.setContent {
+            SurabayaHariIniTheme {
+                GojekStyleTicketBanner(
+                    bannerConfig = HomeBannerConfig(
+                        title = "Festival Rujak Uleg 2026",
+                        subtitle = "Mulai Jam 18.00 WIB",
+                        badgeText = "FESTIVAL",
+                        presetKey = "CUSTOM",
+                        imageUrl = "https://example.com/banner.gif",
+                    ),
+                    isAdmin = true,
+                    onBannerClick = { clickedBanner = true },
+                )
+            }
+        }
+
+        // Banner and contents are displayed
+        composeTestRule.onNodeWithTag("home_ticket_banner").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Festival Rujak Uleg 2026").assertIsDisplayed()
+        composeTestRule.onNodeWithText("FESTIVAL").assertIsDisplayed()
+
+        // Admin Edit button is displayed
+        composeTestRule.onNodeWithTag("admin_edit_banner_btn").assertIsDisplayed()
+    }
+
+    @Test
+    fun `AdminBannerEditorDialog renders inputs and triggers save`() {
+        var savedBanner: HomeBannerConfig? = null
+
+        composeTestRule.setContent {
+            SurabayaHariIniTheme {
+                com.example.ui.components.AdminBannerEditorDialog(
+                    currentConfig = HomeBannerConfig(
+                        title = "Promo Rawon Kalkulator",
+                        subtitle = "Diskon 30%",
+                        badgeText = "PROMO",
+                        targetType = "KULINER",
+                    ),
+                    onDismiss = {},
+                    onSave = { savedBanner = it },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("admin_banner_editor_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("admin_banner_save_btn").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("admin_banner_save_btn").performClick()
+
+        assertTrue(savedBanner != null)
+        assertEquals("Promo Rawon Kalkulator", savedBanner?.title)
+        assertEquals("KULINER", savedBanner?.targetType)
     }
 }

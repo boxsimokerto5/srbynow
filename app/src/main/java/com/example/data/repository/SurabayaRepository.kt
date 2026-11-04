@@ -9,6 +9,7 @@ import com.example.data.model.BarkasItem
 import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
+import com.example.data.model.HomeBannerConfig
 import com.example.data.model.KosComment
 import com.example.data.model.KosKontrakItem
 import com.example.data.model.CitizenPoll
@@ -122,6 +123,7 @@ class SurabayaRepository(
     private val inMemoryNotifications = ConcurrentHashMap<String, AppNotification>()
     private val localNotificationsTick = MutableStateFlow(0L)
     private val localShortcutOrderFlow = MutableStateFlow<List<String>?>(null)
+    private val localHomeBannerFlow = MutableStateFlow<HomeBannerConfig?>(null)
     private val localPublicRoomsFallback = ConcurrentHashMap<String, ChatRoom>()
     private val localDeletedRoomIds = CopyOnWriteArraySet<String>()
 
@@ -6321,13 +6323,181 @@ class SurabayaRepository(
         }
     }
 
+    // --- HOME BANNER CONFIGURATION (ADMIN PROMO / ANNOUNCEMENT BANNER) ---
+
+    private fun serializeBannerConfig(config: HomeBannerConfig): String {
+        return org.json.JSONObject().apply {
+            put("id", config.id)
+            put("title", config.title)
+            put("subtitle", config.subtitle)
+            put("badgeText", config.badgeText)
+            put("imageUrl", config.imageUrl)
+            put("presetKey", config.presetKey)
+            put("targetType", config.targetType)
+            put("targetPayload", config.targetPayload)
+            put("isEnabled", config.isEnabled)
+            put("updatedAt", config.updatedAt)
+        }.toString()
+    }
+
+    private fun parseBannerConfig(raw: String): HomeBannerConfig {
+        return runCatching {
+            val json = org.json.JSONObject(raw)
+            HomeBannerConfig(
+                id = json.optString("id", "home_banner_main"),
+                title = json.optString("title", "Besok klaim hadiah poin warga yang lebih..."),
+                subtitle = json.optString("subtitle", "Berakhir dalam 6 Hari"),
+                badgeText = json.optString("badgeText", "1/7 Hari"),
+                imageUrl = json.optString("imageUrl", ""),
+                presetKey = json.optString("presetKey", "DEFAULT_TREASURE"),
+                targetType = json.optString("targetType", "NONE"),
+                targetPayload = json.optString("targetPayload", ""),
+                isEnabled = json.optBoolean("isEnabled", true),
+                updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
+            )
+        }.getOrDefault(HomeBannerConfig())
+    }
+
+    fun readCachedHomeBannerConfig(): HomeBannerConfig? {
+        localHomeBannerFlow.value?.let { return it }
+        val prefs = appContext?.getSharedPreferences(HOME_LAYOUT_PREFS_NAME, Context.MODE_PRIVATE) ?: return null
+        val raw = prefs.getString(KEY_HOME_BANNER_CONFIG, null)?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        val parsed = parseBannerConfig(raw)
+        localHomeBannerFlow.value = parsed
+        return parsed
+    }
+
+    private fun writeCachedHomeBannerConfig(config: HomeBannerConfig) {
+        localHomeBannerFlow.value = config
+        val serialized = serializeBannerConfig(config)
+        appContext?.getSharedPreferences(HOME_LAYOUT_PREFS_NAME, Context.MODE_PRIVATE)
+            ?.edit()
+            ?.putString(KEY_HOME_BANNER_CONFIG, serialized)
+            ?.apply()
+    }
+
+    private suspend fun fetchRemoteHomeBannerConfig(): HomeBannerConfig? {
+        // 1. Check dedicated app_settings collection if available
+        runCatching {
+            val appSettingRec = pb.getOneOrNull("app_settings", HOME_BANNER_RECORD_ID)
+            val rawVal = appSettingRec?.optString("config_value").orEmpty().trim()
+            if (rawVal.isNotEmpty()) {
+                val parsed = parseBannerConfig(rawVal)
+                writeCachedHomeBannerConfig(parsed)
+                return parsed
+            }
+        }
+        // 2. Fallback to live Admin-protected system config entry in destinations
+        runCatching {
+            val sysRec = pb.getOneOrNull("destinations", HOME_BANNER_RECORD_ID)
+            if (sysRec != null && sysRec.optString("category") == SYSTEM_CONFIG_CATEGORY) {
+                val rawDesc = sysRec.optString("description").trim()
+                if (rawDesc.isNotEmpty()) {
+                    val parsed = parseBannerConfig(rawDesc)
+                    writeCachedHomeBannerConfig(parsed)
+                    return parsed
+                }
+            }
+        }
+        return null
+    }
+
+    fun observeHomeBannerConfig(): Flow<HomeBannerConfig> {
+        val initialCached = readCachedHomeBannerConfig()
+        return combine(
+            pb.observeCollection("destinations", pollIntervalMs = 15_000L) {
+                fetchRemoteHomeBannerConfig()
+            },
+            localHomeBannerFlow,
+        ) { remoteBanner, localOverride ->
+            localOverride ?: remoteBanner ?: initialCached ?: HomeBannerConfig()
+        }.catch {
+            emit(localHomeBannerFlow.value ?: initialCached ?: HomeBannerConfig())
+        }
+    }
+
+    suspend fun saveHomeBannerConfig(config: HomeBannerConfig) {
+        val uid = requireUserId()
+        val userRec = runCatching { pb.getOneOrNull("users", uid) }.getOrNull()
+        val email = userRec?.optString("email").orEmpty().ifBlank { pb.currentSession?.email.orEmpty() }
+        val isAdmin = isOfficialAdminEmail(email) ||
+            userRec?.optBoolean("is_admin", false) == true ||
+            (pb.currentSession?.isAdmin == true)
+        if (!isAdmin) {
+            throw IllegalStateException("Hanya akun Admin resmi yang dapat mengatur banner beranda.")
+        }
+
+        val updated = config.copy(updatedAt = System.currentTimeMillis())
+        val serialized = serializeBannerConfig(updated)
+        writeCachedHomeBannerConfig(updated)
+
+        // 1. Sync to app_settings if available
+        runCatching {
+            val existing = pb.getOneOrNull("app_settings", HOME_BANNER_RECORD_ID)
+            if (existing != null) {
+                pb.updateRecord(
+                    "app_settings",
+                    HOME_BANNER_RECORD_ID,
+                    org.json.JSONObject().apply {
+                        put("config_key", "home_banner_config")
+                        put("config_value", serialized)
+                        put("updated_by", uid)
+                    },
+                )
+            } else {
+                pb.createRecord(
+                    "app_settings",
+                    org.json.JSONObject().apply {
+                        put("id", HOME_BANNER_RECORD_ID)
+                        put("config_key", "home_banner_config")
+                        put("config_value", serialized)
+                        put("updated_by", uid)
+                    },
+                )
+            }
+        }
+
+        // 2. Sync to destinations fallback
+        runCatching {
+            val existingSys = pb.getOneOrNull("destinations", HOME_BANNER_RECORD_ID)
+            if (existingSys != null) {
+                pb.updateRecord(
+                    "destinations",
+                    HOME_BANNER_RECORD_ID,
+                    org.json.JSONObject().apply {
+                        put("title", HOME_BANNER_CONFIG_TITLE)
+                        put("category", SYSTEM_CONFIG_CATEGORY)
+                        put("description", serialized)
+                    },
+                )
+            } else {
+                pb.createRecord(
+                    "destinations",
+                    org.json.JSONObject().apply {
+                        put("id", HOME_BANNER_RECORD_ID)
+                        put("created_by", uid)
+                        put("author_name", "System Config")
+                        put("title", HOME_BANNER_CONFIG_TITLE)
+                        put("category", SYSTEM_CONFIG_CATEGORY)
+                        put("description", serialized)
+                        put("district", "Genteng")
+                    },
+                )
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "SurabayaRepoPB"
         private const val HOME_LAYOUT_PREFS_NAME = "surabaya_home_layout_prefs"
         private const val KEY_HOME_SHORTCUT_ORDER = "home_shortcut_order_json"
+        private const val KEY_HOME_BANNER_CONFIG = "home_banner_config_json"
         const val SYSTEM_CONFIG_CATEGORY = "__SYSTEM_CONFIG__"
         const val HOME_SHORTCUT_CONFIG_TITLE = "__SYSTEM_HOME_SHORTCUT_ORDER__"
+        const val HOME_BANNER_CONFIG_TITLE = "__SYSTEM_HOME_BANNER_CONFIG__"
         val HOME_SHORTCUT_RECORD_ID: String = PocketBaseClient.deterministicPbId("sys_cfg_home_shortcuts")
+        val HOME_BANNER_RECORD_ID: String = PocketBaseClient.deterministicPbId("sys_cfg_home_banner")
         const val PRIMARY_ADMIN_EMAIL = PocketBaseClient.PRIMARY_ADMIN_EMAIL
         const val BOOTSTRAPPED_ADMIN_EMAIL = PocketBaseClient.BOOTSTRAPPED_ADMIN_EMAIL
 

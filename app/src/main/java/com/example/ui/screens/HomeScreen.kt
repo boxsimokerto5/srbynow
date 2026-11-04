@@ -108,6 +108,7 @@ import com.example.R
 import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinarySpot
+import com.example.data.model.HomeBannerConfig
 import com.example.data.model.IncidentReport
 import com.example.data.model.SurabayaDestination
 import com.example.data.model.SurabayaEvent
@@ -191,6 +192,9 @@ fun HomeScreen(
     onOpenRadio: () -> Unit = {},
     shortcutOrderIds: List<String> = HomeShortcutIds.DEFAULT_ORDER,
     onSaveShortcutOrder: (List<String>) -> Unit = {},
+    homeBannerConfig: HomeBannerConfig = HomeBannerConfig(),
+    onSaveHomeBannerConfig: (HomeBannerConfig) -> Unit = {},
+    onBannerClick: (HomeBannerConfig) -> Unit = {},
     onOpenSearch: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -567,13 +571,16 @@ fun HomeScreen(
             }
         }
 
-        // 3. Shortcut Grid (2x4 horizontal swipeable carousel + Admin drag-and-drop layout arrangement)
+        // 3. Shortcut Grid (2x4 horizontal swipeable carousel + Admin drag-and-drop layout arrangement + Dynamic Banner)
         item(key = "home_shortcuts_section") {
             HomeShortcutGridSection(
                 shortcuts = shortcuts,
                 shortcutOrderIds = shortcutOrderIds,
                 isAdmin = isAdmin,
                 onSaveShortcutOrder = onSaveShortcutOrder,
+                bannerConfig = homeBannerConfig,
+                onSaveBannerConfig = onSaveHomeBannerConfig,
+                onBannerClick = onBannerClick,
             )
         }
 

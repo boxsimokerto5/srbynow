@@ -17,6 +17,7 @@ import com.example.data.model.BookmarkItem
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.CitizenPoll
+import com.example.data.model.HomeBannerConfig
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
 import com.example.data.model.CulinarySpot
@@ -242,6 +243,10 @@ class SurabayaViewModel(
     val homeShortcutOrder: StateFlow<List<String>> = repository.observeHomeShortcutOrder()
         .catch { emit(HomeShortcutIds.DEFAULT_ORDER) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), HomeShortcutIds.DEFAULT_ORDER)
+
+    val homeBannerConfig: StateFlow<HomeBannerConfig> = repository.observeHomeBannerConfig()
+        .catch { emit(HomeBannerConfig()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT), HomeBannerConfig())
 
     val bookmarks: StateFlow<List<BookmarkItem>> = repository.observeBookmarks(currentUserId)
         .catch { e ->
@@ -3422,6 +3427,36 @@ class SurabayaViewModel(
                 )
             } catch (e: Exception) {
                 notifyMessage("Gagal menyimpan tata letak menu: ${e.message}")
+            }
+        }
+    }
+
+    fun saveHomeBannerConfig(config: HomeBannerConfig) {
+        if (!isAdmin.value) {
+            notifyMessage("Hanya Admin resmi yang dapat mengatur banner promo beranda.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.saveHomeBannerConfig(config)
+                notifyMessage("Banner beranda berhasil diperbarui untuk semua warga.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal menyimpan banner: ${e.message}")
+            }
+        }
+    }
+
+    fun resetHomeBannerConfig() {
+        if (!isAdmin.value) {
+            notifyMessage("Hanya Admin resmi yang dapat mengatur banner beranda.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.saveHomeBannerConfig(HomeBannerConfig())
+                notifyMessage("Banner beranda dikembalikan ke standar hadiah poin.")
+            } catch (e: Exception) {
+                notifyMessage("Gagal mereset banner: ${e.message}")
             }
         }
     }

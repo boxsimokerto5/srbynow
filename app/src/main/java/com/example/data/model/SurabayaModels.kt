@@ -791,6 +791,23 @@ data class TambalBanComment(
     val createdAt: Long? = null,
 )
 
+data class HomeBannerConfig(
+    val id: String = "home_banner_main",
+    val title: String = "Besok klaim hadiah poin warga yang lebih...",
+    val subtitle: String = "Berakhir dalam 6 Hari",
+    val badgeText: String = "1/7 Hari",
+    val imageUrl: String = "",
+    val presetKey: String = "DEFAULT_TREASURE",
+    val targetType: String = "NONE", // "NONE", "EVENT", "KULINER", "POLLING", "RADIO", "WEB"
+    val targetPayload: String = "",
+    val isEnabled: Boolean = true,
+    val updatedAt: Long = System.currentTimeMillis(),
+) {
+    val isCustomOrPreset: Boolean
+        get() = imageUrl.isNotBlank() || presetKey != "DEFAULT_TREASURE"
+}
+
+
 
 
 

@@ -360,6 +360,7 @@ fun SurabayaMainHub(
     val activeKosComments by viewModel.activeKosComments.collectAsStateWithLifecycle()
     val bannedProfiles by viewModel.bannedProfiles.collectAsStateWithLifecycle()
     val homeShortcutOrder by viewModel.homeShortcutOrder.collectAsStateWithLifecycle()
+    val homeBannerConfig by viewModel.homeBannerConfig.collectAsStateWithLifecycle()
     val unlockedGroupPinHashes by viewModel.unlockedGroupPinHashes.collectAsStateWithLifecycle()
     val pendingPinUnlockRoom by viewModel.pendingPinUnlockRoom.collectAsStateWithLifecycle()
     val myActivePublicGroupCount by viewModel.myActivePublicGroupCount.collectAsStateWithLifecycle()
@@ -786,6 +787,29 @@ fun SurabayaMainHub(
                                 onOpenRadio = { viewModel.openRadioPlayer(autoPlay = true) },
                                 shortcutOrderIds = homeShortcutOrder,
                                 onSaveShortcutOrder = { viewModel.saveHomeShortcutOrder(it) },
+                                homeBannerConfig = homeBannerConfig,
+                                onSaveHomeBannerConfig = { viewModel.saveHomeBannerConfig(it) },
+                                onBannerClick = { banner ->
+                                    when (banner.targetType) {
+                                        "EVENT" -> viewModel.selectTab(MainTab.EVENT)
+                                        "KULINER" -> viewModel.selectTab(MainTab.KULINER)
+                                        "DESTINASI" -> viewModel.selectTab(MainTab.DESTINASI)
+                                        "POLLING" -> viewModel.selectTab(MainTab.POLLING)
+                                        "RADIO" -> viewModel.openRadioPlayer(autoPlay = true)
+                                        "WEB" -> {
+                                            if (banner.targetPayload.isNotBlank()) {
+                                                runCatching {
+                                                    val intent = android.content.Intent(
+                                                        android.content.Intent.ACTION_VIEW,
+                                                        android.net.Uri.parse(banner.targetPayload),
+                                                    )
+                                                    context.startActivity(intent)
+                                                }
+                                            }
+                                        }
+                                        else -> Unit
+                                    }
+                                },
                                 onOpenSearch = { viewModel.selectTab(MainTab.KULINER) },
                             )
                             MainTab.MOMEN -> MomenScreen(
