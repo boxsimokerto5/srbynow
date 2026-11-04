@@ -795,6 +795,7 @@ fun SurabayaMainHub(
                                         "KULINER" -> viewModel.selectTab(MainTab.KULINER)
                                         "DESTINASI" -> viewModel.selectTab(MainTab.DESTINASI)
                                         "POLLING" -> viewModel.selectTab(MainTab.POLLING)
+                                        "SEKITAR" -> viewModel.selectTab(MainTab.SEKITAR)
                                         "RADIO" -> viewModel.openRadioPlayer(autoPlay = true)
                                         "WEB" -> {
                                             if (banner.targetPayload.isNotBlank()) {

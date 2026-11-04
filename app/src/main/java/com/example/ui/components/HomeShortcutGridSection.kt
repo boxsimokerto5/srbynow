@@ -27,11 +27,25 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import com.example.data.model.HomeBannerItem
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -768,6 +782,367 @@ fun rememberSurabayaImageLoader(): ImageLoader {
 }
 
 @Composable
+fun SingleFullGraphicBannerView(
+    item: HomeBannerItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val imageLoader = rememberSurabayaImageLoader()
+    val context = LocalContext.current
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFF3E8FF),
+        border = BorderStroke(1.dp, Color(0xFFDDD6FE)),
+        shadowElevation = 2.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(132.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .testTag("home_full_promo_banner_${item.id}"),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (item.imageUrl.isNotBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(item.imageUrl)
+                        .crossfade(true)
+                        .build(),
+                    imageLoader = imageLoader,
+                    contentDescription = item.title.ifBlank { "Banner Promosi Surabaya" },
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                when (item.presetKey) {
+                    "PRESET_FESTIVAL" -> Image(
+                        painter = painterResource(id = R.drawable.img_event_festival_1793207386551),
+                        contentDescription = "Festival Surabaya",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    "PRESET_KULINER" -> Image(
+                        painter = painterResource(id = R.drawable.img_kuliner_rawon_1793207383497),
+                        contentDescription = "Kuliner Rawon Surabaya",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    "PRESET_HERO_CITY" -> Image(
+                        painter = painterResource(id = R.drawable.img_hero_surabaya_1793207382246),
+                        contentDescription = "Kota Pahlawan Surabaya",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    "PRESET_MASCOT" -> Image(
+                        painter = painterResource(id = R.drawable.img_game_shark_mascot),
+                        contentDescription = "Maskot Suro & Boyo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    "PRESET_KEJADIAN" -> Image(
+                        painter = painterResource(id = R.drawable.img_kejadian_kota_1793207386068),
+                        contentDescription = "Pantauan Kota Surabaya",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    else -> Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Brush.horizontalGradient(listOf(Color(0xFFFFDDE5), Color(0xFFF5E8FF), Color(0xFFEDE9FE)))),
+                    )
+                }
+            }
+
+            if (item.title.isNotBlank() && item.title != "Besok klaim hadiah poin warga yang lebih...") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.70f),
+                                ),
+                                startY = 60f,
+                            ),
+                        ),
+                )
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                ) {
+                    if (item.badgeText.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = SuperAppGoldBg,
+                            border = BorderStroke(1.dp, SuperAppGoldBorder),
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        ) {
+                            Text(
+                                text = item.badgeText,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = SuperAppGoldText,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (item.subtitle.isNotBlank()) {
+                        Text(
+                            text = item.subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.9f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            } else if (item.badgeText.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.60f),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(10.dp),
+                ) {
+                    Text(
+                        text = item.badgeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SingleTicketBannerView(
+    item: HomeBannerItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val imageLoader = rememberSurabayaImageLoader()
+    val context = LocalContext.current
+
+    val displayTitle = if (item.title.isNotBlank()) item.title else "Besok klaim hadiah poin warga yang lebih..."
+    val displaySubtitle = if (item.subtitle.isNotBlank()) item.subtitle else "Berakhir dalam 6 Hari"
+    val displayBadge = if (item.badgeText.isNotBlank()) item.badgeText else "1/7 Hari"
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp, bottom = 2.dp),
+    ) {
+        Surface(
+            onClick = onClick,
+            shape = RoundedCornerShape(18.dp),
+            color = Color.Transparent,
+            border = BorderStroke(1.dp, Color(0xFFE9D5FF)),
+            shadowElevation = 0.5.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 5.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFFFFDDE5),
+                            Color(0xFFF5E8FF),
+                            Color(0xFFEDE9FE),
+                        ),
+                    ),
+                )
+                .testTag("home_ticket_banner_${item.id}"),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when {
+                        item.imageUrl.isNotBlank() -> {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(item.imageUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                imageLoader = imageLoader,
+                                contentDescription = "Banner Promosi Surabaya",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                        item.presetKey == "PRESET_FESTIVAL" -> {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_event_festival_1793207386551),
+                                contentDescription = "Festival Surabaya",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                        item.presetKey == "PRESET_KULINER" -> {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_kuliner_rawon_1793207383497),
+                                contentDescription = "Kuliner Rawon Surabaya",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                        item.presetKey == "PRESET_HERO_CITY" -> {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_hero_surabaya_1793207382246),
+                                contentDescription = "Kota Pahlawan Surabaya",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                        item.presetKey == "PRESET_MASCOT" -> {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_game_shark_mascot),
+                                contentDescription = "Maskot Suro & Boyo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                        item.presetKey == "PRESET_KEJADIAN" -> {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_kejadian_kota_1793207386068),
+                                contentDescription = "Pantauan Kota Surabaya",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                        }
+                        else -> {
+                            Image(
+                                painter = painterResource(id = R.drawable.img_game_treasure_chest),
+                                contentDescription = "Peti Hadiah Warga",
+                                modifier = Modifier.size(46.dp),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = displayTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1F2937),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "Info Hadiah",
+                            tint = Color(0xFF9333EA),
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f, fill = false),
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFFEF3C7),
+                                border = BorderStroke(1.dp, Color(0xFFFBBF24)),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CalendarMonth,
+                                        contentDescription = null,
+                                        tint = Color(0xFFB45309),
+                                        modifier = Modifier.size(12.dp),
+                                    )
+                                    Text(
+                                        text = displayBadge,
+                                        color = Color(0xFF92400E),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = displaySubtitle,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                color = Color(0xFF4B5563),
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFF6B7280),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            HangingEyelet()
+            HangingEyelet()
+        }
+    }
+}
+
+@Composable
 fun FullGraphicPromoBanner(
     bannerConfig: HomeBannerConfig,
     isAdmin: Boolean,
@@ -775,155 +1150,17 @@ fun FullGraphicPromoBanner(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val imageLoader = rememberSurabayaImageLoader()
-    val context = LocalContext.current
-
+    val activeBanners = bannerConfig.activeBanners
+    val firstItem = activeBanners.firstOrNull() ?: HomeBannerItem()
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 8.dp, bottom = 4.dp),
     ) {
-        Surface(
+        SingleFullGraphicBannerView(
+            item = firstItem,
             onClick = onClick,
-            shape = RoundedCornerShape(18.dp),
-            color = Color(0xFFF3E8FF),
-            border = BorderStroke(1.dp, Color(0xFFDDD6FE)),
-            shadowElevation = 2.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(132.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .testTag("home_full_promo_banner"),
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Background Graphic (JPG / PNG / GIF / Preset)
-                if (bannerConfig.imageUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(bannerConfig.imageUrl)
-                            .crossfade(true)
-                            .build(),
-                        imageLoader = imageLoader,
-                        contentDescription = bannerConfig.title.ifBlank { "Banner Promosi Surabaya" },
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    when (bannerConfig.presetKey) {
-                        "PRESET_FESTIVAL" -> Image(
-                            painter = painterResource(id = R.drawable.img_event_festival_1793207386551),
-                            contentDescription = "Festival Surabaya",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                        "PRESET_KULINER" -> Image(
-                            painter = painterResource(id = R.drawable.img_kuliner_rawon_1793207383497),
-                            contentDescription = "Kuliner Rawon Surabaya",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                        "PRESET_HERO_CITY" -> Image(
-                            painter = painterResource(id = R.drawable.img_hero_surabaya_1793207382246),
-                            contentDescription = "Kota Pahlawan Surabaya",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                        "PRESET_MASCOT" -> Image(
-                            painter = painterResource(id = R.drawable.img_game_shark_mascot),
-                            contentDescription = "Maskot Suro & Boyo",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                        "PRESET_KEJADIAN" -> Image(
-                            painter = painterResource(id = R.drawable.img_kejadian_kota_1793207386068),
-                            contentDescription = "Pantauan Kota Surabaya",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                        else -> Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Brush.horizontalGradient(listOf(Color(0xFFFFDDE5), Color(0xFFF5E8FF), Color(0xFFEDE9FE)))),
-                        )
-                    }
-                }
-
-                // Vignette gradient for text readability if title is present
-                if (bannerConfig.title.isNotBlank() && bannerConfig.title != "Besok klaim hadiah poin warga yang lebih...") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.70f),
-                                    ),
-                                    startY = 60f,
-                                ),
-                            ),
-                    )
-
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                    ) {
-                        if (bannerConfig.badgeText.isNotBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = SuperAppGoldBg,
-                                border = BorderStroke(1.dp, SuperAppGoldBorder),
-                                modifier = Modifier.padding(bottom = 4.dp),
-                            ) {
-                                Text(
-                                    text = bannerConfig.badgeText,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = SuperAppGoldText,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                )
-                            }
-                        }
-                        Text(
-                            text = bannerConfig.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (bannerConfig.subtitle.isNotBlank()) {
-                            Text(
-                                text = bannerConfig.subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.9f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                } else if (bannerConfig.badgeText.isNotBlank()) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color.Black.copy(alpha = 0.60f),
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(10.dp),
-                    ) {
-                        Text(
-                            text = bannerConfig.badgeText,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        )
-                    }
-                }
-            }
-        }
-
-        // Floating Admin Edit Button
+        )
         if (isAdmin) {
             Surface(
                 onClick = onAdminEdit,
@@ -971,297 +1208,178 @@ fun GojekStyleTicketBanner(
     onClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var showInfoDialog by remember { mutableStateOf(false) }
+    var selectedInfoBanner by remember { mutableStateOf<HomeBannerItem?>(null) }
     var showAdminEditor by remember { mutableStateOf(false) }
-    val imageLoader = rememberSurabayaImageLoader()
-    val context = LocalContext.current
 
-    val displayTitle = if (bannerConfig.title.isNotBlank()) bannerConfig.title else title
-    val displaySubtitle = if (bannerConfig.subtitle.isNotBlank()) bannerConfig.subtitle else subText
-    val displayBadge = if (bannerConfig.badgeText.isNotBlank()) bannerConfig.badgeText else badgeText
+    val bannerItems = remember(bannerConfig) { bannerConfig.activeBanners }
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { bannerItems.size })
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
 
-    if (bannerConfig.isFullBanner) {
-        FullGraphicPromoBanner(
-            bannerConfig = bannerConfig,
-            isAdmin = isAdmin,
-            onAdminEdit = { showAdminEditor = true },
-            onClick = {
-                if (bannerConfig.targetType == "NONE" || bannerConfig.targetType == "POPUP_INFO") {
-                    showInfoDialog = true
-                } else {
-                    onBannerClick(bannerConfig)
-                }
-                onClick()
-            },
-            modifier = modifier,
-        )
-    } else {
-        Box(
-            modifier = modifier
+    // Otomatis bergeser setiap 4.5 detik, jeda jika disentuh atau digeser manual oleh warga
+    LaunchedEffect(bannerItems.size, isDragged) {
+        if (bannerItems.size > 1 && !isDragged) {
+            while (true) {
+                delay(4500L)
+                val nextPage = (pagerState.currentPage + 1) % bannerItems.size
+                pagerState.animateScrollToPage(
+                    page = nextPage,
+                    animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+                )
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp, bottom = 4.dp),
+    ) {
+        // Horizontal Pager Carousel: geser manual halus dengan snapping
+        HorizontalPager(
+            state = pagerState,
+            pageSpacing = 10.dp,
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 10.dp, bottom = 2.dp),
-        ) {
-            Surface(
-                onClick = {
-                    if (bannerConfig.targetType == "NONE" || bannerConfig.targetType == "POPUP_INFO") {
-                        showInfoDialog = true
-                    } else {
-                        onBannerClick(bannerConfig)
-                    }
-                    onClick()
-                },
-                shape = RoundedCornerShape(18.dp),
-                color = Color.Transparent,
-                border = BorderStroke(1.dp, Color(0xFFE9D5FF)),
-                shadowElevation = 0.5.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 5.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color(0xFFFFDDE5),
-                                Color(0xFFF5E8FF),
-                                Color(0xFFEDE9FE),
-                            ),
+                .testTag("home_banners_carousel"),
+        ) { pageIdx ->
+            val item = bannerItems.getOrNull(pageIdx) ?: return@HorizontalPager
+            val handleItemClick = {
+                if (item.targetType == "NONE" || item.targetType == "POPUP_INFO") {
+                    selectedInfoBanner = item
+                } else {
+                    onBannerClick(
+                        HomeBannerConfig(
+                            id = item.id,
+                            title = item.title,
+                            subtitle = item.subtitle,
+                            badgeText = item.badgeText,
+                            imageUrl = item.imageUrl,
+                            presetKey = item.presetKey,
+                            targetType = item.targetType,
+                            targetPayload = item.targetPayload,
+                            displayMode = item.displayMode,
                         ),
                     )
-                    .testTag("home_ticket_banner"),
+                }
+                onClick()
+            }
+
+            if (item.isFullBanner) {
+                SingleFullGraphicBannerView(
+                    item = item,
+                    onClick = handleItemClick,
+                )
+            } else {
+                SingleTicketBannerView(
+                    item = item,
+                    onClick = handleItemClick,
+                )
+            }
+        }
+
+        // Indikator Titik & Nomor Kapsul (contoh: 1/3) di pojok kanan bawah
+        if (bannerItems.size > 1) {
+            Surface(
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = 0.58f),
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 12.dp, bottom = 10.dp)
+                    .testTag("home_banner_indicator"),
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
-                    // Banner Graphic (Coil AsyncImage with GIF/JPG support, Surabaya Presets, or 3D RPG Treasure Chest)
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center,
+                    Text(
+                        text = "${pagerState.currentPage + 1}/${bannerItems.size}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        when {
-                            bannerConfig.imageUrl.isNotBlank() -> {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(bannerConfig.imageUrl)
-                                        .crossfade(true)
-                                        .build(),
-                                    imageLoader = imageLoader,
-                                    contentDescription = "Banner Promosi Surabaya",
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(12.dp)),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-                            bannerConfig.presetKey == "PRESET_FESTIVAL" -> {
-                                Image(
-                                    painter = painterResource(id = R.drawable.img_event_festival_1793207386551),
-                                    contentDescription = "Festival Surabaya",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-                            bannerConfig.presetKey == "PRESET_KULINER" -> {
-                                Image(
-                                    painter = painterResource(id = R.drawable.img_kuliner_rawon_1793207383497),
-                                    contentDescription = "Kuliner Rawon Surabaya",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-                            bannerConfig.presetKey == "PRESET_HERO_CITY" -> {
-                                Image(
-                                    painter = painterResource(id = R.drawable.img_hero_surabaya_1793207382246),
-                                    contentDescription = "Kota Pahlawan Surabaya",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-                            bannerConfig.presetKey == "PRESET_MASCOT" -> {
-                                Image(
-                                    painter = painterResource(id = R.drawable.img_game_shark_mascot),
-                                    contentDescription = "Maskot Suro & Boyo",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-                            bannerConfig.presetKey == "PRESET_KEJADIAN" -> {
-                                Image(
-                                    painter = painterResource(id = R.drawable.img_kejadian_kota_1793207386068),
-                                    contentDescription = "Pantauan Kota Surabaya",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
-                            }
-                            else -> {
-                                Image(
-                                    painter = painterResource(id = R.drawable.img_game_treasure_chest),
-                                    contentDescription = "Peti Hadiah Warga",
-                                    modifier = Modifier.size(46.dp),
-                                    contentScale = ContentScale.Fit,
-                                )
-                            }
-                        }
-                    }
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = displayTitle,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1F2937),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
+                        repeat(bannerItems.size) { idx ->
+                            val isCurr = pagerState.currentPage == idx
+                            val dotWidth by animateDpAsState(
+                                targetValue = if (isCurr) 10.dp else 4.dp,
+                                label = "banner_dot_$idx",
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = "Info Hadiah",
-                                tint = Color(0xFF9333EA),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.weight(1f, fill = false),
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFFFEF3C7),
-                                    border = BorderStroke(1.dp, Color(0xFFFBBF24)),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.CalendarMonth,
-                                            contentDescription = null,
-                                            tint = Color(0xFFB45309),
-                                            modifier = Modifier.size(12.dp),
-                                        )
-                                        Text(
-                                            text = displayBadge,
-                                            color = Color(0xFF92400E),
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    text = displaySubtitle,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                    color = Color(0xFF4B5563),
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = Color(0xFF6B7280),
-                                modifier = Modifier.size(18.dp),
+                            Box(
+                                modifier = Modifier
+                                    .width(dotWidth)
+                                    .height(4.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isCurr) Color.White else Color.White.copy(alpha = 0.45f)),
                             )
                         }
                     }
                 }
             }
+        }
 
-            // Dual Metallic Hanging Eyelets (Slit Rings like Gojek Ticket)
-            Row(
+        // Tombol Mengambang "Atur Banner" khusus Admin
+        if (isAdmin) {
+            Surface(
+                onClick = { showAdminEditor = true },
+                shape = CircleShape,
+                color = Color(0xFF7C3AED),
+                shadowElevation = 4.dp,
+                border = BorderStroke(1.dp, Color.White),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .testTag("admin_edit_banner_btn"),
             ) {
-                HangingEyelet()
-                HangingEyelet()
-            }
-
-            // Obvious Admin Edit Button on top right of the ticket
-            if (isAdmin) {
-                Surface(
-                    onClick = { showAdminEditor = true },
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF7C3AED),
-                    border = BorderStroke(1.dp, Color.White),
-                    shadowElevation = 2.dp,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 8.dp)
-                        .testTag("admin_edit_banner_btn"),
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Edit,
-                            contentDescription = "Edit Banner Admin",
-                            tint = Color.White,
-                            modifier = Modifier.size(12.dp),
-                        )
-                        Text(
-                            text = "Atur Banner",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Atur Banner",
+                        tint = Color.White,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = "Atur Banner",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
                 }
             }
         }
     }
 
-    if (showInfoDialog) {
+    selectedInfoBanner?.let { banner ->
         AlertDialog(
-            onDismissRequest = { showInfoDialog = false },
+            onDismissRequest = { selectedInfoBanner = null },
             confirmButton = {
-                TextButton(onClick = { showInfoDialog = false }) {
+                TextButton(onClick = { selectedInfoBanner = null }) {
                     Text("Siap Rek!")
                 }
             },
             title = {
                 Text(
-                    text = displayTitle,
+                    text = banner.title.ifBlank { "Info Arek Surabaya" },
                     fontWeight = FontWeight.Bold,
                 )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = displaySubtitle,
+                        text = banner.subtitle.ifBlank { "Informasi resmi seputar kota dan layanan warga." },
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "Terus pantau kota Surabaya, nikmati kuliner khas, ikuti agenda event, gunakan layanan warga, dan lapor insiden di sekitarmu!",
+                        text = "Pantau terus agenda kota Surabaya, nikmati kuliner khas, ikuti polling, gunakan layanan warga, dan lapor insiden di sekitarmu!",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1288,25 +1406,25 @@ fun AdminBannerEditorDialog(
     onDismiss: () -> Unit,
     onSave: (HomeBannerConfig) -> Unit,
 ) {
-    var title by remember { mutableStateOf(currentConfig.title) }
-    var subtitle by remember { mutableStateOf(currentConfig.subtitle) }
-    var badgeText by remember { mutableStateOf(currentConfig.badgeText) }
-    var imageUrl by remember { mutableStateOf(currentConfig.imageUrl) }
-    var presetKey by remember { mutableStateOf(currentConfig.presetKey) }
-    var targetType by remember { mutableStateOf(currentConfig.targetType) }
-    var targetPayload by remember { mutableStateOf(currentConfig.targetPayload) }
-    var displayMode by remember { mutableStateOf(currentConfig.displayMode) }
-
-    val imageLoader = rememberSurabayaImageLoader()
-    val context = LocalContext.current
+    val bannerList = remember {
+        mutableStateListOf<HomeBannerItem>().apply {
+            addAll(currentConfig.activeBanners)
+        }
+    }
+    var selectedIndex by remember { mutableIntStateOf(0) }
+    val safeIndex = selectedIndex.coerceIn(0, (bannerList.size - 1).coerceAtLeast(0))
+    val currentItem = bannerList.getOrNull(safeIndex) ?: HomeBannerItem()
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
-            if (uri != null) {
-                imageUrl = uri.toString()
-                presetKey = "CUSTOM"
-                displayMode = "FULL_BANNER"
+            if (uri != null && bannerList.isNotEmpty()) {
+                val updated = bannerList[safeIndex].copy(
+                    imageUrl = uri.toString(),
+                    presetKey = "CUSTOM",
+                    displayMode = "FULL_BANNER",
+                )
+                bannerList[safeIndex] = updated
             }
         },
     )
@@ -1325,7 +1443,7 @@ fun AdminBannerEditorDialog(
                     tint = Color(0xFF7C3AED),
                 )
                 Text(
-                    text = "Atur Banner Promo (Admin)",
+                    text = "Kelola Banner Beranda (Admin)",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -1339,106 +1457,132 @@ fun AdminBannerEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = "Ganti banner dengan foto JPG/PNG penuh, animasi GIF bergerak, atau preset khas Surabaya untuk promosi kota & resto.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                // 1. LIVE PREVIEW BANNER
-                Text(
-                    text = "Pratinjau Banner:",
+                    text = "Daftar Slide Banner (" + bannerList.size + "/5):",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                 )
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFFF3E8FF),
-                    border = BorderStroke(1.dp, Color(0xFFDDD6FE)),
+
+                // Slide Selector Tabs + Add Slide Button
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp)
-                        .clip(RoundedCornerShape(14.dp)),
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        if (imageUrl.isNotBlank()) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(imageUrl)
-                                    .crossfade(true)
-                                    .build(),
-                                imageLoader = imageLoader,
-                                contentDescription = "Pratinjau",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        } else {
-                            when (presetKey) {
-                                "PRESET_FESTIVAL" -> Image(
-                                    painter = painterResource(id = R.drawable.img_event_festival_1793207386551),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                                "PRESET_KULINER" -> Image(
-                                    painter = painterResource(id = R.drawable.img_kuliner_rawon_1793207383497),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                                "PRESET_HERO_CITY" -> Image(
-                                    painter = painterResource(id = R.drawable.img_hero_surabaya_1793207382246),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                                "PRESET_MASCOT" -> Image(
-                                    painter = painterResource(id = R.drawable.img_game_shark_mascot),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                                "PRESET_KEJADIAN" -> Image(
-                                    painter = painterResource(id = R.drawable.img_kejadian_kota_1793207386068),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                                else -> Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Brush.horizontalGradient(listOf(Color(0xFFFFDDE5), Color(0xFFF5E8FF)))),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text("🎁 Peti Hadiah Poin", fontWeight = FontWeight.Bold, color = Color(0xFF6D28D9))
-                                }
-                            }
-                        }
+                    bannerList.indices.forEach { idx ->
+                        val isSelected = idx == safeIndex
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedIndex = idx },
+                            label = { Text("Slide " + (idx + 1)) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF7C3AED),
+                                selectedLabelColor = Color.White,
+                            ),
+                        )
+                    }
 
-                        // Overlay badge
-                        if (badgeText.isNotBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = SuperAppGoldBg,
-                                border = BorderStroke(0.8.dp, SuperAppGoldBorder),
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(8.dp),
-                            ) {
-                                Text(
-                                    text = badgeText,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                    fontWeight = FontWeight.Bold,
-                                    color = SuperAppGoldText,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    if (bannerList.size < 5) {
+                        OutlinedButton(
+                            onClick = {
+                                val newSlide = HomeBannerItem(
+                                    id = java.util.UUID.randomUUID().toString().take(12),
+                                    title = "Pengumuman Arek Surabaya #" + (bannerList.size + 1),
+                                    subtitle = "Info terhangat seputar kota",
+                                    badgeText = "INFO",
+                                    displayMode = "FULL_BANNER",
+                                    presetKey = "PRESET_FESTIVAL",
+                                    order = bannerList.size,
                                 )
-                            }
+                                bannerList.add(newSlide)
+                                selectedIndex = bannerList.size - 1
+                            },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Tambah Slide", fontSize = 11.sp)
                         }
                     }
                 }
 
-                // 2. TIPE MODE BANNER (FULL IMAGE / TICKET)
+                // Action Reorder & Delete for this slide
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        IconButton(
+                            onClick = {
+                                if (safeIndex > 0) {
+                                    val temp = bannerList[safeIndex]
+                                    bannerList[safeIndex] = bannerList[safeIndex - 1]
+                                    bannerList[safeIndex - 1] = temp
+                                    selectedIndex = safeIndex - 1
+                                }
+                            },
+                            enabled = safeIndex > 0,
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.ArrowBack,
+                                contentDescription = "Geser ke Depan",
+                                tint = if (safeIndex > 0) Color(0xFF7C3AED) else Color.Gray,
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                if (safeIndex < bannerList.size - 1) {
+                                    val temp = bannerList[safeIndex]
+                                    bannerList[safeIndex] = bannerList[safeIndex + 1]
+                                    bannerList[safeIndex + 1] = temp
+                                    selectedIndex = safeIndex + 1
+                                }
+                            },
+                            enabled = safeIndex < bannerList.size - 1,
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.ArrowForward,
+                                contentDescription = "Geser ke Belakang",
+                                tint = if (safeIndex < bannerList.size - 1) Color(0xFF7C3AED) else Color.Gray,
+                            )
+                        }
+                    }
+
+                    if (bannerList.size > 1) {
+                        TextButton(
+                            onClick = {
+                                bannerList.removeAt(safeIndex)
+                                selectedIndex = (safeIndex - 1).coerceAtLeast(0)
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = AlertCrimson),
+                        ) {
+                            Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Hapus Slide Ini", fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                // Live Preview of Selected Slide
                 Text(
-                    text = "Model Tampilan:",
+                    text = "Pratinjau Slide " + (safeIndex + 1) + ":",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (currentItem.isFullBanner) {
+                    SingleFullGraphicBannerView(item = currentItem, onClick = {})
+                } else {
+                    SingleTicketBannerView(item = currentItem, onClick = {})
+                }
+
+                // 1. Tipe Desain Tampilan
+                Text(
+                    text = "Gaya Tampilan Slide:",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -1447,30 +1591,24 @@ fun AdminBannerEditorDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     FilterChip(
-                        selected = displayMode == "FULL_BANNER" || (displayMode == "AUTO" && imageUrl.isNotBlank()),
-                        onClick = { displayMode = "FULL_BANNER" },
-                        label = { Text("🖼️ Gambar/GIF Penuh", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFEDE9FE),
-                            selectedLabelColor = Color(0xFF6D28D9),
-                        ),
-                        modifier = Modifier.weight(1f),
+                        selected = currentItem.displayMode == "FULL_BANNER",
+                        onClick = {
+                            bannerList[safeIndex] = currentItem.copy(displayMode = "FULL_BANNER")
+                        },
+                        label = { Text("Grafis Penuh (Foto/Poster)", fontSize = 11.sp) },
                     )
                     FilterChip(
-                        selected = displayMode == "TICKET" || (displayMode == "AUTO" && imageUrl.isBlank()),
-                        onClick = { displayMode = "TICKET" },
-                        label = { Text("🎟️ Kartu Tiket", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFFEDE9FE),
-                            selectedLabelColor = Color(0xFF6D28D9),
-                        ),
-                        modifier = Modifier.weight(1f),
+                        selected = currentItem.displayMode == "TICKET",
+                        onClick = {
+                            bannerList[safeIndex] = currentItem.copy(displayMode = "TICKET")
+                        },
+                        label = { Text("Tiket Pastel", fontSize = 11.sp) },
                     )
                 }
 
-                // 3. PILIH MEDIA GAMBAR / GIF DARI HP ATAU LINK
+                // 2. Foto / Gambar
                 Text(
-                    text = "Pilih Gambar JPG / Animasi GIF:",
+                    text = "Foto / Gambar Banner:",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -1481,50 +1619,29 @@ fun AdminBannerEditorDialog(
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF7C3AED),
-                        contentColor = Color.White,
-                    ),
-                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
                 ) {
-                    Icon(Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(imageVector = Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Pilih JPG / GIF dari Galeri HP", fontWeight = FontWeight.Bold)
+                    Text("Pilih Foto dari Galeri HP")
                 }
 
                 OutlinedTextField(
-                    value = imageUrl,
-                    onValueChange = {
-                        imageUrl = it
-                        presetKey = "CUSTOM"
-                        if (it.isNotBlank()) displayMode = "FULL_BANNER"
+                    value = currentItem.imageUrl,
+                    onValueChange = { newUrl ->
+                        bannerList[safeIndex] = currentItem.copy(
+                            imageUrl = newUrl,
+                            presetKey = if (newUrl.isNotBlank()) "CUSTOM" else currentItem.presetKey,
+                        )
                     },
-                    label = { Text("Atau Masukkan Link URL (JPG, PNG, GIF)") },
-                    placeholder = { Text("https://contoh.com/banner.gif atau .jpg") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("admin_banner_image_url_input"),
+                    label = { Text("Atau Tempel URL Gambar (https://...)") },
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
 
-                if (imageUrl.isNotBlank()) {
-                    TextButton(
-                        onClick = {
-                            imageUrl = ""
-                            presetKey = "DEFAULT_TREASURE"
-                            displayMode = "TICKET"
-                        },
-                        modifier = Modifier.align(Alignment.End),
-                    ) {
-                        Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Hapus Gambar Kustom", color = AlertCrimson, fontSize = 11.5.sp)
-                    }
-                }
-
-                // 4. PRESET GRAFIS SURABAYA
+                // 3. Preset Cepat Khas Surabaya
                 Text(
-                    text = "Atau Gunakan Preset Grafis Surabaya:",
+                    text = "Atau Gunakan Gambar Tema Surabaya:",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -1543,12 +1660,14 @@ fun AdminBannerEditorDialog(
                         "PRESET_KEJADIAN" to "🚨 Info Kota",
                     )
                     presets.forEach { (key, label) ->
-                        val selected = presetKey == key && imageUrl.isBlank()
+                        val selected = currentItem.presetKey == key && currentItem.imageUrl.isBlank()
                         FilterChip(
                             selected = selected,
                             onClick = {
-                                presetKey = key
-                                imageUrl = ""
+                                bannerList[safeIndex] = currentItem.copy(
+                                    presetKey = key,
+                                    imageUrl = "",
+                                )
                             },
                             label = { Text(label, fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(
@@ -1559,46 +1678,46 @@ fun AdminBannerEditorDialog(
                     }
                 }
 
-                // 5. BANNER TEXTS
+                // 4. Judul & Teks
                 Text(
-                    text = "Teks & Label Banner (Opsional):",
+                    text = "Teks & Label Banner:",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                 )
                 OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
+                    value = currentItem.title,
+                    onValueChange = { newTitle ->
+                        bannerList[safeIndex] = currentItem.copy(title = newTitle)
+                    },
                     label = { Text("Judul Banner") },
-                    placeholder = { Text("cth: Promo Spesial Kuliner Rawon!") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("admin_banner_title_input"),
+                    placeholder = { Text("cth: Festival Rujak Uleg 2026") },
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
 
                 OutlinedTextField(
-                    value = subtitle,
-                    onValueChange = { subtitle = it },
-                    label = { Text("Sub-judul / Durasi") },
-                    placeholder = { Text("cth: Diskon 30% Terbatas Minggu Ini") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("admin_banner_subtext_input"),
+                    value = currentItem.subtitle,
+                    onValueChange = { newSub ->
+                        bannerList[safeIndex] = currentItem.copy(subtitle = newSub)
+                    },
+                    label = { Text("Sub-judul / Durasi / Lokasi") },
+                    placeholder = { Text("cth: Minggu, Alun-alun Surabaya") },
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
 
                 OutlinedTextField(
-                    value = badgeText,
-                    onValueChange = { badgeText = it },
+                    value = currentItem.badgeText,
+                    onValueChange = { newBadge ->
+                        bannerList[safeIndex] = currentItem.copy(badgeText = newBadge)
+                    },
                     label = { Text("Badge Label") },
-                    placeholder = { Text("cth: PROMO, 1/7 Hari, RESTO") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("admin_banner_badge_input"),
+                    placeholder = { Text("cth: EVENT, 1/7 Hari, PROMO, PENTING") },
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
 
-                // 6. TINDAKAN SAAT BANNER DIKETUK
+                // 5. Aksi Klik Banner
                 Text(
                     text = "Aksi saat Warga Mengetuk Banner:",
                     style = MaterialTheme.typography.labelMedium,
@@ -1606,6 +1725,7 @@ fun AdminBannerEditorDialog(
                 )
                 val targets = listOf(
                     "POPUP_INFO" to "Tampilkan Info Dialog",
+                    "SEKITAR" to "Buka Menu Sekitar (Teman & Komunitas)",
                     "KULINER" to "Buka Kuliner Surabaya",
                     "EVENT" to "Buka Agenda Event Kota",
                     "DESTINASI" to "Buka Destinasi Wisata",
@@ -1618,20 +1738,26 @@ fun AdminBannerEditorDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { targetType = type },
+                            .clickable {
+                                bannerList[safeIndex] = currentItem.copy(targetType = type)
+                            },
                     ) {
                         RadioButton(
-                            selected = targetType == type,
-                            onClick = { targetType = type },
+                            selected = currentItem.targetType == type,
+                            onClick = {
+                                bannerList[safeIndex] = currentItem.copy(targetType = type)
+                            },
                         )
                         Text(label, fontSize = 12.5.sp)
                     }
                 }
 
-                if (targetType == "WEB") {
+                if (currentItem.targetType == "WEB") {
                     OutlinedTextField(
-                        value = targetPayload,
-                        onValueChange = { targetPayload = it },
+                        value = currentItem.targetPayload,
+                        onValueChange = { newPayload ->
+                            bannerList[safeIndex] = currentItem.copy(targetPayload = newPayload)
+                        },
                         label = { Text("URL Website Tujuan (https://...)") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -1642,24 +1768,30 @@ fun AdminBannerEditorDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    val finalBanners = bannerList.mapIndexed { idx, itm ->
+                        itm.copy(order = idx)
+                    }
+                    val first = finalBanners.firstOrNull() ?: HomeBannerItem()
                     onSave(
                         currentConfig.copy(
-                            title = title.trim().ifBlank { "Besok klaim hadiah poin warga yang lebih..." },
-                            subtitle = subtitle.trim().ifBlank { "Berakhir dalam 6 Hari" },
-                            badgeText = badgeText.trim().ifBlank { "1/7 Hari" },
-                            imageUrl = imageUrl.trim(),
-                            presetKey = presetKey,
-                            targetType = targetType,
-                            targetPayload = targetPayload.trim(),
-                            displayMode = displayMode,
+                            id = first.id,
+                            title = first.title.ifBlank { "Besok klaim hadiah poin warga yang lebih..." },
+                            subtitle = first.subtitle.ifBlank { "Berakhir dalam 6 Hari" },
+                            badgeText = first.badgeText.ifBlank { "1/7 Hari" },
+                            imageUrl = first.imageUrl,
+                            presetKey = first.presetKey,
+                            targetType = first.targetType,
+                            targetPayload = first.targetPayload,
+                            displayMode = first.displayMode,
                             updatedAt = System.currentTimeMillis(),
+                            banners = finalBanners,
                         ),
                     )
                 },
                 modifier = Modifier.testTag("admin_banner_save_btn"),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C3AED)),
             ) {
-                Text("Simpan Banner")
+                Text("Simpan Semua Banner (" + bannerList.size + ")")
             }
         },
         dismissButton = {

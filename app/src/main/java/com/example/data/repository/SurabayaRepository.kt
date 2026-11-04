@@ -6338,24 +6338,97 @@ class SurabayaRepository(
             put("isEnabled", config.isEnabled)
             put("displayMode", config.displayMode)
             put("updatedAt", config.updatedAt)
+
+            val bannersArray = org.json.JSONArray()
+            config.activeBanners.forEach { item ->
+                bannersArray.put(
+                    org.json.JSONObject().apply {
+                        put("id", item.id)
+                        put("title", item.title)
+                        put("subtitle", item.subtitle)
+                        put("badgeText", item.badgeText)
+                        put("imageUrl", item.imageUrl)
+                        put("presetKey", item.presetKey)
+                        put("targetType", item.targetType)
+                        put("targetPayload", item.targetPayload)
+                        put("isEnabled", item.isEnabled)
+                        put("displayMode", item.displayMode)
+                        put("order", item.order)
+                    },
+                )
+            }
+            put("banners", bannersArray)
         }.toString()
     }
 
     private fun parseBannerConfig(raw: String): HomeBannerConfig {
         return runCatching {
             val json = org.json.JSONObject(raw)
+            val parsedBanners = mutableListOf<com.example.data.model.HomeBannerItem>()
+            if (json.has("banners")) {
+                val arr = json.optJSONArray("banners")
+                if (arr != null) {
+                    for (i in 0 until arr.length()) {
+                        val b = arr.optJSONObject(i) ?: continue
+                        parsedBanners.add(
+                            com.example.data.model.HomeBannerItem(
+                                id = b.optString("id", java.util.UUID.randomUUID().toString().take(12)),
+                                title = b.optString("title", ""),
+                                subtitle = b.optString("subtitle", ""),
+                                badgeText = b.optString("badgeText", "1/7 Hari"),
+                                imageUrl = b.optString("imageUrl", ""),
+                                presetKey = b.optString("presetKey", "DEFAULT_TREASURE"),
+                                targetType = b.optString("targetType", "NONE"),
+                                targetPayload = b.optString("targetPayload", ""),
+                                isEnabled = b.optBoolean("isEnabled", true),
+                                displayMode = b.optString("displayMode", "AUTO"),
+                                order = b.optInt("order", i),
+                            ),
+                        )
+                    }
+                }
+            }
+
+            val topTitle = json.optString("title", "Besok klaim hadiah poin warga yang lebih...")
+            val topSubtitle = json.optString("subtitle", "Berakhir dalam 6 Hari")
+            val topBadge = json.optString("badgeText", "1/7 Hari")
+            val topImageUrl = json.optString("imageUrl", "")
+            val topPreset = json.optString("presetKey", "DEFAULT_TREASURE")
+            val topTargetType = json.optString("targetType", "NONE")
+            val topTargetPayload = json.optString("targetPayload", "")
+            val topDisplayMode = json.optString("displayMode", "AUTO")
+
+            if (parsedBanners.isEmpty()) {
+                parsedBanners.add(
+                    com.example.data.model.HomeBannerItem(
+                        id = json.optString("id", "home_banner_main"),
+                        title = topTitle,
+                        subtitle = topSubtitle,
+                        badgeText = topBadge,
+                        imageUrl = topImageUrl,
+                        presetKey = topPreset,
+                        targetType = topTargetType,
+                        targetPayload = topTargetPayload,
+                        isEnabled = json.optBoolean("isEnabled", true),
+                        displayMode = topDisplayMode,
+                        order = 0,
+                    ),
+                )
+            }
+
             HomeBannerConfig(
                 id = json.optString("id", "home_banner_main"),
-                title = json.optString("title", "Besok klaim hadiah poin warga yang lebih..."),
-                subtitle = json.optString("subtitle", "Berakhir dalam 6 Hari"),
-                badgeText = json.optString("badgeText", "1/7 Hari"),
-                imageUrl = json.optString("imageUrl", ""),
-                presetKey = json.optString("presetKey", "DEFAULT_TREASURE"),
-                targetType = json.optString("targetType", "NONE"),
-                targetPayload = json.optString("targetPayload", ""),
+                title = topTitle,
+                subtitle = topSubtitle,
+                badgeText = topBadge,
+                imageUrl = topImageUrl,
+                presetKey = topPreset,
+                targetType = topTargetType,
+                targetPayload = topTargetPayload,
                 isEnabled = json.optBoolean("isEnabled", true),
-                displayMode = json.optString("displayMode", "AUTO"),
+                displayMode = topDisplayMode,
                 updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
+                banners = parsedBanners,
             )
         }.getOrDefault(HomeBannerConfig())
     }

@@ -791,6 +791,26 @@ data class TambalBanComment(
     val createdAt: Long? = null,
 )
 
+data class HomeBannerItem(
+    val id: String = java.util.UUID.randomUUID().toString().take(12),
+    val title: String = "",
+    val subtitle: String = "",
+    val badgeText: String = "1/7 Hari",
+    val imageUrl: String = "",
+    val presetKey: String = "DEFAULT_TREASURE",
+    val targetType: String = "NONE", // "NONE", "EVENT", "KULINER", "DESTINASI", "POLLING", "RADIO", "SEKITAR", "WEB", "POPUP_INFO"
+    val targetPayload: String = "",
+    val isEnabled: Boolean = true,
+    val displayMode: String = "AUTO", // "AUTO", "FULL_BANNER", "TICKET"
+    val order: Int = 0,
+) {
+    val isCustomOrPreset: Boolean
+        get() = imageUrl.isNotBlank() || presetKey != "DEFAULT_TREASURE"
+
+    val isFullBanner: Boolean
+        get() = displayMode == "FULL_BANNER" || (displayMode == "AUTO" && imageUrl.isNotBlank())
+}
+
 data class HomeBannerConfig(
     val id: String = "home_banner_main",
     val title: String = "Besok klaim hadiah poin warga yang lebih...",
@@ -803,12 +823,34 @@ data class HomeBannerConfig(
     val isEnabled: Boolean = true,
     val displayMode: String = "AUTO", // "AUTO", "FULL_BANNER", "TICKET"
     val updatedAt: Long = System.currentTimeMillis(),
+    val banners: List<HomeBannerItem> = emptyList(),
 ) {
     val isCustomOrPreset: Boolean
         get() = imageUrl.isNotBlank() || presetKey != "DEFAULT_TREASURE"
 
     val isFullBanner: Boolean
         get() = displayMode == "FULL_BANNER" || (displayMode == "AUTO" && imageUrl.isNotBlank())
+
+    val activeBanners: List<HomeBannerItem>
+        get() {
+            val enabled = banners.filter { it.isEnabled }
+            if (enabled.isNotEmpty()) return enabled
+            return listOf(
+                HomeBannerItem(
+                    id = id,
+                    title = title,
+                    subtitle = subtitle,
+                    badgeText = badgeText,
+                    imageUrl = imageUrl,
+                    presetKey = presetKey,
+                    targetType = targetType,
+                    targetPayload = targetPayload,
+                    isEnabled = isEnabled,
+                    displayMode = displayMode,
+                    order = 0,
+                )
+            )
+        }
 }
 
 
