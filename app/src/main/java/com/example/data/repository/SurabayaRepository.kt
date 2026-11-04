@@ -11,8 +11,6 @@ import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.KosComment
 import com.example.data.model.KosKontrakItem
-import com.example.data.model.SurabayaBarkasSeed
-import com.example.data.model.SurabayaKosSeed
 import com.example.data.model.CitizenPoll
 import com.example.data.model.CitizenService
 import com.example.data.model.CulinaryReview
@@ -38,7 +36,6 @@ import com.example.data.model.normalizeCitizenGender
 import com.example.data.pocketbase.MultipartFilePart
 import com.example.data.pocketbase.PocketBaseClient
 import com.example.data.pocketbase.PocketBaseException
-import com.example.data.seed.SurabayaCuratedSeed
 import com.example.data.util.LinkSecurityValidator
 import com.example.data.util.LinkValidationResult
 import com.example.data.util.OperationType
@@ -129,101 +126,9 @@ class SurabayaRepository(
     private val localDeletedRoomIds = CopyOnWriteArraySet<String>()
 
     init {
-        // Initialize rich starter moments
-        for (item in SurabayaCuratedSeed.starterMoments("system_seed", "Warga Surabaya")) {
-            val m = mapMoment(item)
-            inMemoryMoments[m.id] = m
-        }
-        // Initialize rich starter destinations
-        for (item in SurabayaCuratedSeed.starterDestinations("system_admin")) {
-            val d = mapDestination(item)
-            inMemoryDestinations[d.id] = d
-        }
-        // Initialize rich starter community services
-        for (item in SurabayaCuratedSeed.starterServices("system_seed", "Warga Surabaya")) {
-            val s = mapCitizenService(item)
-            inMemoryServices[s.id] = s
-        }
-        // Initialize rich starter notifications
-        val now = System.currentTimeMillis()
-        val starterNotifs = listOf(
-            AppNotification(
-                id = "notif_chat_1",
-                userId = "",
-                type = AppNotificationType.CHAT,
-                title = "Pesan Baru dari Cak Sugeng",
-                message = "Rek, sido cangkrukan nang Balai Pemuda sore iki? Tak enteni yo!",
-                targetId = "public_balai_pemuda",
-                timestamp = now - 1000 * 60 * 15,
-                isRead = false,
-            ),
-            AppNotification(
-                id = "notif_event_1",
-                userId = "",
-                type = AppNotificationType.EVENT,
-                title = "Event Baru: Festival Rujak Uleg 2026",
-                message = "Pendaftaran warga & stand kuliner telah dibuka resmi di Kya-Kya Kembang Jepun.",
-                targetId = "event_rujak_uleg_2026",
-                timestamp = now - 1000 * 60 * 45,
-                isRead = false,
-            ),
-            AppNotification(
-                id = "notif_incident_1",
-                userId = "",
-                type = AppNotificationType.INCIDENT,
-                title = "Info Lalu Lintas: Rekayasa Jl. Tunjungan",
-                message = "Penyekatan arus lalu lintas situasional di sekitar Jl. Tunjungan karena parade budaya.",
-                targetId = "inc_001",
-                timestamp = now - 1000 * 60 * 120,
-                isRead = false,
-            ),
-            AppNotification(
-                id = "notif_chat_2",
-                userId = "",
-                type = AppNotificationType.CHAT,
-                title = "Ning Maya di Ruang Warga",
-                message = "Rekomendasi rawon kalkun di daerah Tambaksari mantap tenan, lur!",
-                targetId = "room_public_tunjungan",
-                timestamp = now - 1000 * 60 * 240,
-                isRead = true,
-            ),
-        )
-        for (notif in starterNotifs) {
-            inMemoryNotifications[notif.id] = notif
-        }
-        // Initialize rich starter citizen polls & comments
-        for (poll in SurabayaCuratedSeed.starterPolls("system_seed")) {
-            inMemoryPolls[poll.id] = poll
-        }
-        for ((pollId, comments) in SurabayaCuratedSeed.starterPollComments()) {
-            inMemoryPollComments[pollId] = CopyOnWriteArrayList(comments)
-        }
-        // Initialize rich starter tambal ban spots & comments (Salam Satu Aspal)
-        for (spot in SurabayaCuratedSeed.starterTambalBanSpots("system_seed")) {
-            inMemoryTambalBan[spot.id] = spot
-        }
-        for ((spotId, comments) in SurabayaCuratedSeed.starterTambalBanComments()) {
-            inMemoryTambalBanComments[spotId] = CopyOnWriteArrayList(comments)
-        }
-        // Initialize rich starter Barkas Warga (Jual Beli Barang Bekas) & comments
-        for (barkas in SurabayaBarkasSeed.starterItems("system_seed")) {
-            inMemoryBarkas[barkas.id] = barkas
-        }
-        for ((barkasId, comments) in SurabayaBarkasSeed.starterComments()) {
-            inMemoryBarkasComments[barkasId] = CopyOnWriteArrayList(comments)
-        }
-        // Initialize rich starter Info Kos & Kontrak listings & Q&A comments
-        for (kos in SurabayaKosSeed.starterListings("system_seed")) {
-            inMemoryKos[kos.id] = kos
-        }
-        for ((kosId, comments) in SurabayaKosSeed.starterComments()) {
-            inMemoryKosComments[kosId] = CopyOnWriteArrayList(comments)
-        }
-        // Initialize rich starter event comments & citizen buddies
-        for ((eventId, comments) in SurabayaCuratedSeed.starterEventComments()) {
-            inMemoryEventComments[eventId] = CopyOnWriteArrayList(comments)
-        }
+        // Pure initial state: No dummy seeds loaded. All data comes from live citizen inputs.
     }
+
 
     private fun bumpMutationTick() {
         localMutationTick.value = localMutationTick.value + 1L
@@ -347,74 +252,6 @@ class SurabayaRepository(
         } catch (e: Exception) {
             Log.w(TAG, "Nearby profile bootstrap warning: ${e.message}")
         }
-
-        val canSeedApproved = isBootstrappedAdmin || (pb.currentSession?.isAdmin == true)
-        seedCommunityCollectionsIfEmpty(uid, userName, canSeedApproved)
-    }
-
-    private suspend fun seedCommunityCollectionsIfEmpty(
-        uid: String,
-        userName: String,
-        canSeedApprovedEvents: Boolean,
-    ) {
-        try {
-            val incidents = pb.getList("incidents", perPage = 1)
-            if (incidents.isEmpty()) {
-                for (item in SurabayaCuratedSeed.starterIncidents(uid, userName)) {
-                    createOrIgnoreExisting("incidents", item)
-                }
-            }
-
-            val culinary = pb.getList("culinary", perPage = 1)
-            if (culinary.isEmpty()) {
-                for (item in SurabayaCuratedSeed.starterCulinary(uid)) {
-                    createOrIgnoreExisting("culinary", item)
-                }
-            }
-
-            val pendingEvents = pb.getList("events", filter = "status = 'PENDING'", perPage = 1)
-            if (pendingEvents.isEmpty()) {
-                for (item in SurabayaCuratedSeed.starterPendingEvents(uid)) {
-                    createOrIgnoreExisting("events", item)
-                }
-            }
-
-            if (canSeedApprovedEvents) {
-                seedApprovedEventsIfEmpty(uid)
-                val publicRooms = pb.getList("chat_rooms", filter = "room_type = 'PUBLIC'", perPage = 1)
-                if (publicRooms.isEmpty()) {
-                    for (item in SurabayaCuratedSeed.starterPublicRooms(uid)) {
-                        createOrIgnoreExisting("chat_rooms", item)
-                    }
-                }
-            }
-
-            val peers = pb.getList("nearby_profiles", filter = "is_discoverable = true", perPage = 3)
-            if (peers.size <= 1) {
-                for (item in SurabayaCuratedSeed.starterCommunityPeers(uid)) {
-                    createOrIgnoreExisting("nearby_profiles", item)
-                }
-            }
-        } catch (ce: CancellationException) {
-            throw ce
-        } catch (e: Exception) {
-            Log.w(TAG, "Seed check warning: ${e.message}")
-        }
-    }
-
-    private suspend fun seedApprovedEventsIfEmpty(uid: String) {
-        try {
-            val approved = pb.getList("events", filter = "status = 'APPROVED'", perPage = 1)
-            if (approved.isEmpty()) {
-                for (item in SurabayaCuratedSeed.starterApprovedEvents(uid)) {
-                    createOrIgnoreExisting("events", item)
-                }
-            }
-        } catch (ce: CancellationException) {
-            throw ce
-        } catch (e: Exception) {
-            Log.w(TAG, "Approved event seed warning: ${e.message}")
-        }
     }
 
     private suspend fun createOrIgnoreExisting(collection: String, payload: JSONObject) {
@@ -433,9 +270,6 @@ class SurabayaRepository(
                 put("is_admin", enabled)
             }
             pb.updateRecord("users", uid, patch)
-            if (enabled) {
-                seedApprovedEventsIfEmpty(uid)
-            }
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Exception) {
@@ -3138,23 +2972,13 @@ class SurabayaRepository(
         createdAt = parsePocketBaseTimestamp(j.optString("created")),
     )
 
-    private fun seedPeerDefaultGender(recordId: String): String {
-        return when (recordId) {
-            PocketBaseClient.deterministicPbId("peer_bima_gubeng") -> "LAKI_LAKI"
-            PocketBaseClient.deterministicPbId("peer_reza_rungkut") -> "LAKI_LAKI"
-            PocketBaseClient.deterministicPbId("peer_nadia_wonokromo") -> "PEREMPUAN"
-            PocketBaseClient.deterministicPbId("peer_sari_genteng") -> "PEREMPUAN"
-            else -> ""
-        }
-    }
-
     private fun mapNearbyProfile(j: JSONObject): NearbyProfile {
         val id = j.optString("id")
         val uid = j.optString("user_id")
         val serverGender = normalizeCitizenGender(j.optString("gender"))
         val resolvedGender = localGenderOverrides[id]
             ?: (if (id == uid) localGenderOverrides[uid] else null)
-            ?: serverGender.ifBlank { seedPeerDefaultGender(id) }
+            ?: serverGender
         return NearbyProfile(
             id = id,
             userId = uid,
