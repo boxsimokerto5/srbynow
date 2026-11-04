@@ -339,7 +339,7 @@ fun PollDetailSheetContent(
                                 }
                                 .testTag("poll_option_${opt.id}"),
                         ) {
-                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -353,26 +353,29 @@ fun PollDetailSheetContent(
                                             imageVector = if (isChosenByMe) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                             contentDescription = if (isChosenByMe) "Pilihan Anda" else "Pilih",
                                             tint = if (isChosenByMe) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(22.dp),
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
                                         Text(
                                             text = opt.text,
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontSize = 14.5.sp,
+                                                lineHeight = 20.sp,
+                                            ),
                                             fontWeight = if (isChosenByMe) FontWeight.Bold else FontWeight.Medium,
                                             color = MaterialTheme.colorScheme.onSurface,
                                         )
                                     }
 
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
 
                                     Column(
                                         horizontalAlignment = Alignment.End,
-                                        modifier = Modifier.widthIn(min = 48.dp),
+                                        modifier = Modifier.widthIn(min = 52.dp),
                                     ) {
                                         Text(
                                             text = "%.1f%%".format(percentage),
-                                            style = MaterialTheme.typography.labelMedium,
+                                            style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp),
                                             fontWeight = FontWeight.Bold,
                                             color = if (isChosenByMe) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
@@ -380,7 +383,7 @@ fun PollDetailSheetContent(
                                         )
                                         Text(
                                             text = "${opt.voteCount} suara",
-                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,
                                             softWrap = false,
@@ -388,16 +391,16 @@ fun PollDetailSheetContent(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
                                 // Visual Progress Bar
                                 LinearProgressIndicator(
                                     progress = { animatedProgress },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(7.dp)
+                                        .height(8.dp)
                                         .clip(RoundedCornerShape(4.dp)),
-                                    color = if (isChosenByMe) ToskaPrimary else ToskaPrimary.copy(alpha = 0.7f),
+                                    color = if (isChosenByMe) ToskaPrimary else ToskaPrimary.copy(alpha = 0.75f),
                                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                                     strokeCap = StrokeCap.Round,
                                 )

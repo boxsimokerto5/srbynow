@@ -202,15 +202,22 @@ object PollImageExporter {
             val percentStr = "%.1f%%".format(Locale.US, percentage)
             val votesStr = "(${opt.voteCount} suara)"
 
-            // Option Title
-            canvas.drawText(opt.text, padding, currentY + 30f, optionTextPaint)
-
             // Percentage & Vote count on right
             val percentWidth = percentTextPaint.measureText(percentStr)
             canvas.drawText(percentStr, width - padding - percentWidth, currentY + 30f, percentTextPaint)
 
             val voteCountWidth = voteCountPaint.measureText(votesStr)
             canvas.drawText(votesStr, width - padding - percentWidth - voteCountWidth - 16f, currentY + 30f, voteCountPaint)
+
+            // Option Title (prevent overlap with percentage)
+            val maxOptTextWidth = (width - padding * 2 - percentWidth - voteCountWidth - 36f).coerceAtLeast(100f)
+            val ellipsizedOptText = android.text.TextUtils.ellipsize(
+                opt.text,
+                optionTextPaint,
+                maxOptTextWidth,
+                android.text.TextUtils.TruncateAt.END,
+            ).toString()
+            canvas.drawText(ellipsizedOptText, padding, currentY + 30f, optionTextPaint)
 
             // Progress Bar
             val barY = currentY + 45f
@@ -286,6 +293,7 @@ object PollImageExporter {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            showToastOnMain(context, "Membuka aplikasi untuk membagikan gambar JPG...")
             context.startActivity(chooser)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to share poll image: ${e.message}", e)
@@ -366,6 +374,7 @@ object PollImageExporter {
         val chooser = Intent.createChooser(intent, "Bagikan Polling Warga").apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+        showToastOnMain(context, "Membuka aplikasi untuk membagikan polling...")
         context.startActivity(chooser)
     }
 }

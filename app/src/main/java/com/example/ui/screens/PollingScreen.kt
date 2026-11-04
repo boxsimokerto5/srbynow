@@ -33,14 +33,17 @@ import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -52,6 +55,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -59,19 +63,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -135,6 +136,7 @@ fun PollingScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("ALL") }
     var currentTab by remember { mutableStateOf(PollViewFilter.ALL) }
+    var pollToShare by remember { mutableStateOf<CitizenPoll?>(null) }
 
     val pendingCount = (pendingPollsState as? UiState.Success)?.data?.size ?: 0
 
@@ -163,36 +165,61 @@ fun PollingScreen(
         }
     }
 
+    // Modal Dialog for Sharing Options
+    if (pollToShare != null) {
+        val targetPoll = pollToShare!!
+        SharePollOptionsDialog(
+            poll = targetPoll,
+            onShareText = {
+                pollToShare = null
+                onShareText(targetPoll)
+            },
+            onShareJpg = {
+                pollToShare = null
+                onShareJpg(targetPoll)
+            },
+            onDownloadJpg = {
+                pollToShare = null
+                onDownloadJpg(targetPoll)
+            },
+            onDismiss = { pollToShare = null },
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .testTag("polling_screen"),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
+            // Spacious Sub-Header Bar
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 0.5.dp,
+                shadowElevation = 1.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
                         onClick = onBackToHome,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(44.dp)
                             .testTag("btn_back_polling"),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali ke Beranda",
-                            modifier = Modifier.size(19.dp),
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(24.dp),
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -200,23 +227,31 @@ fun PollingScreen(
                     ) {
                         Text(
                             text = stringResource(R.string.polling_page_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 17.5.sp,
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = stringResource(R.string.polling_page_subtitle),
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                            ),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+
                     if (isAdmin && pendingCount > 0) {
                         IconButton(
                             onClick = onOpenAdminPending,
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(42.dp)
                                 .testTag("btn_admin_pending_polls_screen"),
                         ) {
                             BadgedBox(
@@ -233,7 +268,7 @@ fun PollingScreen(
                                     imageVector = Icons.Default.Security,
                                     contentDescription = "Moderasi Usulan Polling",
                                     tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(19.dp),
+                                    modifier = Modifier.size(22.dp),
                                 )
                             }
                         }
@@ -242,15 +277,23 @@ fun PollingScreen(
                     IconButton(
                         onClick = onOpenCreatePoll,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(42.dp)
                             .testTag("btn_header_create_poll"),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Usulkan Polling",
-                            tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(21.dp),
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = ToskaPrimary.copy(alpha = 0.12f),
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Usulkan Polling",
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -259,336 +302,348 @@ fun PollingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                // 1. Compact Hero Banner ala Kejadian 112 Bar
+                // 1. Spacious Hero Banner
                 item(key = "poll_hero_banner") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 2.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .background(HeaderMintGradient)
-                            .border(1.dp, ToskaPrimary.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                            .border(1.dp, ToskaPrimary.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             Surface(
                                 shape = CircleShape,
                                 color = ToskaPrimary.copy(alpha = 0.2f),
-                                modifier = Modifier.size(30.dp),
+                                modifier = Modifier.size(42.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.HowToVote,
                                         contentDescription = null,
                                         tint = ToskaPrimaryDeep,
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(22.dp),
                                     )
                                 }
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Aspirasi & Suara Warga Kota",
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Transparan, terbuka, dan dapat dibagikan sebagai infografis JPG",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    text = "Transparan, terbuka, dan dapat dibagikan sebagai infografis JPG ke media sosial.",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp, lineHeight = 17.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
                     }
                 }
 
-            // 2. Admin Notice Banner (If any pending)
-            if (isAdmin && pendingCount > 0) {
-                item(key = "poll_admin_pending_banner") {
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = AlertCrimson.copy(alpha = 0.08f)),
-                        border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.4f)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp)
-                            .clickable { onOpenAdminPending() },
-                    ) {
-                        Row(
+                // 2. Admin Notice Banner (If any pending)
+                if (isAdmin && pendingCount > 0) {
+                    item(key = "poll_admin_pending_banner") {
+                        Card(
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = AlertCrimson.copy(alpha = 0.08f)),
+                            border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.4f)),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                                .padding(horizontal = 16.dp)
+                                .clickable { onOpenAdminPending() },
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Security,
-                                    contentDescription = null,
-                                    tint = AlertCrimson,
-                                    modifier = Modifier.size(17.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Security,
+                                        contentDescription = null,
+                                        tint = AlertCrimson,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "$pendingCount Usulan Polling Menunggu Moderasi",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AlertCrimson,
+                                    )
+                                }
                                 Text(
-                                    text = "$pendingCount Usulan Polling Menunggu Moderasi",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    text = "Periksa →",
+                                    style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = AlertCrimson,
                                 )
                             }
-                            Text(
-                                text = "Periksa →",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = AlertCrimson,
+                        }
+                    }
+                }
+
+                // 3. Spacious Search Bar
+                item(key = "poll_search_bar") {
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .testTag("input_search_poll"),
+                            placeholder = {
+                                Text(
+                                    text = "Cari topik polling, transportasi, tata kota, wilayah…",
+                                    fontSize = 13.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotBlank()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Hapus Pencarian",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = ToskaPrimary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            ),
+                        )
+                    }
+                }
+
+                // 4. View Tabs (Semua / Sudah Diikuti / Usulan Saya)
+                item(key = "poll_view_tabs") {
+                    val tabTitles = listOf(
+                        PollViewFilter.ALL to "Semua Polling",
+                        PollViewFilter.VOTED to "Sudah Diikuti",
+                        PollViewFilter.MY_PROPOSALS to "Usulan Saya (${myProposedPolls.size})",
+                    )
+                    val selectedIndex = tabTitles.indexOfFirst { it.first == currentTab }.coerceAtLeast(0)
+
+                    TabRow(
+                        selectedTabIndex = selectedIndex,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = ToskaPrimaryDeep,
+                        indicator = { tabPositions ->
+                            if (selectedIndex < tabPositions.size) {
+                                TabRowDefaults.SecondaryIndicator(
+                                    Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
+                                    height = 3.dp,
+                                    color = ToskaPrimary,
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    ) {
+                        tabTitles.forEachIndexed { _, (filter, title) ->
+                            Tab(
+                                selected = currentTab == filter,
+                                onClick = { currentTab = filter },
+                                text = {
+                                    Text(
+                                        text = title,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = if (currentTab == filter) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (currentTab == filter) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .testTag("tab_poll_${filter.name.lowercase()}"),
                             )
                         }
                     }
                 }
-            }
 
-            // 3. Search Bar
-            item(key = "poll_search_bar") {
-                Box(modifier = Modifier.padding(horizontal = 10.dp)) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                // 5. Category Chips (Spacious Horizontal Scroll)
+                item(key = "poll_category_chips") {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("input_search_poll"),
-                        placeholder = {
-                            Text(
-                                text = "Cari topik polling, transportasi, taman, wilayah…",
-                                fontSize = 12.5.sp,
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        POLL_CATEGORIES.forEach { (catKey, catLabel) ->
+                            val isSelected = selectedCategory == catKey
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedCategory = catKey },
+                                label = {
+                                    Text(
+                                        text = catLabel,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    )
+                                },
+                                shape = RoundedCornerShape(20.dp),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = ToskaPrimary.copy(alpha = 0.18f),
+                                    selectedLabelColor = ToskaPrimaryDeep,
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = if (isSelected) ToskaPrimary else MaterialTheme.colorScheme.outlineVariant,
+                                ),
+                                modifier = Modifier
+                                    .height(38.dp)
+                                    .testTag("chip_poll_cat_$catKey"),
                             )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotBlank()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Clear,
-                                        contentDescription = "Hapus Pencarian",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp),
+                        }
+                    }
+                }
+
+                // 6. List Content
+                when (pollsState) {
+                    is UiState.Loading -> {
+                        item(key = "poll_loading") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    color = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(36.dp),
+                                )
+                            }
+                        }
+                    }
+                    is UiState.Error -> {
+                        item(key = "poll_error") {
+                            Card(
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Text(
+                                        text = "Belum dapat memuat polling warga",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = pollsState.message,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center,
                                     )
                                 }
                             }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ToskaPrimary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                    )
-                }
-            }
-
-            // 4. View Tabs (Semua / Sudah Diikuti / Usulan Saya)
-            item(key = "poll_view_tabs") {
-                val tabTitles = listOf(
-                    PollViewFilter.ALL to "Semua Polling",
-                    PollViewFilter.VOTED to "Sudah Diikuti",
-                    PollViewFilter.MY_PROPOSALS to "Usulan Saya (${myProposedPolls.size})",
-                )
-                val selectedIndex = tabTitles.indexOfFirst { it.first == currentTab }.coerceAtLeast(0)
-
-                TabRow(
-                    selectedTabIndex = selectedIndex,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = ToskaPrimaryDeep,
-                    indicator = { tabPositions ->
-                        if (selectedIndex < tabPositions.size) {
-                            TabRowDefaults.SecondaryIndicator(
-                                Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                                color = ToskaPrimary,
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    tabTitles.forEachIndexed { index, (filter, title) ->
-                        Tab(
-                            selected = currentTab == filter,
-                            onClick = { currentTab = filter },
-                            text = {
-                                Text(
-                                    text = title,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (currentTab == filter) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (currentTab == filter) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                            modifier = Modifier.testTag("tab_poll_${filter.name.lowercase()}"),
-                        )
-                    }
-                }
-            }
-
-            // 5. Category Chips (Horizontal Scroll)
-            item(key = "poll_category_chips") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    POLL_CATEGORIES.forEach { (catKey, catLabel) ->
-                        val isSelected = selectedCategory == catKey
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedCategory = catKey },
-                            label = {
-                                Text(
-                                    text = catLabel,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                )
-                            },
-                            shape = RoundedCornerShape(20.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = ToskaPrimary.copy(alpha = 0.15f),
-                                selectedLabelColor = ToskaPrimaryDeep,
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = isSelected,
-                                borderColor = if (isSelected) ToskaPrimary else MaterialTheme.colorScheme.outlineVariant,
-                            ),
-                            modifier = Modifier.testTag("chip_poll_cat_$catKey"),
-                        )
-                    }
-                }
-            }
-
-            // 6. List Content
-            when (pollsState) {
-                is UiState.Loading -> {
-                    item(key = "poll_loading") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(
-                                color = ToskaPrimaryDeep,
-                                modifier = Modifier.size(32.dp),
-                            )
                         }
                     }
-                }
-                is UiState.Error -> {
-                    item(key = "poll_error") {
-                        Card(
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp),
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Text(
-                                    text = "Belum dapat memuat polling warga",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = pollsState.message,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
+                    is UiState.Success -> {
+                        if (displayPolls.isEmpty()) {
+                            item(key = "poll_empty") {
+                                EmptyPollState(
+                                    tab = currentTab,
+                                    searchQuery = searchQuery,
+                                    onClearFilter = {
+                                        searchQuery = ""
+                                        selectedCategory = "ALL"
+                                    },
+                                    onOpenCreatePoll = onOpenCreatePoll,
                                 )
                             }
-                        }
-                    }
-                }
-                is UiState.Success -> {
-                    if (displayPolls.isEmpty()) {
-                        item(key = "poll_empty") {
-                            EmptyPollState(
-                                tab = currentTab,
-                                searchQuery = searchQuery,
-                                onClearFilter = {
-                                    searchQuery = ""
-                                    selectedCategory = "ALL"
-                                },
-                                onOpenCreatePoll = onOpenCreatePoll,
-                            )
-                        }
-                    } else {
-                        items(displayPolls, key = { it.id }) { poll ->
-                            PollCardItem(
-                                poll = poll,
-                                currentUserId = currentUserId,
-                                isAdmin = isAdmin,
-                                onVote = { optId -> onVote(poll.id, optId) },
-                                onOpenDetail = { onOpenPollDetail(poll.id) },
-                                onShareText = { onShareText(poll) },
-                                onShareJpg = { onShareJpg(poll) },
-                                onDownloadJpg = { onDownloadJpg(poll) },
-                                onDelete = { onDeletePoll(poll.id) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 10.dp),
-                            )
+                        } else {
+                            items(displayPolls, key = { it.id }) { poll ->
+                                PollCardItem(
+                                    poll = poll,
+                                    currentUserId = currentUserId,
+                                    isAdmin = isAdmin,
+                                    onVote = { optId -> onVote(poll.id, optId) },
+                                    onOpenDetail = { onOpenPollDetail(poll.id) },
+                                    onOpenShareMenu = { pollToShare = poll },
+                                    onShareText = { onShareText(poll) },
+                                    onShareJpg = { onShareJpg(poll) },
+                                    onDownloadJpg = { onDownloadJpg(poll) },
+                                    onDelete = { onDeletePoll(poll.id) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-        // Floating Action Button mepet & rapat tepat di atas footer ala KejadianScreen
+        // Floating Action Button
         FloatingActionButton(
             onClick = onOpenCreatePoll,
             containerColor = ToskaPrimary,
             contentColor = Color.White,
-            shape = CircleShape,
+            shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp)
+                .padding(20.dp)
                 .testTag("fab_create_poll"),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector = Icons.Default.HowToVote,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(22.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Usulkan Polling",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                 )
             }
         }
@@ -603,7 +658,7 @@ private fun EmptyPollState(
     onOpenCreatePoll: () -> Unit,
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
         modifier = Modifier
             .fillMaxWidth()
@@ -612,16 +667,16 @@ private fun EmptyPollState(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Icon(
                 imageVector = Icons.Default.HowToVote,
                 contentDescription = null,
-                tint = ToskaPrimaryDeep.copy(alpha = 0.6f),
-                modifier = Modifier.size(48.dp),
+                tint = ToskaPrimaryDeep.copy(alpha = 0.7f),
+                modifier = Modifier.size(54.dp),
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             val title = when {
                 searchQuery.isNotBlank() -> "Tidak Ada Polling yang Cocok"
                 tab == PollViewFilter.VOTED -> "Belum Pernah Mengikuti Polling"
@@ -637,34 +692,34 @@ private fun EmptyPollState(
 
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             if (searchQuery.isNotBlank()) {
                 OutlinedButton(
                     onClick = onClearFilter,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ) {
                     Text("Bersihkan Filter")
                 }
             } else {
                 Button(
                     onClick = onOpenCreatePoll,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Usulkan Polling Baru")
                 }
             }
@@ -672,6 +727,9 @@ private fun EmptyPollState(
     }
 }
 
+/**
+ * Spacious & Modern Polling Card Item (Tampilan Luas, Lega, & Elegan)
+ */
 @Composable
 fun PollCardItem(
     poll: CitizenPoll,
@@ -679,6 +737,7 @@ fun PollCardItem(
     isAdmin: Boolean,
     onVote: (optionId: String) -> Unit,
     onOpenDetail: () -> Unit,
+    onOpenShareMenu: () -> Unit,
     onShareText: () -> Unit,
     onShareJpg: () -> Unit,
     onDownloadJpg: () -> Unit,
@@ -686,11 +745,10 @@ fun PollCardItem(
     modifier: Modifier = Modifier,
 ) {
     val userVotedOptionId = poll.userVotedOptionId(currentUserId)
-    val hasVoted = userVotedOptionId != null
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     if (showDeleteConfirm) {
-        androidx.compose.material3.AlertDialog(
+        AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Hapus Polling Warga?") },
             text = { Text("Kiriman polling \"${poll.title}\" beserta seluruh suaranya akan dihapus permanen.") },
@@ -706,7 +764,7 @@ fun PollCardItem(
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showDeleteConfirm = false }) {
+                TextButton(onClick = { showDeleteConfirm = false }) {
                     Text("Batal")
                 }
             },
@@ -714,15 +772,15 @@ fun PollCardItem(
     }
 
     Card(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.28f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier
             .fillMaxWidth()
             .testTag("poll_card_${poll.id}"),
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             // Category, District, and Vote Count Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -734,7 +792,7 @@ fun PollCardItem(
                     modifier = Modifier.weight(1f, fill = false),
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RoundedCornerShape(8.dp),
                         color = ToskaPrimary.copy(alpha = 0.12f),
                     ) {
                         Text(
@@ -742,47 +800,64 @@ fun PollCardItem(
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = ToskaPrimaryDeep,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Kec. ${poll.district}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = "Kec. ${poll.district}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.HowToVote,
-                        contentDescription = null,
-                        tint = ToskaPrimaryDeep,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${poll.totalVotes} Suara",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = ToskaPrimaryDeep,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = ToskaPrimary.copy(alpha = 0.12f),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.HowToVote,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${poll.totalVotes} Suara",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = ToskaPrimaryDeep,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                 }
             }
 
             // Moderation Status Badge if pending or rejected
             if (poll.status != "APPROVED") {
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = if (poll.status == "PENDING") Color(0xFFFFF3CD) else AlertCrimson.copy(alpha = 0.12f),
                 ) {
                     Text(
@@ -790,39 +865,45 @@ fun PollCardItem(
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (poll.status == "PENDING") Color(0xFF856404) else AlertCrimson,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Title
+            // Title - Large, Clear, and Well-Spaced
             Text(
                 text = poll.title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = 17.sp,
+                    lineHeight = 24.sp,
+                ),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.clickable { onOpenDetail() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenDetail() },
             )
 
             if (poll.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = poll.description,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 19.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable { onOpenDetail() },
                 )
             }
 
-            Spacer(modifier = Modifier.height(7.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Options List with Direct Voting
+            // Options List with Direct Voting (Spacious & Modern Option Tiles)
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 poll.options.forEach { opt ->
                     val isChosenByMe = opt.id == userVotedOptionId
@@ -834,18 +915,26 @@ fun PollCardItem(
                     )
 
                     Surface(
-                        shape = RoundedCornerShape(9.dp),
-                        color = if (isChosenByMe) ToskaPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isChosenByMe) {
+                            ToskaPrimary.copy(alpha = 0.14f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        },
                         border = BorderStroke(
-                            width = if (isChosenByMe) 1.5.dp else 1.dp,
-                            color = if (isChosenByMe) ToskaPrimary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                            width = if (isChosenByMe) 2.dp else 1.dp,
+                            color = if (isChosenByMe) {
+                                ToskaPrimary
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                            },
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onVote(opt.id) }
                             .testTag("btn_card_vote_opt_${opt.id}"),
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -859,28 +948,30 @@ fun PollCardItem(
                                         imageVector = if (isChosenByMe) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                         contentDescription = if (isChosenByMe) "Pilihan Anda" else "Pilih Opsi",
                                         tint = if (isChosenByMe) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(22.dp),
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
                                     Text(
                                         text = opt.text,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = if (isChosenByMe) FontWeight.Bold else FontWeight.Medium,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontSize = 14.5.sp,
+                                            lineHeight = 20.sp,
+                                        ),
+                                        fontWeight = if (isChosenByMe) FontWeight.Bold else FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
 
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.widthIn(min = 40.dp),
+                                    modifier = Modifier.widthIn(min = 52.dp),
+                                    horizontalArrangement = Arrangement.End,
                                 ) {
                                     Text(
                                         text = "%.0f%%".format(percentage),
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp),
                                         fontWeight = FontWeight.Bold,
                                         color = if (isChosenByMe) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
@@ -889,7 +980,7 @@ fun PollCardItem(
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "(${opt.voteCount})",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         softWrap = false,
@@ -897,14 +988,16 @@ fun PollCardItem(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Thicker, cleaner progress bar (8dp)
                             LinearProgressIndicator(
                                 progress = { animatedProgress },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(5.dp)
-                                    .clip(RoundedCornerShape(3.dp)),
-                                color = if (isChosenByMe) ToskaPrimary else ToskaPrimary.copy(alpha = 0.7f),
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                                color = if (isChosenByMe) ToskaPrimary else ToskaPrimary.copy(alpha = 0.75f),
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                                 strokeCap = StrokeCap.Round,
                             )
@@ -913,83 +1006,105 @@ fun PollCardItem(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Bottom Actions Row: Comments, Share Text, Share JPG, Download JPG
+            // Subtle divider before actions
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                thickness = 0.8.dp,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Bottom Actions Row: Comments pill and Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                // Comments Button
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                // Comments Button as a spacious pill
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
                     modifier = Modifier
                         .clickable { onOpenDetail() }
-                        .testTag("btn_card_comments_${poll.id}")
-                        .padding(vertical = 4.dp),
+                        .testTag("btn_card_comments_${poll.id}"),
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Comment,
-                        contentDescription = "Komentar",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${poll.commentCount} Komentar",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Comment,
+                            contentDescription = "Komentar",
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(17.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "${poll.commentCount} Komentar",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                 }
 
-                // Sharing & Action Buttons
+                // Sharing & Action Buttons with generous touch targets (40dp+)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    // Share Text
+                    // Share Text button (WhatsApp / Chats)
                     IconButton(
                         onClick = onShareText,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(40.dp)
                             .testTag("btn_card_share_text_${poll.id}"),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Bagikan Teks",
-                            tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(18.dp),
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = ToskaPrimary.copy(alpha = 0.12f),
+                            modifier = Modifier.size(34.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Bagikan Polling",
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(19.dp),
+                                )
+                            }
+                        }
                     }
 
-                    // Share JPG
+                    // Direct Share JPG button
                     IconButton(
                         onClick = onShareJpg,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(40.dp)
                             .testTag("btn_card_share_jpg_${poll.id}"),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Image,
-                            contentDescription = "Bagikan Gambar JPG",
+                            contentDescription = "Bagikan Gambar Infografis JPG",
                             tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
 
-                    // Download JPG to Gallery
+                    // Direct Download JPG to Gallery
                     IconButton(
                         onClick = onDownloadJpg,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(40.dp)
                             .testTag("btn_card_download_jpg_${poll.id}"),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Download,
                             contentDescription = "Unduh JPG ke Galeri",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
 
@@ -998,14 +1113,14 @@ fun PollCardItem(
                         IconButton(
                             onClick = { showDeleteConfirm = true },
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(40.dp)
                                 .testTag("btn_card_delete_${poll.id}"),
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Hapus Polling",
-                                tint = AlertCrimson.copy(alpha = 0.8f),
-                                modifier = Modifier.size(18.dp),
+                                tint = AlertCrimson.copy(alpha = 0.85f),
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                     }
@@ -1013,4 +1128,191 @@ fun PollCardItem(
             }
         }
     }
+}
+
+/**
+ * Dedicated Share Options Dialog: ensures clicking Share gives clear, working options
+ */
+@Composable
+private fun SharePollOptionsDialog(
+    poll: CitizenPoll,
+    onShareText: () -> Unit,
+    onShareJpg: () -> Unit,
+    onDownloadJpg: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = ToskaPrimary.copy(alpha = 0.15f),
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "Bagikan Polling Warga",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "Kec. ${poll.district} • ${poll.totalVotes} Suara",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = "\"${poll.title}\"",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 13.5.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Option 1: Share Text (WhatsApp / Chats)
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                    border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onShareText() },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Bagikan Teks & Ringkasan",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Kirim teks pertanyaan & hasil suara ke WhatsApp, Telegram, dll",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                // Option 2: Share Infographic JPG
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = ToskaPrimary.copy(alpha = 0.12f)),
+                    border = BorderStroke(1.5.dp, ToskaPrimary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onShareJpg() },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Bagikan Gambar Infografis (JPG)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = ToskaPrimaryDeep,
+                            )
+                            Text(
+                                text = "Poster hasil polling beresolusi tinggi untuk WhatsApp Story & medsos",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                // Option 3: Download JPG to Gallery
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onDownloadJpg() },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Simpan JPG ke Galeri Foto",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Unduh gambar infografis langsung ke folder Pictures perangkat",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Tutup", color = ToskaPrimaryDeep, fontWeight = FontWeight.Bold)
+            }
+        },
+    )
 }
