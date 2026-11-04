@@ -801,10 +801,14 @@ data class HomeBannerConfig(
     val targetType: String = "NONE", // "NONE", "EVENT", "KULINER", "POLLING", "RADIO", "WEB"
     val targetPayload: String = "",
     val isEnabled: Boolean = true,
+    val displayMode: String = "AUTO", // "AUTO", "FULL_BANNER", "TICKET"
     val updatedAt: Long = System.currentTimeMillis(),
 ) {
     val isCustomOrPreset: Boolean
         get() = imageUrl.isNotBlank() || presetKey != "DEFAULT_TREASURE"
+
+    val isFullBanner: Boolean
+        get() = displayMode == "FULL_BANNER" || (displayMode == "AUTO" && imageUrl.isNotBlank())
 }
 
 

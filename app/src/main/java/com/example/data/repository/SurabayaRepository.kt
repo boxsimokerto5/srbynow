@@ -6336,6 +6336,7 @@ class SurabayaRepository(
             put("targetType", config.targetType)
             put("targetPayload", config.targetPayload)
             put("isEnabled", config.isEnabled)
+            put("displayMode", config.displayMode)
             put("updatedAt", config.updatedAt)
         }.toString()
     }
@@ -6353,6 +6354,7 @@ class SurabayaRepository(
                 targetType = json.optString("targetType", "NONE"),
                 targetPayload = json.optString("targetPayload", ""),
                 isEnabled = json.optBoolean("isEnabled", true),
+                displayMode = json.optString("displayMode", "AUTO"),
                 updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
             )
         }.getOrDefault(HomeBannerConfig())
