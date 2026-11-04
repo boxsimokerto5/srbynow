@@ -321,4 +321,73 @@ class BarkasWargaRobolectricTest {
         assertEquals("brk_flagged_99", flagged.first().id)
         assertEquals(2, flagged.first().contentReportCount)
     }
+
+    @Test
+    fun `BarkasScreen compact header supports safety popup, search toggle, and district chooser dialog`() {
+        val sampleItems = listOf(
+            BarkasItem(
+                id = "brk_wonokromo_1",
+                sellerId = "u_1",
+                sellerName = "Cak Joko",
+                title = "Sepeda Polygon Mulus",
+                category = "KENDARAAN",
+                price = 1500000L,
+                district = "Wonokromo",
+                codLocation = "Taman Bungkul",
+            ),
+            BarkasItem(
+                id = "brk_gubeng_2",
+                sellerId = "u_2",
+                sellerName = "Ning Ririn",
+                title = "Kulkas Sharp 1 Pintu",
+                category = "ELEKTRONIK",
+                price = 850000L,
+                district = "Gubeng",
+                codLocation = "Dekat Unair B",
+            ),
+        )
+
+        composeTestRule.setContent {
+            SurabayaHariIniTheme {
+                BarkasScreen(
+                    barkasState = UiState.Success(sampleItems),
+                    bookmarks = emptyList(),
+                    currentUserId = "my_user",
+                    isAdmin = false,
+                    onOpenBarkasDetail = {},
+                    onOpenCreateBarkas = {},
+                    onToggleSold = {},
+                    onToggleBookmark = {},
+                    onBackToHome = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        // 1. Safety info icon opens COD tips popup and dismisses
+        composeTestRule.onNodeWithTag("barkas_safety_info_btn").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("barkas_safety_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Siap, Mengerti!").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithTag("barkas_safety_dialog").assertCountEquals(0)
+
+        // 2. Search toggle icon reveals search input and filters dynamically
+        composeTestRule.onAllNodesWithTag("barkas_search_input").assertCountEquals(0)
+        composeTestRule.onNodeWithTag("barkas_search_toggle_btn").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("barkas_search_input").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("barkas_search_input").performTextInput("Polygon")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("barkas_card_brk_wonokromo_1").assertIsDisplayed()
+        composeTestRule.onAllNodesWithTag("barkas_card_brk_gubeng_2").assertCountEquals(0)
+
+        // 3. District filter chip opens 31-kecamatan chooser dialog
+        composeTestRule.onNodeWithTag("barkas_district_filter").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("barkas_district_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tutup").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithTag("barkas_district_dialog").assertCountEquals(0)
+    }
 }

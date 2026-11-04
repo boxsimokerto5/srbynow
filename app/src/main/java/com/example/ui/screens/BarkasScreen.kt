@@ -22,15 +22,19 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
@@ -42,6 +46,8 @@ import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material.icons.filled.Weekend
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -61,6 +67,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -90,6 +97,7 @@ import com.example.R
 import com.example.data.model.BarkasItem
 import com.example.data.model.BookmarkItem
 import com.example.data.model.UiState
+import com.example.data.util.SurabayaDistricts
 import com.example.data.util.formatRelativeTimestamp
 import com.example.ui.components.CategoryFilterRow
 import com.example.ui.components.EmptyFeedPlaceholder
@@ -138,8 +146,19 @@ fun BarkasScreen(
     BackHandler(onBack = onBackToHome)
 
     var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+    var showSafetyNoticeDialog by remember { mutableStateOf(false) }
+    var showDistrictDialog by remember { mutableStateOf(false) }
+
     var selectedCategory by remember { mutableStateOf("ALL") }
+    var selectedDistrict by remember { mutableStateOf("ALL") }
     var statusFilter by remember { mutableStateOf(BarkasStatusFilter.AVAILABLE) }
+
+    BackHandler(enabled = isSearchActive) {
+        searchQuery = ""
+        isSearchActive = false
+    }
+    BackHandler(enabled = !isSearchActive, onBack = onBackToHome)
 
     val categories = remember {
         listOf(
@@ -148,8 +167,41 @@ fun BarkasScreen(
             "KENDARAAN" to "Sepeda & Otomotif",
             "PERABOT" to "Perabot & Kos",
             "PAKAIAN_HOBI" to "Pakaian & Hobi",
+            "GRATIS" to "Gratis / Hibah",
             "LAINNYA" to "Lainnya",
         )
+    }
+
+    val allItems = (barkasState as? UiState.Success)?.data.orEmpty()
+    val availableCount = remember(allItems) { allItems.count { !it.isSold } }
+    val myItemsCount = remember(allItems, currentUserId) {
+        allItems.count { it.isOwnedBy(currentUserId) }
+    }
+
+    val filteredItems = remember(allItems, statusFilter, selectedCategory, selectedDistrict, searchQuery, currentUserId) {
+        val q = searchQuery.trim().lowercase()
+        allItems.filter { item ->
+            val matchesStatus = when (statusFilter) {
+                BarkasStatusFilter.AVAILABLE -> !item.isSold
+                BarkasStatusFilter.ALL -> true
+                BarkasStatusFilter.MINE -> item.isOwnedBy(currentUserId)
+            }
+            val matchesCategory = when (selectedCategory) {
+                "ALL" -> true
+                "GRATIS" -> item.price <= 0L
+                else -> item.category.equals(selectedCategory, ignoreCase = true)
+            }
+            val matchesDistrict = selectedDistrict == "ALL" ||
+                selectedDistrict.isBlank() ||
+                item.district.equals(selectedDistrict, ignoreCase = true)
+            val matchesSearch = q.isBlank() ||
+                item.title.lowercase().contains(q) ||
+                item.description.lowercase().contains(q) ||
+                item.district.lowercase().contains(q) ||
+                item.codLocation.lowercase().contains(q) ||
+                item.sellerName.lowercase().contains(q)
+            matchesStatus && matchesCategory && matchesDistrict && matchesSearch
+        }
     }
 
     Box(
@@ -158,7 +210,7 @@ fun BarkasScreen(
             .testTag("barkas_screen"),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Compact Sub-Header Bar (Mepet ke TopBar Surabaya)
+            // Compact Sub-Header Bar (Ramping, Mepet Atas & Efisien)
             Surface(
                 color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 1.dp,
@@ -173,7 +225,7 @@ fun BarkasScreen(
                     IconButton(
                         onClick = onBackToHome,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .testTag("barkas_back_btn"),
                     ) {
                         Icon(
@@ -185,80 +237,414 @@ fun BarkasScreen(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 6.dp),
+                            .padding(horizontal = 4.dp),
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.barkas_page_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                            )
+                            // Ikon Info (i) popup untuk tips aman COD tanpa memakan layar
+                            IconButton(
+                                onClick = { showSafetyNoticeDialog = true },
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .testTag("barkas_safety_info_btn"),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Info,
+                                    contentDescription = "Tips Aman COD Surabaya",
+                                    tint = ToskaPrimaryDeep,
+                                    modifier = Modifier.size(17.dp),
+                                )
+                            }
+                        }
                         Text(
-                            text = stringResource(R.string.barkas_page_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                        )
-                        Text(
-                            text = stringResource(R.string.barkas_page_subtitle),
+                            text = if (isSearchActive && searchQuery.isNotBlank()) {
+                                "Mencari: \"$searchQuery\" (${filteredItems.size} barang)"
+                            } else {
+                                stringResource(R.string.barkas_page_subtitle)
+                            },
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    Button(
-                        onClick = onOpenCreateBarkas,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ToskaPrimary,
-                            contentColor = Color.White,
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    // Ikon Kaca Pembesar (Search) menggantikan tombol Jual Barang yang dobel dengan FAB
+                    IconButton(
+                        onClick = {
+                            isSearchActive = !isSearchActive
+                            if (!isSearchActive) searchQuery = ""
+                        },
                         modifier = Modifier
-                            .padding(end = 4.dp)
-                            .minimumInteractiveComponentSize()
-                            .testTag("barkas_top_create_btn"),
+                            .size(38.dp)
+                            .testTag("barkas_search_toggle_btn"),
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
+                            imageVector = if (isSearchActive) Icons.Filled.Close else Icons.Filled.Search,
+                            contentDescription = if (isSearchActive) "Tutup Pencarian" else "Cari Barang Bekas",
+                            tint = if (isSearchActive || searchQuery.isNotBlank()) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp),
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                }
+            }
+
+            // Expandable Compact Search Bar (Hanya tampil saat tombol kaca pembesar aktif)
+            if (isSearchActive) {
+                Surface(
+                    color = Color.White,
+                    shadowElevation = 1.dp,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = {
+                                Text(
+                                    text = "Cari sepeda, kulkas kos, elektronik, kecamatan COD…",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                )
+                            },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("barkas_search_input"),
+                        )
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(
+                                onClick = { searchQuery = "" },
+                                modifier = Modifier.size(28.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Clear,
+                                    contentDescription = "Hapus teks",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Baris Filter Pengkategorian Rapat, Kecil & Proporsional (Mepet Atas)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 0.5.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    // Availability Status
+                    FilterChip(
+                        selected = statusFilter == BarkasStatusFilter.AVAILABLE,
+                        onClick = { statusFilter = BarkasStatusFilter.AVAILABLE },
+                        label = { Text("Tersedia ($availableCount)", style = MaterialTheme.typography.labelSmall) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ToskaPrimaryDeep,
+                            selectedLabelColor = Color.White,
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("barkas_filter_available"),
+                    )
+                    FilterChip(
+                        selected = statusFilter == BarkasStatusFilter.ALL,
+                        onClick = { statusFilter = BarkasStatusFilter.ALL },
+                        label = { Text("Semua (${allItems.size})", style = MaterialTheme.typography.labelSmall) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ToskaPrimaryDeep,
+                            selectedLabelColor = Color.White,
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("barkas_filter_all"),
+                    )
+                    FilterChip(
+                        selected = statusFilter == BarkasStatusFilter.MINE,
+                        onClick = { statusFilter = BarkasStatusFilter.MINE },
+                        label = { Text("Lapak Saya ($myItemsCount)", style = MaterialTheme.typography.labelSmall) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ToskaPrimaryDeep,
+                            selectedLabelColor = Color.White,
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("barkas_filter_mine"),
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .height(18.dp)
+                            .width(1.dp)
+                            .background(OutlineVariantLight),
+                    )
+
+                    // Kategori Barang
+                    categories.forEach { (key, label) ->
+                        FilterChip(
+                            selected = selectedCategory == key,
+                            onClick = { selectedCategory = key },
+                            label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = ToskaPrimary,
+                                selectedLabelColor = Color.White,
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.testTag("barkas_cat_$key"),
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .height(18.dp)
+                            .width(1.dp)
+                            .background(OutlineVariantLight),
+                    )
+
+                    // Compact Kecamatan Filter Chip
+                    val isDistrictActive = selectedDistrict != "ALL" && selectedDistrict.isNotBlank()
+                    FilterChip(
+                        selected = isDistrictActive,
+                        onClick = { showDistrictDialog = true },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = if (isDistrictActive) Color.White else ToskaPrimaryDeep,
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = if (isDistrictActive) "Kec. $selectedDistrict" else "Pilih Kecamatan",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = if (isDistrictActive) Icons.Filled.Close else Icons.Filled.ArrowDropDown,
+                                contentDescription = if (isDistrictActive) "Reset Kecamatan" else "Pilih Kecamatan",
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clickable {
+                                        if (isDistrictActive) {
+                                            selectedDistrict = "ALL"
+                                        } else {
+                                            showDistrictDialog = true
+                                        }
+                                    },
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ToskaPrimaryDeep,
+                            selectedLabelColor = Color.White,
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("barkas_district_filter"),
+                    )
+                }
+            }
+
+            // Dialog Tips Aman COD Surabaya (Muncul saat ikon info diketuk)
+            if (showSafetyNoticeDialog) {
+                AlertDialog(
+                    onDismissRequest = { showSafetyNoticeDialog = false },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Security,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(32.dp),
+                        )
+                    },
+                    title = {
                         Text(
-                            text = stringResource(R.string.barkas_btn_post),
-                            style = MaterialTheme.typography.labelMedium,
+                            text = "Tips Aman COD Surabaya",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                         )
-                    }
-                }
+                    },
+                    text = {
+                        Text(
+                            text = stringResource(R.string.barkas_cod_safety_notice),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 20.sp,
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = { showSafetyNoticeDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = ToskaPrimary),
+                            shape = RoundedCornerShape(10.dp),
+                        ) {
+                            Text("Siap, Mengerti!", color = Color.White)
+                        }
+                    },
+                    modifier = Modifier.testTag("barkas_safety_dialog"),
+                )
             }
 
-            val allItems = (barkasState as? UiState.Success)?.data.orEmpty()
-            val availableCount = remember(allItems) { allItems.count { !it.isSold } }
-            val myItemsCount = remember(allItems, currentUserId) {
-                allItems.count { it.isOwnedBy(currentUserId) }
+            // Dialog Pemilihan Kecamatan COD
+            if (showDistrictDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDistrictDialog = false },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.LocationOn,
+                            contentDescription = null,
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = "Pilih Lokasi COD di Surabaya",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 350.dp),
+                        ) {
+                            Text(
+                                text = "Filter barang bekas sesuai kecamatan domisili/COD Anda:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            )
+                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                item {
+                                    Surface(
+                                        onClick = {
+                                            selectedDistrict = "ALL"
+                                            showDistrictDialog = false
+                                        },
+                                        color = if (selectedDistrict == "ALL" || selectedDistrict.isBlank()) Color(0xFFE5F7F0) else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Text(
+                                                text = "Semua Kecamatan (31 Kecamatan)",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = if (selectedDistrict == "ALL" || selectedDistrict.isBlank()) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (selectedDistrict == "ALL" || selectedDistrict.isBlank()) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
+                                            )
+                                            if (selectedDistrict == "ALL" || selectedDistrict.isBlank()) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Check,
+                                                    contentDescription = null,
+                                                    tint = ToskaPrimaryDeep,
+                                                    modifier = Modifier.size(16.dp),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                items(SurabayaDistricts.all, key = { it.name }) { dist ->
+                                    val isSelected = selectedDistrict.equals(dist.name, ignoreCase = true)
+                                    Surface(
+                                        onClick = {
+                                            selectedDistrict = dist.name
+                                            showDistrictDialog = false
+                                        },
+                                        color = if (isSelected) Color(0xFFE5F7F0) else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    text = "Kecamatan ${dist.name}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
+                                                )
+                                                Text(
+                                                    text = dist.region,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Check,
+                                                    contentDescription = null,
+                                                    tint = ToskaPrimaryDeep,
+                                                    modifier = Modifier.size(16.dp),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showDistrictDialog = false }) {
+                            Text("Tutup", color = ToskaPrimaryDeep, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    modifier = Modifier.testTag("barkas_district_dialog"),
+                )
             }
-
-            val filteredItems = remember(allItems, statusFilter, selectedCategory, searchQuery, currentUserId) {
-                val q = searchQuery.trim().lowercase()
-                allItems.filter { item ->
-                    val matchesStatus = when (statusFilter) {
-                        BarkasStatusFilter.AVAILABLE -> !item.isSold
-                        BarkasStatusFilter.ALL -> true
-                        BarkasStatusFilter.MINE -> item.isOwnedBy(currentUserId)
-                    }
-                    val matchesCategory = when (selectedCategory) {
-                        "ALL" -> true
-                        "GRATIS" -> item.price <= 0L
-                        else -> item.category.equals(selectedCategory, ignoreCase = true)
-                    }
-                    val matchesSearch = q.isBlank() ||
-                        item.title.lowercase().contains(q) ||
-                        item.description.lowercase().contains(q) ||
-                        item.district.lowercase().contains(q) ||
-                        item.codLocation.lowercase().contains(q) ||
-                        item.sellerName.lowercase().contains(q)
-                    matchesStatus && matchesCategory && matchesSearch
-                }
-            }
-
 
             LazyColumn(
                 modifier = Modifier
@@ -266,105 +652,6 @@ fun BarkasScreen(
                     .weight(1f),
                 contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
             ) {
-            item(key = "barkas_cod_banner") {
-                BarkasCodSafetyBanner()
-            }
-
-            item(key = "barkas_filters") {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 5.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    // Status Filter Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        FilterChip(
-                            selected = statusFilter == BarkasStatusFilter.AVAILABLE,
-                            onClick = { statusFilter = BarkasStatusFilter.AVAILABLE },
-                            label = {
-                                Text(
-                                    text = "Masih Tersedia ($availableCount)",
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = ToskaPrimaryDeep,
-                                selectedLabelColor = Color.White,
-                            ),
-                            modifier = Modifier.testTag("barkas_filter_available"),
-                        )
-                        FilterChip(
-                            selected = statusFilter == BarkasStatusFilter.ALL,
-                            onClick = { statusFilter = BarkasStatusFilter.ALL },
-                            label = {
-                                Text(
-                                    text = "Semua Barang (${allItems.size})",
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = ToskaPrimaryDeep,
-                                selectedLabelColor = Color.White,
-                            ),
-                            modifier = Modifier.testTag("barkas_filter_all"),
-                        )
-                        FilterChip(
-                            selected = statusFilter == BarkasStatusFilter.MINE,
-                            onClick = { statusFilter = BarkasStatusFilter.MINE },
-                            label = {
-                                Text(
-                                    text = "Lapak Saya ($myItemsCount)",
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = ToskaPrimaryDeep,
-                                selectedLabelColor = Color.White,
-                            ),
-                            modifier = Modifier.testTag("barkas_filter_mine"),
-                        )
-                    }
-
-                    // Search Field
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = {
-                            Text("Cari sepeda, kulkas kos, elektronik, kecamatan COD…")
-                        },
-                        leadingIcon = {
-                            Icon(imageVector = Icons.Filled.Search, contentDescription = null)
-                        },
-                        trailingIcon = if (searchQuery.isNotBlank()) {
-                            {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(imageVector = Icons.Filled.Clear, contentDescription = "Hapus pencarian")
-                                }
-                            }
-                        } else null,
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ToskaPrimary,
-                            unfocusedBorderColor = OutlineVariantLight,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 10.dp)
-                            .testTag("barkas_search_input"),
-                    )
-
-                }
-            }
 
             // Horizontal Featured Barkas Carousel (Just like Destinasi Cards)
             if (filteredItems.isNotEmpty() && selectedCategory == "ALL" && searchQuery.isBlank() && statusFilter == BarkasStatusFilter.AVAILABLE) {
