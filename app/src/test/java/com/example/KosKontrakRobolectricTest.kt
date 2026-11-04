@@ -344,4 +344,75 @@ class KosKontrakRobolectricTest {
         assertEquals(3, flagged.first().totalSignals)
         assertTrue(flagged.first().hasExternalLink)
     }
+
+    @Test
+    fun `KosKontrakScreen compact header supports info popup, search toggle, and district chooser dialog`() {
+        val sampleItems = listOf(
+            KosKontrakItem(
+                id = "kos_gubeng_1",
+                ownerId = "u_1",
+                ownerName = "Pak Slamet",
+                title = "Kos AC Dharmawangsa",
+                propertyType = "KOS_PUTRI",
+                billingPeriod = "BULANAN",
+                price = 1200000L,
+                district = "Gubeng",
+                address = "Jl. Dharmawangsa",
+            ),
+            KosKontrakItem(
+                id = "kos_rungkut_2",
+                ownerId = "u_2",
+                ownerName = "Pak Joko",
+                title = "Kontrakan Medokan Asri",
+                propertyType = "KONTRAKAN",
+                billingPeriod = "TAHUNAN",
+                price = 25000000L,
+                district = "Rungkut",
+                address = "Jl. Medokan Asri",
+            ),
+        )
+
+        composeTestRule.setContent {
+            SurabayaHariIniTheme {
+                KosKontrakScreen(
+                    kosState = UiState.Success(sampleItems),
+                    bookmarks = emptyList(),
+                    currentUserId = "my_user",
+                    isAdmin = false,
+                    onOpenKosDetail = {},
+                    onOpenCreateKos = {},
+                    onToggleFull = {},
+                    onToggleBookmark = {},
+                    onBackToHome = {},
+                )
+            }
+        }
+        composeTestRule.waitForIdle()
+
+        // 1. Safety info icon opens popup and dismisses
+        composeTestRule.onNodeWithTag("kos_safety_info_btn").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("kos_safety_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Siap, Mengerti!").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithTag("kos_safety_dialog").assertCountEquals(0)
+
+        // 2. Search toggle icon reveals search input and filters dynamically
+        composeTestRule.onAllNodesWithTag("kos_search_input").assertCountEquals(0)
+        composeTestRule.onNodeWithTag("kos_search_toggle_btn").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("kos_search_input").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("kos_search_input").performTextInput("Dharmawangsa")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("kos_card_kos_gubeng_1").assertIsDisplayed()
+        composeTestRule.onAllNodesWithTag("kos_card_kos_rungkut_2").assertCountEquals(0)
+
+        // 3. District filter chip opens 31-kecamatan chooser dialog
+        composeTestRule.onNodeWithTag("kos_district_filter").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("kos_district_dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tutup").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onAllNodesWithTag("kos_district_dialog").assertCountEquals(0)
+    }
 }
