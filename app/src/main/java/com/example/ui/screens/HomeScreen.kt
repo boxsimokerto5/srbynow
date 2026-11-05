@@ -241,7 +241,7 @@ fun HomeScreen(
             title = stringResource(R.string.nav_kuliner),
             subtitle = "Sentra",
             icon = Icons.Filled.Restaurant,
-            badge = "Terkedat",
+            badge = "Terdekat",
             drawableRes = R.drawable.ic_game_steaming_bowl,
             testTag = "home_shortcut_kuliner",
             onClick = { onNavigateTab(MainTab.KULINER) },

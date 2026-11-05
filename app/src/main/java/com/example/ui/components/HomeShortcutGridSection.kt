@@ -116,6 +116,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -677,14 +678,16 @@ private fun HomeShortcutButton(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                    .padding(horizontal = 4.dp, vertical = 5.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 // Top Text: Subtitle / Tag and Title
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = if (item.badge != null) 3.dp else 0.dp),
                 ) {
                     Text(
                         text = theme.tagText,
@@ -694,6 +697,7 @@ private fun HomeShortcutButton(
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = if (item.badge != null) 14.dp else 2.dp),
                     )
                     Text(
                         text = theme.displayTitle,
@@ -748,13 +752,13 @@ private fun HomeShortcutButton(
             if (item.badge != null) {
                 Surface(
                     shape = RoundedCornerShape(bottomStart = 8.dp, topEnd = 18.dp),
-                    color = Color(0xFFA855F7),
+                    color = Color(0xFF9333EA),
                     modifier = Modifier.align(Alignment.TopEnd),
                 ) {
                     Text(
                         text = item.badge,
                         color = Color.White,
-                        fontSize = 8.5.sp,
+                        fontSize = 8.sp,
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                     )
@@ -874,7 +878,7 @@ fun SingleFullGraphicBannerView(
                         .align(Alignment.BottomStart)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                 ) {
-                    if (item.badgeText.isNotBlank()) {
+                    if (item.badgeText.isNotBlank() && item.badgeText != "1/7 Hari") {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = SuperAppGoldBg,
@@ -908,7 +912,7 @@ fun SingleFullGraphicBannerView(
                         )
                     }
                 }
-            } else if (item.badgeText.isNotBlank()) {
+            } else if (item.badgeText.isNotBlank() && item.badgeText != "1/7 Hari") {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = Color.Black.copy(alpha = 0.60f),
@@ -1214,10 +1218,11 @@ fun GojekStyleTicketBanner(
     val bannerItems = remember(bannerConfig) { bannerConfig.activeBanners }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { bannerItems.size })
     val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+    var isUserTouching by remember { mutableStateOf(false) }
 
-    // Otomatis bergeser setiap 4.5 detik, jeda jika disentuh atau digeser manual oleh warga
-    LaunchedEffect(bannerItems.size, isDragged) {
-        if (bannerItems.size > 1 && !isDragged) {
+    // Otomatis bergeser setiap 4.5 detik, jeda seketika jika disentuh/ditahan tekanan tangan atau digeser manual
+    LaunchedEffect(bannerItems.size, isDragged, isUserTouching) {
+        if (bannerItems.size > 1 && !isDragged && !isUserTouching) {
             while (true) {
                 delay(4500L)
                 val nextPage = (pagerState.currentPage + 1) % bannerItems.size
@@ -1232,7 +1237,18 @@ fun GojekStyleTicketBanner(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 6.dp, bottom = 4.dp),
+            .padding(top = 6.dp, bottom = 4.dp)
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val anyPressed = event.changes.any { it.pressed }
+                        if (isUserTouching != anyPressed) {
+                            isUserTouching = anyPressed
+                        }
+                    }
+                }
+            },
     ) {
         // Horizontal Pager Carousel: geser manual halus dengan snapping
         HorizontalPager(
