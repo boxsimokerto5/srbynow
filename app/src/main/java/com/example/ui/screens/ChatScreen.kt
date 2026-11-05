@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,9 +62,10 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -116,7 +119,21 @@ fun ChatScreen(
     var publicSearchQuery by rememberSaveable { mutableStateOf("") }
     var directSearchQuery by rememberSaveable { mutableStateOf("") }
 
-    val activeSearchQuery = if (selectedSubTab == 0) publicSearchQuery else directSearchQuery
+    var localSubTab by remember(selectedSubTab) { mutableIntStateOf(selectedSubTab) }
+    LaunchedEffect(selectedSubTab) {
+        localSubTab = selectedSubTab
+    }
+    val effectiveSubTab = localSubTab
+
+    val focusManager = LocalFocusManager.current
+    val currentOnSelectSubTab by rememberUpdatedState(onSelectSubTab)
+
+    val listState = rememberLazyListState()
+    LaunchedEffect(effectiveSubTab) {
+        listState.scrollToItem(0)
+    }
+
+    val activeSearchQuery = if (effectiveSubTab == 0) publicSearchQuery else directSearchQuery
 
     val myActiveGroupCount = remember(publicRooms, currentUserId) {
         if (currentUserId.isBlank()) 0
@@ -124,7 +141,7 @@ fun ChatScreen(
     }
     val isCitizenQuotaFull = !isAdmin && myActiveGroupCount >= CommunityGroupPinHelper.MAX_GROUPS_PER_CITIZEN
 
-    val baseRooms = if (selectedSubTab == 0) publicRooms else directRooms
+    val baseRooms = if (effectiveSubTab == 0) publicRooms else directRooms
     val activeRooms = remember(baseRooms, activeSearchQuery, currentUserId, isAdmin, unlockedGroupPinHashes) {
         if (activeSearchQuery.isBlank()) {
             baseRooms
@@ -148,9 +165,6 @@ fun ChatScreen(
             }
         }
     }
-
-    val focusManager = LocalFocusManager.current
-    val currentOnSelectSubTab by rememberUpdatedState(onSelectSubTab)
 
     val citizenByUid = remember(knownCitizens) {
         buildMap {
@@ -184,9 +198,11 @@ fun ChatScreen(
                     ) {
                         ChatModeTabPill(
                             label = "Ruang Publik SBY (${publicRooms.size})",
-                            selected = selectedSubTab == 0,
+                            selected = effectiveSubTab == 0,
                             onClick = {
-                                if (selectedSubTab != 0) {
+                                if (effectiveSubTab != 0) {
+                                    localSubTab = 0
+                                    focusManager.clearFocus()
                                     currentOnSelectSubTab(0)
                                 }
                             },
@@ -196,9 +212,11 @@ fun ChatScreen(
                         )
                         ChatModeTabPill(
                             label = "Pesan Pribadi (${directRooms.size})",
-                            selected = selectedSubTab == 1,
+                            selected = effectiveSubTab == 1,
                             onClick = {
-                                if (selectedSubTab != 1) {
+                                if (effectiveSubTab != 1) {
+                                    localSubTab = 1
+                                    focusManager.clearFocus()
                                     currentOnSelectSubTab(1)
                                 }
                             },
@@ -219,7 +237,7 @@ fun ChatScreen(
                     OutlinedTextField(
                         value = activeSearchQuery,
                         onValueChange = {
-                            if (selectedSubTab == 0) {
+                            if (effectiveSubTab == 0) {
                                 publicSearchQuery = it
                             } else {
                                 directSearchQuery = it
@@ -227,7 +245,7 @@ fun ChatScreen(
                         },
                         placeholder = {
                             Text(
-                                text = if (selectedSubTab == 0) "Cari grup publik / komunitas…" else "Cari teman atau ID room…",
+                                text = if (effectiveSubTab == 0) "Cari grup publik / komunitas…" else "Cari teman atau ID room…",
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         },
@@ -242,7 +260,7 @@ fun ChatScreen(
                             if (activeSearchQuery.isNotEmpty()) {
                                 IconButton(
                                     onClick = {
-                                        if (selectedSubTab == 0) {
+                                        if (effectiveSubTab == 0) {
                                             publicSearchQuery = ""
                                         } else {
                                             directSearchQuery = ""
@@ -270,7 +288,7 @@ fun ChatScreen(
                             .weight(1f)
                             .testTag("chat_search_input"),
                     )
-                    if (selectedSubTab == 0) {
+                    if (effectiveSubTab == 0) {
                         Button(
                             onClick = onCreatePublicGroup,
                             shape = CircleShape,
@@ -308,14 +326,15 @@ fun ChatScreen(
             }
 
             LazyColumn(
-                contentPadding = PaddingValues(top = 2.dp, bottom = if (selectedSubTab == 0) 80.dp else 20.dp),
+                state = listState,
+                contentPadding = PaddingValues(top = 2.dp, bottom = if (effectiveSubTab == 0) 80.dp else 20.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .testTag("chat_rooms_list"),
             ) {
-                if (selectedSubTab == 0) {
+                if (effectiveSubTab == 0) {
                     item(key = "chat_public_group_role_banner") {
                         if (isAdmin) {
                             Surface(
@@ -404,16 +423,16 @@ fun ChatScreen(
                 }
 
                 if (activeRooms.isEmpty()) {
-                    item(key = if (selectedSubTab == 0) "empty_public_rooms" else "empty_direct_rooms") {
+                    item(key = if (effectiveSubTab == 0) "empty_public_rooms" else "empty_direct_rooms") {
                         val isSearching = activeSearchQuery.isNotBlank()
                         EmptyFeedPlaceholder(
-                            icon = if (selectedSubTab == 0) Icons.Filled.Forum else Icons.AutoMirrored.Filled.Chat,
-                            title = if (selectedSubTab == 0) {
+                            icon = if (effectiveSubTab == 0) Icons.Filled.Forum else Icons.AutoMirrored.Filled.Chat,
+                            title = if (effectiveSubTab == 0) {
                                 if (isSearching) "Grup Tidak Ditemukan" else "Belum Ada Grup Publik"
                             } else {
                                 if (isSearching) "Obrolan Tidak Ditemukan" else "Belum ada obrolan pribadi"
                             },
-                            subtitle = if (selectedSubTab == 0) {
+                            subtitle = if (effectiveSubTab == 0) {
                                 if (isSearching) {
                                     "Tidak ada grup atau komunitas yang cocok dengan \"$activeSearchQuery\"."
                                 } else {
@@ -460,7 +479,7 @@ fun ChatScreen(
             }
         }
 
-        if (selectedSubTab == 0) {
+        if (effectiveSubTab == 0) {
             ExtendedFloatingActionButton(
                 onClick = onCreatePublicGroup,
                 shape = CircleShape,
@@ -501,11 +520,8 @@ private fun ChatModeTabPill(
 ) {
     Box(
         modifier = modifier
+            .defaultMinSize(minHeight = 44.dp)
             .clip(CircleShape)
-            .clickable(
-                role = androidx.compose.ui.semantics.Role.Tab,
-                onClick = onClick,
-            )
             .then(
                 if (selected) {
                     Modifier.background(FreshGreenGradient, CircleShape)
@@ -513,7 +529,11 @@ private fun ChatModeTabPill(
                     Modifier.background(Color.Transparent)
                 },
             )
-            .padding(vertical = 9.dp, horizontal = 10.dp),
+            .clickable(
+                role = androidx.compose.ui.semantics.Role.Tab,
+                onClick = onClick,
+            )
+            .padding(vertical = 10.dp, horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
