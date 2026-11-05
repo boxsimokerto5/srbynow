@@ -657,13 +657,20 @@ fun SurabayaMainHub(
                             )
                         }
 
+                        val isReelsTab = selectedTab == MainTab.MOMEN
+                        val navSurfaceColor = if (isReelsTab) androidx.compose.ui.graphics.Color(0xFF0F0F0F) else androidx.compose.ui.graphics.Color(0xFFFFF0F3)
+                        val navBorderColor = if (isReelsTab) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.12f) else androidx.compose.ui.graphics.Color(0xFFFFD1DC)
+                        val navIndicatorColor = if (isReelsTab) androidx.compose.ui.graphics.Color(0xFF263238) else androidx.compose.ui.graphics.Color(0xFFFFDDE4)
+                        val navSelectedColor = if (isReelsTab) androidx.compose.ui.graphics.Color.White else androidx.compose.ui.graphics.Color(0xFF111827)
+                        val navUnselectedColor = if (isReelsTab) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.65f) else androidx.compose.ui.graphics.Color(0xFF6B7280)
+
                         Surface(
-                            color = androidx.compose.ui.graphics.Color(0xFFFFF0F3),
-                            border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFFFD1DC)),
+                            color = navSurfaceColor,
+                            border = BorderStroke(1.dp, navBorderColor),
                         ) {
                             NavigationBar(
                                 windowInsets = WindowInsets.navigationBars,
-                                containerColor = androidx.compose.ui.graphics.Color(0xFFFFF0F3),
+                                containerColor = navSurfaceColor,
                                 tonalElevation = 0.dp,
                             ) {
                                 destinations.forEach { dest ->
@@ -691,16 +698,16 @@ fun SurabayaMainHub(
                                                 text = dest.customLabel ?: stringResource(dest.labelRes),
                                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                                 fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
-                                                color = if (selected) androidx.compose.ui.graphics.Color(0xFF111827) else androidx.compose.ui.graphics.Color(0xFF6B7280),
+                                                color = if (selected) navSelectedColor else navUnselectedColor,
                                                 maxLines = 1,
                                             )
                                         },
                                         colors = NavigationBarItemDefaults.colors(
-                                            indicatorColor = androidx.compose.ui.graphics.Color(0xFFFFDDE4),
-                                            selectedIconColor = androidx.compose.ui.graphics.Color(0xFF111827),
-                                            selectedTextColor = androidx.compose.ui.graphics.Color(0xFF111827),
-                                            unselectedIconColor = androidx.compose.ui.graphics.Color(0xFF6B7280),
-                                            unselectedTextColor = androidx.compose.ui.graphics.Color(0xFF6B7280),
+                                            indicatorColor = navIndicatorColor,
+                                            selectedIconColor = navSelectedColor,
+                                            selectedTextColor = navSelectedColor,
+                                            unselectedIconColor = navUnselectedColor,
+                                            unselectedTextColor = navUnselectedColor,
                                         ),
                                         modifier = Modifier.testTag(dest.testTag),
                                     )

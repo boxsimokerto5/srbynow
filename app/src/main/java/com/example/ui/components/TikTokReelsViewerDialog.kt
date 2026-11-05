@@ -94,9 +94,18 @@ fun TikTokReelsViewerDialog(
     var isBuffering by remember { mutableStateOf(true) }
     var playbackProgress by remember { mutableFloatStateOf(0f) }
 
-    val exoPlayer = remember(moment.videoUrl) {
+    val targetUri = remember(moment.videoUrl) {
+        val clean = moment.videoUrl.trim()
+        if (clean.isBlank() || clean.contains("commondatastorage.googleapis.com")) {
+            android.net.Uri.parse("asset:///sample_reels_video.mp4")
+        } else {
+            android.net.Uri.parse(clean)
+        }
+    }
+
+    val exoPlayer = remember(targetUri) {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(moment.videoUrl))
+            setMediaItem(MediaItem.fromUri(targetUri))
             repeatMode = Player.REPEAT_MODE_ALL
             playWhenReady = true
             volume = 1f
@@ -112,6 +121,14 @@ fun TikTokReelsViewerDialog(
 
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                runCatching {
+                    exoPlayer.setMediaItem(MediaItem.fromUri("asset:///sample_reels_video.mp4"))
+                    exoPlayer.prepare()
+                    exoPlayer.play()
+                }
             }
         }
         exoPlayer.addListener(listener)

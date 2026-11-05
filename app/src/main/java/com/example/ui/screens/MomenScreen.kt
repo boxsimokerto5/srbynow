@@ -84,6 +84,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import android.net.Uri
+import android.util.Log
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -91,9 +93,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -313,22 +319,43 @@ private fun InstagramReelPageItem(
     val heartScale = remember { Animatable(0f) }
 
     // ExoPlayer for Video Moments
-    val isVideo = moment.isVideo && moment.videoUrl.isNotBlank()
-    val exoPlayer = remember(moment.videoUrl) {
+    val isVideo = moment.isVideo && (moment.videoUrl.isNotBlank() || moment.mediaType.equals("VIDEO", ignoreCase = true))
+
+    // Resolve URL safely: redirect stale Google 403 URLs or empty to bundled reliable asset
+    val targetVideoUri = remember(moment.videoUrl) {
+        val clean = moment.videoUrl.trim()
+        if (clean.isBlank() || clean.contains("commondatastorage.googleapis.com")) {
+            Uri.parse("asset:///sample_reels_video.mp4")
+        } else {
+            Uri.parse(clean)
+        }
+    }
+
+    val exoPlayer = remember(targetVideoUri) {
         if (isVideo) {
-            ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(moment.videoUrl))
-                repeatMode = Player.REPEAT_MODE_ALL
-                volume = if (isGlobalMuted) 0f else 1f
-                prepare()
-            }
+            val httpFactory = DefaultHttpDataSource.Factory()
+                .setUserAgent("Mozilla/5.0 (Linux; Android) ArekSurabaya/1.0")
+                .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(10000)
+                .setReadTimeoutMs(10000)
+            val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+            val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+            ExoPlayer.Builder(context)
+                .setMediaSourceFactory(mediaSourceFactory)
+                .build().apply {
+                    setMediaItem(MediaItem.fromUri(targetVideoUri))
+                    repeatMode = Player.REPEAT_MODE_ALL
+                    volume = if (isGlobalMuted) 0f else 1f
+                    playWhenReady = isCurrentPage && !isUserPaused
+                    prepare()
+                }
         } else {
             null
         }
     }
 
     // Auto-play when swiped into view, auto-pause when swiped away!
-    LaunchedEffect(isCurrentPage, isUserPaused, isVideo) {
+    LaunchedEffect(isCurrentPage, isUserPaused, isVideo, exoPlayer) {
         if (isVideo && exoPlayer != null) {
             if (isCurrentPage && !isUserPaused) {
                 exoPlayer.play()
@@ -354,6 +381,15 @@ private fun InstagramReelPageItem(
             val listener = object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
                     isBuffering = state == Player.STATE_BUFFERING
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    Log.w("InstagramReelPageItem", "Playback error for $targetVideoUri: ${error.message}, falling back to bundled asset")
+                    runCatching {
+                        exoPlayer.setMediaItem(MediaItem.fromUri("asset:///sample_reels_video.mp4"))
+                        exoPlayer.prepare()
+                        exoPlayer.play()
+                    }
                 }
             }
             exoPlayer.addListener(listener)
@@ -440,7 +476,23 @@ private fun InstagramReelPageItem(
                 )
             },
     ) {
-        // 1. FULL-SCREEN MEDIA (Video via ExoPlayer OR Photos via Carousel)
+        // 1. FULL-SCREEN MEDIA BACKDROP (Always present: Photo / Thumbnail / Poster)
+        // Guarantees zero black screen while video buffers or loads!
+        val posterModel = remember(moment) {
+            moment.allPhotos.firstOrNull()?.ifBlank { null }
+                ?: resolveImageDrawable(moment.imageKey)
+        }
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(posterModel)
+                .crossfade(true)
+                .build(),
+            contentDescription = moment.caption,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        // 1b. Full-Screen Video (ExoPlayer) OR Photo Carousel
         if (isVideo && exoPlayer != null) {
             AndroidView(
                 factory = { ctx ->
@@ -454,58 +506,50 @@ private fun InstagramReelPageItem(
                         )
                     }
                 },
+                update = { playerView ->
+                    if (playerView.player != exoPlayer) {
+                        playerView.player = exoPlayer
+                    }
+                },
                 modifier = Modifier.fillMaxSize(),
             )
-        } else {
-            // Photo Moment (Full Screen)
+        } else if (!isVideo && moment.allPhotos.size > 1) {
+            // Photo Carousel for multi-photo moments
             val photos = moment.allPhotos
-            if (photos.size > 1) {
-                val photoPagerState = rememberPagerState(pageCount = { photos.size })
-                Box(modifier = Modifier.fillMaxSize()) {
-                    HorizontalPager(
-                        state = photoPagerState,
+            val photoPagerState = rememberPagerState(pageCount = { photos.size })
+            Box(modifier = Modifier.fillMaxSize()) {
+                HorizontalPager(
+                    state = photoPagerState,
+                    modifier = Modifier.fillMaxSize(),
+                ) { pIdx ->
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(photos[pIdx])
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = moment.caption,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
-                    ) { pIdx ->
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(photos[pIdx])
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = moment.caption,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                // Photo Indicator Dots
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 64.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    repeat(photos.size) { dotIdx ->
+                        Box(
+                            modifier = Modifier
+                                .size(if (photoPagerState.currentPage == dotIdx) 7.dp else 5.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (photoPagerState.currentPage == dotIdx) Color.White else Color.White.copy(alpha = 0.4f),
+                                ),
                         )
                     }
-                    // Photo Indicator Dots
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 64.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        repeat(photos.size) { dotIdx ->
-                            Box(
-                                modifier = Modifier
-                                    .size(if (photoPagerState.currentPage == dotIdx) 7.dp else 5.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        if (photoPagerState.currentPage == dotIdx) Color.White else Color.White.copy(alpha = 0.4f),
-                                    ),
-                            )
-                        }
-                    }
                 }
-            } else {
-                val photoModel = photos.firstOrNull()?.ifBlank { null } ?: resolveImageDrawable(moment.imageKey)
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(photoModel)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = moment.caption,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
             }
         }
 
@@ -587,15 +631,15 @@ private fun InstagramReelPageItem(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 12.dp, bottom = 42.dp),
+                .padding(end = 12.dp, bottom = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Heart Like
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
                     onClick = onToggleLike,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(42.dp),
                 ) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -617,7 +661,7 @@ private fun InstagramReelPageItem(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
                     onClick = onOpenComments,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(42.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.ChatBubbleOutline,
@@ -639,7 +683,7 @@ private fun InstagramReelPageItem(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
                     onClick = onOpenComments,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(42.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Repeat,
@@ -660,7 +704,7 @@ private fun InstagramReelPageItem(
             // Direct Share / Send
             IconButton(
                 onClick = { /* Share handled by user */ },
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(40.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Send,
@@ -673,7 +717,7 @@ private fun InstagramReelPageItem(
             // Save / Bookmark
             IconButton(
                 onClick = { isSaved = !isSaved },
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(40.dp),
             ) {
                 Icon(
                     imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
@@ -730,19 +774,19 @@ private fun InstagramReelPageItem(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 12.dp),
+                    .padding(end = 14.dp, bottom = 10.dp),
             ) {
                 IconButton(
                     onClick = onToggleMute,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(34.dp)
                         .background(Color.Black.copy(alpha = 0.55f), CircleShape),
                 ) {
                     Icon(
                         imageVector = if (isGlobalMuted) Icons.Filled.VolumeMute else Icons.Filled.VolumeUp,
                         contentDescription = "Suara",
                         tint = Color.White,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(17.dp),
                     )
                 }
             }
@@ -752,12 +796,11 @@ private fun InstagramReelPageItem(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .fillMaxWidth(0.80f)
-                .navigationBarsPadding()
-                .padding(start = 14.dp, bottom = 14.dp),
+                .fillMaxWidth(0.78f)
+                .padding(start = 14.dp, bottom = 10.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            // Author row: Avatar + Name + Verified Badge + "Ikuti" Button
+            // Author row: Avatar + Name + Verified Badge + "Profil" Button
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -768,7 +811,7 @@ private fun InstagramReelPageItem(
                 // Circular Avatar with Story Gradient Ring
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(
                             Brush.sweepGradient(
@@ -794,7 +837,7 @@ private fun InstagramReelPageItem(
                             text = moment.authorName.take(1).uppercase(),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                         )
                     }
                 }
@@ -808,7 +851,9 @@ private fun InstagramReelPageItem(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.shadow(4.dp),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .shadow(4.dp),
                 )
 
                 Spacer(modifier = Modifier.width(4.dp))
@@ -827,11 +872,13 @@ private fun InstagramReelPageItem(
                     border = androidx.compose.foundation.BorderStroke(0.8.dp, Color.White.copy(alpha = 0.4f)),
                 ) {
                     Text(
-                        text = "Lihat Profil",
+                        text = "Profil",
                         color = Color.White,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
                     )
                 }
             }
@@ -902,14 +949,9 @@ private fun InstagramReelPageItem(
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.shadow(4.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "• S3 H.264",
-                    color = Color(0xFF80CBC4),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .shadow(4.dp),
                 )
             }
         }

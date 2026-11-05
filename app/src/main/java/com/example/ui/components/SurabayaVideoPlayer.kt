@@ -101,10 +101,19 @@ fun SurabayaVideoPlayer(
     var isHeartVisible by remember { mutableStateOf(false) }
     val heartScale = remember { Animatable(0f) }
 
+    val targetUri = remember(videoUrl) {
+        val clean = videoUrl.trim()
+        if (clean.isBlank() || clean.contains("commondatastorage.googleapis.com")) {
+            android.net.Uri.parse("asset:///sample_reels_video.mp4")
+        } else {
+            android.net.Uri.parse(clean)
+        }
+    }
+
     // ExoPlayer creation & lifecycle
-    val exoPlayer = remember(videoUrl) {
+    val exoPlayer = remember(targetUri) {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(videoUrl))
+            setMediaItem(MediaItem.fromUri(targetUri))
             repeatMode = Player.REPEAT_MODE_ALL
             playWhenReady = autoPlay
             volume = if (isMutedInitially) 0f else 1f
@@ -120,6 +129,14 @@ fun SurabayaVideoPlayer(
 
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                runCatching {
+                    exoPlayer.setMediaItem(MediaItem.fromUri("asset:///sample_reels_video.mp4"))
+                    exoPlayer.prepare()
+                    exoPlayer.play()
+                }
             }
         }
         exoPlayer.addListener(listener)
