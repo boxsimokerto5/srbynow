@@ -1216,7 +1216,11 @@ fun GojekStyleTicketBanner(
     var showAdminEditor by remember { mutableStateOf(false) }
 
     val bannerItems = remember(bannerConfig) { bannerConfig.activeBanners }
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { bannerItems.size })
+    if (bannerItems.isEmpty() && !isAdmin) {
+        return
+    }
+
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { bannerItems.size.coerceAtLeast(1) })
     val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
     var isUserTouching by remember { mutableStateOf(false) }
 

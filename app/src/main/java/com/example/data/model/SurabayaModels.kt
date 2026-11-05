@@ -821,14 +821,14 @@ data class HomeBannerItem(
 
 data class HomeBannerConfig(
     val id: String = "home_banner_main",
-    val title: String = "Besok klaim hadiah poin warga yang lebih...",
-    val subtitle: String = "Berakhir dalam 6 Hari",
-    val badgeText: String = "1/7 Hari",
+    val title: String = "",
+    val subtitle: String = "",
+    val badgeText: String = "",
     val imageUrl: String = "",
     val presetKey: String = "DEFAULT_TREASURE",
     val targetType: String = "NONE", // "NONE", "EVENT", "KULINER", "POLLING", "RADIO", "WEB"
     val targetPayload: String = "",
-    val isEnabled: Boolean = true,
+    val isEnabled: Boolean = false,
     val displayMode: String = "AUTO", // "AUTO", "FULL_BANNER", "TICKET"
     val updatedAt: Long = System.currentTimeMillis(),
     val banners: List<HomeBannerItem> = emptyList(),
@@ -843,6 +843,7 @@ data class HomeBannerConfig(
         get() {
             val enabled = banners.filter { it.isEnabled }
             if (enabled.isNotEmpty()) return enabled
+            if (!isEnabled || title.isBlank()) return emptyList()
             return listOf(
                 HomeBannerItem(
                     id = id,

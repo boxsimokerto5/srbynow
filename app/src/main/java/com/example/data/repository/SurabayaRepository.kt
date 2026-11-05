@@ -130,46 +130,6 @@ class SurabayaRepository(
 
     init {
         val now = System.currentTimeMillis()
-        val videoSample1 = UserMoment(
-            id = "seed_moment_video_tunjungan",
-            authorId = "official_arek_sby",
-            authorName = "Cak Dimas • Arek Tunjungan",
-            authorDistrict = "Genteng",
-            caption = "Romansa syahdu malam di Jl. Tunjungan! Live music acoustic, gemerlap lampu heritage, & kuliner lezat khas Surabaya 🎸🏙️✨",
-            locationName = "Jl. Tunjungan (Tunjungan Romansa)",
-            district = "Genteng",
-            postType = POST_TYPE_MOMEN,
-            imageKey = "dest_tunjungan",
-            videoUrl = "asset:///sample_reels_video.mp4",
-            videoThumbnailUrl = "",
-            videoDurationSec = 15,
-            mediaType = "VIDEO",
-            likesCount = 89,
-            commentCount = 14,
-            createdAt = now - 3_600_000L,
-            updatedAt = now - 3_600_000L,
-        )
-        val videoSample2 = UserMoment(
-            id = "seed_lensa_video_suramadu",
-            authorId = "lensa_kota_official",
-            authorName = "Lensa Suroboyo Drone",
-            authorDistrict = "Kenjeran",
-            caption = "Keindahan Golden Hour Jembatan Suramadu & pesisir Kenjeran dari udara. Megah dan menyejukkan mata warga! 🌅🌉✨",
-            locationName = "Jembatan Suramadu & Pesisir Kenjeran",
-            district = "Kenjeran",
-            postType = POST_TYPE_LENSA_WARGA,
-            imageKey = "hero_surabaya",
-            videoUrl = "asset:///sample_reels_video.mp4",
-            videoThumbnailUrl = "",
-            videoDurationSec = 24,
-            mediaType = "VIDEO",
-            likesCount = 142,
-            commentCount = 28,
-            createdAt = now - 7_200_000L,
-            updatedAt = now - 7_200_000L,
-        )
-        inMemoryMoments[videoSample1.id] = videoSample1
-        inMemoryMoments[videoSample2.id] = videoSample2
 
         // Seed authentic Surabaya public discussion rooms so publicRooms is never 0 and switching always works seamlessly
         val publicRoom1 = ChatRoom(
