@@ -624,20 +624,22 @@ fun SurabayaMainHub(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
-                SurabayaCompactTopBar(
-                    district = currentDistrict,
-                    isAdmin = isAdmin,
-                    bookmarkCount = bookmarks.size,
-                    notificationCount = unreadNotifCount,
-                    adminAttentionCount = adminAttentionCount,
-                    userInitials = userInitials,
-                    avatarUrl = currentAvatarUrl,
-                    onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
-                    onOpenNotifications = { viewModel.openSheet(ActiveBottomSheet.Notifications) },
-                    onOpenAdminDashboard = { viewModel.openAdminDashboard() },
-                    onOpenProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
-                    onOpenSearch = { viewModel.selectTab(MainTab.KULINER) },
-                )
+                if (selectedTab != MainTab.MOMEN) {
+                    SurabayaCompactTopBar(
+                        district = currentDistrict,
+                        isAdmin = isAdmin,
+                        bookmarkCount = bookmarks.size,
+                        notificationCount = unreadNotifCount,
+                        adminAttentionCount = adminAttentionCount,
+                        userInitials = userInitials,
+                        avatarUrl = currentAvatarUrl,
+                        onOpenBookmarks = { viewModel.openSheet(ActiveBottomSheet.BookmarksList) },
+                        onOpenNotifications = { viewModel.openSheet(ActiveBottomSheet.Notifications) },
+                        onOpenAdminDashboard = { viewModel.openAdminDashboard() },
+                        onOpenProfile = { viewModel.openSheet(ActiveBottomSheet.ProfileAndAdmin) },
+                        onOpenSearch = { viewModel.selectTab(MainTab.KULINER) },
+                    )
+                }
             },
             bottomBar = {
                 if (!isWideTablet) {

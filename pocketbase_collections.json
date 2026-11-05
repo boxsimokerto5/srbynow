@@ -368,7 +368,11 @@
       { "system": false, "id": "sbymo012", "name": "photo", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["image/jpeg", "image/png", "image/webp"], "thumbs": ["400x300", "800x600"], "maxSelect": 4, "maxSize": 5242880, "protected": false } },
       { "system": false, "id": "sbymo013", "name": "content_report_count", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 100000, "noDecimal": true } },
       { "system": false, "id": "sbymo014", "name": "content_reported_uids", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2000, "pattern": "" } },
-      { "system": false, "id": "sbymo015", "name": "is_banned", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} }
+      { "system": false, "id": "sbymo015", "name": "is_banned", "type": "bool", "required": false, "presentable": false, "unique": false, "options": {} },
+      { "system": false, "id": "sbymo016", "name": "video_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2048, "pattern": "" } },
+      { "system": false, "id": "sbymo017", "name": "video_thumbnail_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2048, "pattern": "" } },
+      { "system": false, "id": "sbymo018", "name": "video_duration_sec", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 3600, "noDecimal": true } },
+      { "system": false, "id": "sbymo019", "name": "media_type", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 50, "pattern": "" } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != ''",
