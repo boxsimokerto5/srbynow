@@ -250,4 +250,55 @@ object ImageUploadHelper {
             try { retriever.release() } catch (_: Exception) {}
         }
     }
+
+    /**
+     * Reads a video selected from Android Photo/Video Picker [videoUri],
+     * checking size limits (up to 40MB) and packaging it as a PreparedPhoto (file part)
+     * so it can be streamed directly to PocketBase S3 / Cloudflare R2 bucket.
+     */
+    suspend fun prepareVideoFromUri(
+        context: Context,
+        videoUri: Uri,
+        prefix: String = "reels_vid",
+        maxBytes: Long = 40_000_000L, // 40 MB safe limit
+    ): PreparedPhoto? = withContext(Dispatchers.IO) {
+        try {
+            val resolver = context.contentResolver
+            val mimeType = resolver.getType(videoUri)?.ifBlank { "video/mp4" } ?: "video/mp4"
+            val ext = when {
+                mimeType.contains("mp4", ignoreCase = true) -> "mp4"
+                mimeType.contains("webm", ignoreCase = true) -> "webm"
+                mimeType.contains("mkv", ignoreCase = true) -> "mkv"
+                mimeType.contains("quicktime", ignoreCase = true) || mimeType.contains("mov", ignoreCase = true) -> "mov"
+                else -> "mp4"
+            }
+            val bytes = resolver.openInputStream(videoUri)?.use { stream ->
+                val buffer = ByteArrayOutputStream()
+                val data = ByteArray(16384)
+                var count: Int
+                var total = 0L
+                while (stream.read(data).also { count = it } != -1) {
+                    total += count
+                    if (total > maxBytes) {
+                        Log.w(TAG, "Video exceeds maximum upload limit of $maxBytes bytes")
+                        return@withContext null
+                    }
+                    buffer.write(data, 0, count)
+                }
+                buffer.toByteArray()
+            }
+            if (bytes != null && bytes.isNotEmpty()) {
+                PreparedPhoto(
+                    fileName = "${prefix}_${System.currentTimeMillis()}.$ext",
+                    mimeType = mimeType,
+                    bytes = bytes,
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error reading video file for upload: ${e.message}")
+            null
+        }
+    }
 }

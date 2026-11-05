@@ -3523,9 +3523,10 @@ class SurabayaRepository(
         photo: PreparedPhoto? = null,
         photos: List<PreparedPhoto> = emptyList(),
         videoUrl: String = "",
+        videoFile: PreparedPhoto? = null,
         videoThumbnail: PreparedPhoto? = null,
         videoDurationSec: Int = 0,
-        mediaType: String = if (videoUrl.isNotBlank()) "VIDEO" else "PHOTO",
+        mediaType: String = if (videoUrl.isNotBlank() || videoFile != null) "VIDEO" else "PHOTO",
     ): String {
         val uid = requireUserId()
         val spamCheck = SurabayaSpamProtector.checkMomentDuplicate(
@@ -3586,13 +3587,29 @@ class SurabayaRepository(
             "media_type" to mediaType,
         )
 
-        val multipartFiles = boundedPhotos.mapIndexed { idx, p ->
-            MultipartFilePart(
-                fieldName = "photo",
-                fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
-                mimeType = p.mimeType,
-                bytes = p.bytes,
-            )
+        val multipartFiles = buildList {
+            // 1. Photos or video thumbnail
+            boundedPhotos.forEachIndexed { idx, p ->
+                add(
+                    MultipartFilePart(
+                        fieldName = "photo",
+                        fileName = if (boundedPhotos.size > 1) "${idx + 1}_${p.fileName}" else p.fileName,
+                        mimeType = p.mimeType,
+                        bytes = p.bytes,
+                    )
+                )
+            }
+            // 2. Video file to be uploaded to PocketBase & stored in Cloudflare R2
+            if (videoFile != null) {
+                add(
+                    MultipartFilePart(
+                        fieldName = "video_file",
+                        fileName = videoFile.fileName,
+                        mimeType = videoFile.mimeType,
+                        bytes = videoFile.bytes,
+                    )
+                )
+            }
         }
 
         try {
@@ -3602,17 +3619,25 @@ class SurabayaRepository(
                     true
                 } catch (e: Exception) {
                     val msg = e.message.orEmpty()
+                    val isVideoFieldError = msg.contains("video_file", ignoreCase = true)
                     val isPostTypeError = msg.contains("post_type", ignoreCase = true)
-                    val targetFields = if (isPostTypeError) fields.filterKeys { it != "post_type" } else fields
+                    var targetFields = if (isPostTypeError) fields.filterKeys { it != "post_type" } else fields
 
-                    if (multipartFiles.size > 1) {
+                    // If video_file field is not yet in PB schema, retry with photo part or fallback
+                    val fallbackFiles = if (isVideoFieldError) {
+                        multipartFiles.filter { it.fieldName != "video_file" }
+                    } else {
+                        multipartFiles
+                    }
+
+                    if (fallbackFiles.isNotEmpty()) {
                         try {
-                            pb.createRecordMultipartFiles("moments", targetFields, listOf(multipartFiles.first()))
+                            pb.createRecordMultipartFiles("moments", targetFields, fallbackFiles)
                             true
                         } catch (e2: Exception) {
                             if (e2.message?.contains("post_type", ignoreCase = true) == true) {
                                 val noPostTypeFields = fields.filterKeys { it != "post_type" }
-                                pb.createRecordMultipartFiles("moments", noPostTypeFields, listOf(multipartFiles.first()))
+                                pb.createRecordMultipartFiles("moments", noPostTypeFields, fallbackFiles)
                                 true
                             } else {
                                 false
@@ -4148,6 +4173,10 @@ class SurabayaRepository(
 
         val postType = j.optString("post_type", POST_TYPE_MOMEN).ifBlank { POST_TYPE_MOMEN }
 
+        val videoFileNames = extractFileNames(j, "video_file")
+        val pbVideoUrl = videoFileNames.firstOrNull()?.let { pb.buildFileUrl("moments", id, it) }.orEmpty()
+        val finalVideoUrl = pbVideoUrl.ifBlank { j.optString("video_url") }
+
         return UserMoment(
             id = id,
             authorId = j.optString("author_id"),
@@ -4160,10 +4189,10 @@ class SurabayaRepository(
             imageKey = j.optString("image_key", "hero_surabaya"),
             photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
             photoUrls = resolvedPhotoUrls,
-            videoUrl = j.optString("video_url"),
+            videoUrl = finalVideoUrl,
             videoThumbnailUrl = j.optString("video_thumbnail_url").ifBlank { resolvedPhotoUrls.firstOrNull().orEmpty() },
             videoDurationSec = j.optInt("video_duration_sec", 0),
-            mediaType = j.optString("media_type", if (j.optString("video_url").isNotBlank()) "VIDEO" else "PHOTO"),
+            mediaType = j.optString("media_type", if (finalVideoUrl.isNotBlank()) "VIDEO" else "PHOTO"),
             likesCount = j.optInt("likes_count", 0),
             likedByUids = decodeUidList(j.optString("liked_by_uids")),
             commentCount = j.optInt("comment_count", 0),

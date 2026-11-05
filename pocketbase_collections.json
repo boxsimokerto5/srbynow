@@ -372,7 +372,8 @@
       { "system": false, "id": "sbymo016", "name": "video_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2048, "pattern": "" } },
       { "system": false, "id": "sbymo017", "name": "video_thumbnail_url", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 2048, "pattern": "" } },
       { "system": false, "id": "sbymo018", "name": "video_duration_sec", "type": "number", "required": false, "presentable": false, "unique": false, "options": { "min": 0, "max": 3600, "noDecimal": true } },
-      { "system": false, "id": "sbymo019", "name": "media_type", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 50, "pattern": "" } }
+      { "system": false, "id": "sbymo019", "name": "media_type", "type": "text", "required": false, "presentable": false, "unique": false, "options": { "min": null, "max": 50, "pattern": "" } },
+      { "system": false, "id": "sbymo020", "name": "video_file", "type": "file", "required": false, "presentable": false, "unique": false, "options": { "mimeTypes": ["video/mp4", "video/webm", "video/quicktime", "video/x-matroska"], "thumbs": [], "maxSelect": 1, "maxSize": 52428800, "protected": false } }
     ],
     "indexes": [],
     "listRule": "@request.auth.id != ''",

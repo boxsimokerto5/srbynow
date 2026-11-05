@@ -2223,6 +2223,7 @@ class SurabayaViewModel(
             _isSubmitting.value = true
             try {
                 var videoThumbnailPhoto: PreparedPhoto? = null
+                var preparedVideo: PreparedPhoto? = null
                 val isVideoPost = videoUri != null
                 var finalVideoDuration = videoDurationSec
 
@@ -2231,6 +2232,11 @@ class SurabayaViewModel(
                         context = appCtx,
                         videoUri = videoUri,
                         prefix = "vid_thumb",
+                    )
+                    preparedVideo = ImageUploadHelper.prepareVideoFromUri(
+                        context = appCtx,
+                        videoUri = videoUri,
+                        prefix = "reels_vid",
                     )
                     if (finalVideoDuration <= 0) {
                         finalVideoDuration = ImageUploadHelper.extractVideoDurationSec(appCtx, videoUri)
@@ -2268,6 +2274,7 @@ class SurabayaViewModel(
                     postType = postType,
                     photos = preparedPhotos,
                     videoUrl = videoUri?.toString().orEmpty(),
+                    videoFile = preparedVideo,
                     videoThumbnail = videoThumbnailPhoto,
                     videoDurationSec = finalVideoDuration,
                     mediaType = if (isVideoPost) "VIDEO" else "PHOTO",
