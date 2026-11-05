@@ -2201,6 +2201,8 @@ class SurabayaViewModel(
         locationName: String,
         postType: String = POST_TYPE_MOMEN,
         photoUris: List<Uri> = emptyList(),
+        videoUri: Uri? = null,
+        videoDurationSec: Int = 0,
         context: Context? = null,
     ) {
         if (_isSubmitting.value || isCurrentUserFrozen()) return
@@ -2220,8 +2222,23 @@ class SurabayaViewModel(
         viewModelScope.launch {
             _isSubmitting.value = true
             try {
+                var videoThumbnailPhoto: PreparedPhoto? = null
+                val isVideoPost = videoUri != null
+                var finalVideoDuration = videoDurationSec
+
+                if (isVideoPost && appCtx != null) {
+                    videoThumbnailPhoto = ImageUploadHelper.prepareVideoThumbnailFromUri(
+                        context = appCtx,
+                        videoUri = videoUri,
+                        prefix = "vid_thumb",
+                    )
+                    if (finalVideoDuration <= 0) {
+                        finalVideoDuration = ImageUploadHelper.extractVideoDurationSec(appCtx, videoUri)
+                    }
+                }
+
                 val preparedPhotos = buildList {
-                    if (appCtx != null) {
+                    if (appCtx != null && !isVideoPost) {
                         for ((idx, uri) in photoUris.take(4).withIndex()) {
                             val compressed = ImageUploadHelper.preparePhotoFromUri(
                                 context = appCtx,
@@ -2234,7 +2251,7 @@ class SurabayaViewModel(
                         }
                     }
                 }
-                if (photoUris.isNotEmpty() && preparedPhotos.isEmpty()) {
+                if (photoUris.isNotEmpty() && !isVideoPost && preparedPhotos.isEmpty()) {
                     notifyMessage("Foto gagal diproses, silakan pilih foto lain dari galeri.")
                     return@launch
                 }
@@ -2250,11 +2267,19 @@ class SurabayaViewModel(
                     locationName = locationName,
                     postType = postType,
                     photos = preparedPhotos,
+                    videoUrl = videoUri?.toString().orEmpty(),
+                    videoThumbnail = videoThumbnailPhoto,
+                    videoDurationSec = finalVideoDuration,
+                    mediaType = if (isVideoPost) "VIDEO" else "PHOTO",
                 )
                 dismissSheet()
                 notifyMessage(
-                    if (postType == POST_TYPE_LENSA_WARGA) "Foto sudut kota berhasil dibagikan ke Lensa Warga!"
-                    else "Momen berhasil dibagikan ke warga Surabaya!"
+                    when {
+                        isVideoPost && postType == POST_TYPE_LENSA_WARGA -> "Video estetika kota berhasil dibagikan ke Lensa Warga!"
+                        isVideoPost -> "Video Momen berhasil dibagikan ke warga Surabaya!"
+                        postType == POST_TYPE_LENSA_WARGA -> "Foto sudut kota berhasil dibagikan ke Lensa Warga!"
+                        else -> "Momen berhasil dibagikan ke warga Surabaya!"
+                    }
                 )
             } catch (ce: CancellationException) {
                 throw ce

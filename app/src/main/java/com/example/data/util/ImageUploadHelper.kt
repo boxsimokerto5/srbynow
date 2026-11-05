@@ -204,4 +204,50 @@ object ImageUploadHelper {
         bitmap.compress(Bitmap.CompressFormat.JPEG, quality.coerceIn(40, 95), output)
         return Pair(output.toByteArray(), "image/jpeg")
     }
+
+    suspend fun prepareVideoThumbnailFromUri(
+        context: Context,
+        videoUri: Uri,
+        prefix: String = "vthumb",
+    ): PreparedPhoto? = withContext(Dispatchers.IO) {
+        val retriever = android.media.MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, videoUri)
+            val frame = retriever.getFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: retriever.frameAtTime
+            if (frame != null) {
+                val transformed = transformBitmap(frame, 0, DEFAULT_MAX_DIMENSION_PX)
+                val (bytes, mime) = compressBitmap(transformed, 80)
+                if (transformed !== frame) frame.recycle()
+                transformed.recycle()
+                val ext = if (mime == "image/webp") "webp" else "jpg"
+                PreparedPhoto(
+                    fileName = "${prefix}_${System.currentTimeMillis()}.$ext",
+                    mimeType = mime,
+                    bytes = bytes,
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error extracting video thumbnail: ${e.message}")
+            null
+        } finally {
+            try { retriever.release() } catch (_: Exception) {}
+        }
+    }
+
+    fun extractVideoDurationSec(context: Context, videoUri: Uri): Int {
+        val retriever = android.media.MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, videoUri)
+            val durationStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val durationMs = durationStr?.toLongOrNull() ?: 0L
+            (durationMs / 1000L).toInt()
+        } catch (e: Exception) {
+            0
+        } finally {
+            try { retriever.release() } catch (_: Exception) {}
+        }
+    }
 }

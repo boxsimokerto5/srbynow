@@ -77,10 +77,14 @@ import com.example.data.model.UiState
 import com.example.data.model.UserMoment
 import com.example.data.util.formatRelativeTimestamp
 import com.example.data.util.resolveImageDrawable
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Videocam
 import com.example.ui.components.CulinaryPhotoCarousel
 import com.example.ui.components.EmptyFeedPlaceholder
 import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
 import com.example.ui.components.SurabayaDistrictFilterBar
+import com.example.ui.components.SurabayaVideoPlayer
+import com.example.ui.components.TikTokReelsViewerDialog
 import com.example.ui.theme.AlertCrimson
 import com.example.ui.theme.OutlineVariantLight
 import com.example.ui.theme.ToskaPrimaryDeep
@@ -100,8 +104,9 @@ fun MomenScreen(
     modifier: Modifier = Modifier,
 ) {
     var selectedDistrict by rememberSaveable { mutableStateOf("ALL") }
-    var selectedCategory by rememberSaveable { mutableStateOf("ALL") } // "ALL", "MOMEN", "LENSA_WARGA"
+    var selectedCategory by rememberSaveable { mutableStateOf("ALL") } // "ALL", "VIDEO", "MOMEN", "LENSA_WARGA", "KULINER", "KOMUNITAS"
     var viewerTarget by remember { mutableStateOf<Pair<UserMoment, Int>?>(null) }
+    var reelsTarget by remember { mutableStateOf<UserMoment?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -114,6 +119,71 @@ fun MomenScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             )
+
+            // Category Chips (Horizontal Scrollable)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 10.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FilterChip(
+                    selected = selectedCategory == "ALL",
+                    onClick = { selectedCategory = "ALL" },
+                    label = { Text("🌟 Semua") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                    ),
+                )
+                FilterChip(
+                    selected = selectedCategory == "VIDEO",
+                    onClick = { selectedCategory = "VIDEO" },
+                    label = { Text("🎬 Video Reels") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFFD81B60),
+                        selectedLabelColor = Color.White,
+                    ),
+                )
+                FilterChip(
+                    selected = selectedCategory == "MOMEN",
+                    onClick = { selectedCategory = "MOMEN" },
+                    label = { Text("📸 Momen Arek") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                    ),
+                )
+                FilterChip(
+                    selected = selectedCategory == "LENSA_WARGA",
+                    onClick = { selectedCategory = "LENSA_WARGA" },
+                    label = { Text("🏙️ Lensa Warga") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                    ),
+                )
+                FilterChip(
+                    selected = selectedCategory == "KULINER",
+                    onClick = { selectedCategory = "KULINER" },
+                    label = { Text("🍜 Kuliner") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                    ),
+                )
+                FilterChip(
+                    selected = selectedCategory == "KOMUNITAS",
+                    onClick = { selectedCategory = "KOMUNITAS" },
+                    label = { Text("👥 Komunitas") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ToskaPrimaryDeep,
+                        selectedLabelColor = Color.White,
+                    ),
+                )
+            }
 
             val allMoments = (momentsState as? UiState.Success)?.data.orEmpty()
 
@@ -140,7 +210,37 @@ fun MomenScreen(
                                 color = ToskaPrimaryDeep,
                             )
                             Text(
-                                text = "Galeri foto sudut kota & estetika landmark Surabaya tanpa perlu tindak lanjut penanganan.",
+                                text = "Galeri foto & video estetika landmark Surabaya tanpa perlu tindak lanjut penanganan.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            } else if (selectedCategory == "VIDEO") {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFD81B60).copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, Color(0xFFD81B60).copy(alpha = 0.25f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 2.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("🎬", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text(
+                                text = "Reels & Video Arek Surabaya",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD81B60),
+                            )
+                            Text(
+                                text = "Video vertikal sudut kota berdurasi hingga 60 detik. Didukung kompresi otomatis & S3 storage super hemat.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -166,6 +266,7 @@ fun MomenScreen(
                     val filtered = momentsState.data.filter { moment ->
                         val matchDistrict = selectedDistrict == "ALL" || moment.district.equals(selectedDistrict, ignoreCase = true)
                         val matchCategory = when (selectedCategory) {
+                            "VIDEO" -> moment.isVideo
                             "LENSA_WARGA" -> moment.isLensaWarga
                             "MOMEN" -> !moment.isLensaWarga
                             "KULINER" -> {
@@ -183,9 +284,21 @@ fun MomenScreen(
 
                     if (filtered.isEmpty()) {
                         EmptyFeedPlaceholder(
-                            icon = if (selectedCategory == "LENSA_WARGA") Icons.Filled.CameraAlt else Icons.Outlined.PhotoLibrary,
-                            title = if (selectedCategory == "LENSA_WARGA") "Belum ada potret Lensa Warga di $selectedDistrict" else "Belum ada momen di $selectedDistrict",
-                            subtitle = if (selectedCategory == "LENSA_WARGA") "Jadilah yang pertama mengabadikan sudut estetik kota Surabaya!" else "Jadilah yang pertama mengabadikan potret seru sudut Surabaya!",
+                            icon = when (selectedCategory) {
+                                "VIDEO" -> Icons.Filled.Videocam
+                                "LENSA_WARGA" -> Icons.Filled.CameraAlt
+                                else -> Icons.Outlined.PhotoLibrary
+                            },
+                            title = when (selectedCategory) {
+                                "VIDEO" -> "Belum ada Video Reels di $selectedDistrict"
+                                "LENSA_WARGA" -> "Belum ada potret Lensa Warga di $selectedDistrict"
+                                else -> "Belum ada momen di $selectedDistrict"
+                            },
+                            subtitle = when (selectedCategory) {
+                                "VIDEO" -> "Jadilah yang pertama mengunggah video reels estetik kota Surabaya!"
+                                "LENSA_WARGA" -> "Jadilah yang pertama mengabadikan sudut estetik kota Surabaya!"
+                                else -> "Jadilah yang pertama mengabadikan potret seru sudut Surabaya!"
+                            },
                         )
                     } else {
                         LazyColumn(
@@ -210,7 +323,7 @@ fun MomenScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                         ) {
                                             Text(
-                                                text = "Sorotan Foto Populer",
+                                                text = "Sorotan Foto & Video Populer",
                                                 style = MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface,
@@ -228,7 +341,13 @@ fun MomenScreen(
                                             items(filtered.take(6), key = { "feat_mom_${it.id}" }) { mom ->
                                                 HorizontalMomentFeaturedCard(
                                                     moment = mom,
-                                                    onClick = { onOpenMomentDetail(mom.id) },
+                                                    onClick = {
+                                                        if (mom.isVideo) {
+                                                            reelsTarget = mom
+                                                        } else {
+                                                            onOpenMomentDetail(mom.id)
+                                                        }
+                                                    },
                                                 )
                                             }
                                         }
@@ -243,6 +362,7 @@ fun MomenScreen(
                                     onOpenDetail = { onOpenMomentDetail(moment.id) },
                                     onToggleLike = { onToggleLike(moment) },
                                     onOpenFullscreenPhoto = { pageIdx -> viewerTarget = moment to pageIdx },
+                                    onOpenFullscreenReels = { reelsTarget = moment },
                                     onReport = { onReportMoment(moment) },
                                     onBlockAuthor = { onBlockAuthor(moment.authorId, moment.authorName) },
                                     onOpenAuthorProfile = { onOpenAuthorProfile(moment.authorId, moment.authorName) },
@@ -254,7 +374,7 @@ fun MomenScreen(
             }
         }
 
-        // Floating Action Button to post new moment or lensa warga
+        // Floating Action Button to post new moment, video reels, or lensa warga
         ExtendedFloatingActionButton(
             onClick = {
                 if (selectedCategory == "LENSA_WARGA") {
@@ -265,17 +385,25 @@ fun MomenScreen(
             },
             icon = {
                 Icon(
-                    imageVector = if (selectedCategory == "LENSA_WARGA") Icons.Filled.CameraAlt else Icons.Filled.AddAPhoto,
+                    imageVector = when (selectedCategory) {
+                        "VIDEO" -> Icons.Filled.Videocam
+                        "LENSA_WARGA" -> Icons.Filled.CameraAlt
+                        else -> Icons.Filled.AddAPhoto
+                    },
                     contentDescription = null,
                 )
             },
             text = {
                 Text(
-                    text = if (selectedCategory == "LENSA_WARGA") "Posting Lensa Warga" else "Posting Momen",
+                    text = when (selectedCategory) {
+                        "VIDEO" -> "Posting Video Reels"
+                        "LENSA_WARGA" -> "Posting Lensa Warga"
+                        else -> "Posting Momen"
+                    },
                     fontWeight = FontWeight.Bold,
                 )
             },
-            containerColor = ToskaPrimaryDeep,
+            containerColor = if (selectedCategory == "VIDEO") Color(0xFFD81B60) else ToskaPrimaryDeep,
             contentColor = Color.White,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -284,7 +412,7 @@ fun MomenScreen(
         )
     }
 
-    // Zoomable Fullscreen Viewer
+    // Zoomable Fullscreen Photo Viewer
     viewerTarget?.let { (moment, pageIdx) ->
         FullscreenZoomablePhotoViewerDialog(
             photoUrls = moment.allPhotos,
@@ -292,6 +420,21 @@ fun MomenScreen(
             title = moment.caption.ifBlank { "Momen Arek Surabaya" },
             initialPage = pageIdx,
             onDismiss = { viewerTarget = null },
+        )
+    }
+
+    // Fullscreen TikTok / Reels Video Viewer
+    reelsTarget?.let { rMoment ->
+        val isLiked = currentUserId in rMoment.likedByUids
+        TikTokReelsViewerDialog(
+            moment = rMoment,
+            isLiked = isLiked,
+            onToggleLike = { onToggleLike(rMoment) },
+            onOpenComments = {
+                reelsTarget = null
+                onOpenMomentDetail(rMoment.id)
+            },
+            onDismiss = { reelsTarget = null },
         )
     }
 }
@@ -304,6 +447,7 @@ private fun MomentFeedCard(
     onOpenDetail: () -> Unit,
     onToggleLike: () -> Unit,
     onOpenFullscreenPhoto: (Int) -> Unit,
+    onOpenFullscreenReels: () -> Unit = {},
     onReport: () -> Unit,
     onBlockAuthor: () -> Unit,
     onOpenAuthorProfile: () -> Unit = {},
@@ -407,7 +551,33 @@ private fun MomentFeedCard(
                             )
                         }
 
-                        if (moment.isLensaWarga) {
+                        if (moment.isVideo) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFFD81B60).copy(alpha = 0.12f),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD81B60),
+                                        modifier = Modifier.size(11.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = if (moment.isLensaWarga) "Lensa Video • S3 H.264" else "Video Reels • S3 H.264",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFFD81B60),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                    )
+                                }
+                            }
+                        } else if (moment.isLensaWarga) {
                             Spacer(modifier = Modifier.height(3.dp))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
@@ -486,8 +656,19 @@ private fun MomentFeedCard(
                 }
             }
 
-            // 2. Photos Section
-            if (photos.isNotEmpty()) {
+            // 2. Media Section (Video or Photos)
+            if (moment.isVideo && moment.videoUrl.isNotBlank()) {
+                SurabayaVideoPlayer(
+                    videoUrl = moment.videoUrl,
+                    thumbnailUrl = moment.videoThumbnailUrl,
+                    durationSec = moment.videoDurationSec,
+                    onExpandFullscreen = onOpenFullscreenReels,
+                    onDoubleTapLike = onToggleLike,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(290.dp),
+                )
+            } else if (photos.isNotEmpty()) {
                 CulinaryPhotoCarousel(
                     photoUrls = photos,
                     fallbackImageKey = moment.imageKey,
@@ -627,17 +808,41 @@ private fun HorizontalMomentFeaturedCard(
                 )
                 Surface(
                     shape = RoundedCornerShape(bottomEnd = 10.dp),
-                    color = if (moment.isLensaWarga) ToskaPrimaryDeep else Color(0xFFE91E63),
+                    color = when {
+                        moment.isVideo -> Color(0xFFD81B60)
+                        moment.isLensaWarga -> ToskaPrimaryDeep
+                        else -> Color(0xFFE91E63)
+                    },
                     modifier = Modifier.align(Alignment.TopStart),
                 ) {
                     Text(
-                        text = if (moment.isLensaWarga) "Lensa Kota" else "Momen Warga",
+                        text = when {
+                            moment.isVideo -> "🎬 Reels"
+                            moment.isLensaWarga -> "Lensa Kota"
+                            else -> "Momen Warga"
+                        },
                         color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         fontSize = 9.sp,
                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                     )
+                }
+                if (moment.isVideo) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(32.dp)
+                            .background(Color.Black.copy(alpha = 0.55f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = "Video",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
                 Surface(
                     shape = RoundedCornerShape(8.dp),

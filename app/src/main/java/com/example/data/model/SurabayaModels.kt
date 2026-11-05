@@ -444,6 +444,10 @@ data class UserMoment(
     val imageKey: String = "hero_surabaya",
     val photoUrl: String = "",
     val photoUrls: List<String> = emptyList(),
+    val videoUrl: String = "",
+    val videoThumbnailUrl: String = "",
+    val videoDurationSec: Int = 0,
+    val mediaType: String = "PHOTO",
     val likesCount: Int = 0,
     val likedByUids: List<String> = emptyList(),
     val commentCount: Int = 0,
@@ -455,10 +459,14 @@ data class UserMoment(
     val isLensaWarga: Boolean
         get() = postType == POST_TYPE_LENSA_WARGA
 
+    val isVideo: Boolean
+        get() = videoUrl.isNotBlank() || mediaType.equals("VIDEO", ignoreCase = true)
+
     val allPhotos: List<String>
         get() = when {
             photoUrls.isNotEmpty() -> photoUrls.filter { it.isNotBlank() }
             photoUrl.isNotBlank() -> listOf(photoUrl)
+            videoThumbnailUrl.isNotBlank() -> listOf(videoThumbnailUrl)
             else -> emptyList()
         }
 

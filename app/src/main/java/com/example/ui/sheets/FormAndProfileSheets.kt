@@ -3086,19 +3086,36 @@ fun CreateMomentSheetContent(
         locationName: String,
         postType: String,
         photoUris: List<Uri>,
+        videoUri: Uri?,
+        videoDurationSec: Int,
     ) -> Unit,
 ) {
     var postType by remember { mutableStateOf(initialPostType) }
+    var mediaFormat by remember { mutableStateOf("PHOTO") } // "PHOTO" or "VIDEO"
     var caption by remember { mutableStateOf("") }
     var district by remember { mutableStateOf(defaultDistrict) }
     var locationName by remember { mutableStateOf("") }
     var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var selectedVideoUri by remember { mutableStateOf<Uri?>(null) }
+    var videoDurationSec by remember { mutableIntStateOf(0) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) {
+            selectedVideoUri = uri
+            val dur = com.example.data.util.ImageUploadHelper.extractVideoDurationSec(context, uri)
+            videoDurationSec = dur
+        }
+    }
 
     val isLensaWarga = postType == POST_TYPE_LENSA_WARGA
+    val isMediaPresent = if (mediaFormat == "VIDEO") selectedVideoUri != null else selectedPhotoUris.isNotEmpty()
     val isFormValid = if (isLensaWarga) {
-        (caption.trim().isNotEmpty() || selectedPhotoUris.isNotEmpty()) && locationName.trim().isNotEmpty()
+        (caption.trim().isNotEmpty() || isMediaPresent) && locationName.trim().isNotEmpty()
     } else {
-        caption.trim().isNotEmpty() || selectedPhotoUris.isNotEmpty()
+        caption.trim().isNotEmpty() || isMediaPresent
     }
 
     Column(
@@ -3113,9 +3130,9 @@ fun CreateMomentSheetContent(
         GoogleMapsSheetHandleHeader(
             title = if (isLensaWarga) "Posting ke Lensa Warga" else "Posting Momen Arek Surabaya",
             subtitle = if (isLensaWarga) {
-                "Bagikan foto estetika sudut kota, ikon sejarah, atau dinamika keramaian Surabaya tanpa beban pelaporan darurat."
+                "Bagikan foto & video estetika sudut kota, landmark sejarah, atau keramaian Surabaya."
             } else {
-                "Abadikan foto swafoto, nongkrong, kulineran, atau kebersamaan santai warga (hingga 4 foto)."
+                "Abadikan foto momen atau video reels vertikal kebersamaan santai warga kota."
             },
         )
 
@@ -3152,18 +3169,170 @@ fun CreateMomentSheetContent(
             )
         }
 
-        FormMultiPhotoPickerSection(
-            selectedPhotoUris = selectedPhotoUris,
-            onPhotosChanged = { selectedPhotoUris = it },
-            maxPhotos = 4,
-            enabled = !isSubmitting,
-            title = if (isLensaWarga) "Foto Sudut / Ikon Kota (1 - 4 Foto)" else "Foto Momen (1 - 4 Foto)",
-            subtitle = if (isLensaWarga) {
-                "Unggah foto lanskap, gedung heritage, atau keramaian kota Surabaya."
-            } else {
-                "Pilih 1 - 4 foto galeri. Dilindungi pemindai AI konten eksplisit."
-            },
-        )
+        // Media Format Switcher (Foto vs Video Reels)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 1.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = mediaFormat == "PHOTO",
+                onClick = { mediaFormat = "PHOTO" },
+                label = { Text("📸 Foto Galeri (1-4)") },
+                modifier = Modifier.weight(1f),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ToskaPrimaryDeep,
+                    selectedLabelColor = Color.White,
+                ),
+            )
+            FilterChip(
+                selected = mediaFormat == "VIDEO",
+                onClick = { mediaFormat = "VIDEO" },
+                label = { Text("🎬 Video Reels (S3)") },
+                modifier = Modifier.weight(1f),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFD81B60),
+                    selectedLabelColor = Color.White,
+                ),
+            )
+        }
+
+        if (mediaFormat == "PHOTO") {
+            FormMultiPhotoPickerSection(
+                selectedPhotoUris = selectedPhotoUris,
+                onPhotosChanged = { selectedPhotoUris = it },
+                maxPhotos = 4,
+                enabled = !isSubmitting,
+                title = if (isLensaWarga) "Foto Sudut / Ikon Kota (1 - 4 Foto)" else "Foto Momen (1 - 4 Foto)",
+                subtitle = if (isLensaWarga) {
+                    "Unggah foto lanskap, gedung heritage, atau keramaian kota Surabaya."
+                } else {
+                    "Pilih 1 - 4 foto galeri. Dilindungi pemindai AI konten eksplisit."
+                },
+            )
+        } else {
+            // Video Reels Picker Section with AWS S3 info
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFFD81B60).copy(alpha = 0.06f),
+                border = BorderStroke(1.dp, Color(0xFFD81B60).copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🎬", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Video Singkat / Reels",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD81B60),
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFD81B60).copy(alpha = 0.15f),
+                        ) {
+                            Text(
+                                text = "⚡ H.264 S3 Hemat",
+                                color = Color(0xFFD81B60),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Unggah video vertikal (Maks 60 detik). Video otomatis dikompresi H.264 & disimpan efisien di AWS S3.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    if (selectedVideoUri == null) {
+                        OutlinedButton(
+                            onClick = {
+                                videoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
+                                )
+                            },
+                            enabled = !isSubmitting,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp),
+                            shape = RoundedCornerShape(10.dp),
+                        ) {
+                            Icon(Icons.Filled.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Pilih Video dari Galeri HP")
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, OutlineVariantLight),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(Color(0xFFD81B60), CircleShape),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text("▶", color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = "Video Siap Diposting",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                        Text(
+                                            text = if (videoDurationSec > 0) "Durasi: 00:${String.format("%02d", videoDurationSec)} • Siap streaming" else "Siap streaming ke feed warga",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        selectedVideoUri = null
+                                        videoDurationSec = 0
+                                    },
+                                    enabled = !isSubmitting,
+                                    modifier = Modifier.size(32.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Hapus",
+                                        tint = AlertCrimson,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         OutlinedTextField(
             value = locationName,
@@ -3235,7 +3404,9 @@ fun CreateMomentSheetContent(
                     district,
                     locationName.trim(),
                     postType,
-                    selectedPhotoUris,
+                    if (mediaFormat == "PHOTO") selectedPhotoUris else emptyList(),
+                    if (mediaFormat == "VIDEO") selectedVideoUri else null,
+                    if (mediaFormat == "VIDEO") videoDurationSec else 0,
                 )
             },
             enabled = isFormValid && !isSubmitting,

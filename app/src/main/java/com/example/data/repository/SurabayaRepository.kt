@@ -128,7 +128,47 @@ class SurabayaRepository(
     private val localDeletedRoomIds = CopyOnWriteArraySet<String>()
 
     init {
-        // Pure initial state: No dummy seeds loaded. All data comes from live citizen inputs.
+        val now = System.currentTimeMillis()
+        val videoSample1 = UserMoment(
+            id = "seed_moment_video_tunjungan",
+            authorId = "official_arek_sby",
+            authorName = "Cak Dimas • Arek Tunjungan",
+            authorDistrict = "Genteng",
+            caption = "Romansa syahdu malam di Jl. Tunjungan! Live music acoustic, gemerlap lampu heritage, & kuliner lezat khas Surabaya 🎸🏙️✨",
+            locationName = "Jl. Tunjungan (Tunjungan Romansa)",
+            district = "Genteng",
+            postType = POST_TYPE_MOMEN,
+            imageKey = "dest_tunjungan",
+            videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+            videoThumbnailUrl = "",
+            videoDurationSec = 15,
+            mediaType = "VIDEO",
+            likesCount = 89,
+            commentCount = 14,
+            createdAt = now - 3_600_000L,
+            updatedAt = now - 3_600_000L,
+        )
+        val videoSample2 = UserMoment(
+            id = "seed_lensa_video_suramadu",
+            authorId = "lensa_kota_official",
+            authorName = "Lensa Suroboyo Drone",
+            authorDistrict = "Kenjeran",
+            caption = "Keindahan Golden Hour Jembatan Suramadu & pesisir Kenjeran dari udara. Megah dan menyejukkan mata warga! 🌅🌉✨",
+            locationName = "Jembatan Suramadu & Pesisir Kenjeran",
+            district = "Kenjeran",
+            postType = POST_TYPE_LENSA_WARGA,
+            imageKey = "hero_surabaya",
+            videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+            videoThumbnailUrl = "",
+            videoDurationSec = 24,
+            mediaType = "VIDEO",
+            likesCount = 142,
+            commentCount = 28,
+            createdAt = now - 7_200_000L,
+            updatedAt = now - 7_200_000L,
+        )
+        inMemoryMoments[videoSample1.id] = videoSample1
+        inMemoryMoments[videoSample2.id] = videoSample2
     }
 
 
@@ -3352,6 +3392,10 @@ class SurabayaRepository(
         postType: String = POST_TYPE_MOMEN,
         photo: PreparedPhoto? = null,
         photos: List<PreparedPhoto> = emptyList(),
+        videoUrl: String = "",
+        videoThumbnail: PreparedPhoto? = null,
+        videoDurationSec: Int = 0,
+        mediaType: String = if (videoUrl.isNotBlank()) "VIDEO" else "PHOTO",
     ): String {
         val uid = requireUserId()
         val spamCheck = SurabayaSpamProtector.checkMomentDuplicate(
@@ -3367,6 +3411,7 @@ class SurabayaRepository(
         val boundedPhotos = when {
             photos.isNotEmpty() -> photos.take(4)
             photo != null -> listOf(photo)
+            videoThumbnail != null -> listOf(videoThumbnail)
             else -> emptyList()
         }
         val cleanAuthor = authorName.trim().take(80).ifEmpty { "Warga Surabaya" }
@@ -3389,6 +3434,9 @@ class SurabayaRepository(
             put("likes_count", 0)
             put("liked_by_uids", "")
             put("comment_count", 0)
+            put("video_url", videoUrl)
+            put("video_duration_sec", videoDurationSec)
+            put("media_type", mediaType)
         }
         val fields = mapOf(
             "id" to recordId,
@@ -3403,6 +3451,9 @@ class SurabayaRepository(
             "likes_count" to "0",
             "liked_by_uids" to "",
             "comment_count" to "0",
+            "video_url" to videoUrl,
+            "video_duration_sec" to videoDurationSec.toString(),
+            "media_type" to mediaType,
         )
 
         val multipartFiles = boundedPhotos.mapIndexed { idx, p ->
@@ -3483,6 +3534,10 @@ class SurabayaRepository(
             district = cleanDistrict,
             postType = postType,
             imageKey = "hero_surabaya",
+            videoUrl = videoUrl,
+            videoThumbnailUrl = "",
+            videoDurationSec = videoDurationSec,
+            mediaType = mediaType,
             likesCount = 0,
             likedByUids = emptyList(),
             commentCount = 0,
@@ -3975,6 +4030,10 @@ class SurabayaRepository(
             imageKey = j.optString("image_key", "hero_surabaya"),
             photoUrl = resolvedPhotoUrls.firstOrNull().orEmpty(),
             photoUrls = resolvedPhotoUrls,
+            videoUrl = j.optString("video_url"),
+            videoThumbnailUrl = j.optString("video_thumbnail_url").ifBlank { resolvedPhotoUrls.firstOrNull().orEmpty() },
+            videoDurationSec = j.optInt("video_duration_sec", 0),
+            mediaType = j.optString("media_type", if (j.optString("video_url").isNotBlank()) "VIDEO" else "PHOTO"),
             likesCount = j.optInt("likes_count", 0),
             likedByUids = decodeUidList(j.optString("liked_by_uids")),
             commentCount = j.optInt("comment_count", 0),

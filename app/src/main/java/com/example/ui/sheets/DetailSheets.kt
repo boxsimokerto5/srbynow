@@ -182,6 +182,7 @@ import com.example.data.util.isCulinaryOpenNow
 import com.example.ui.components.AdminRawLinkPreviewBadge
 import com.example.ui.components.CulinaryDeliveryLinksRow
 import com.example.ui.components.CulinaryPhotoCarousel
+import com.example.ui.components.SurabayaVideoPlayer
 import com.example.ui.components.FullscreenZoomablePhotoViewerDialog
 import com.example.ui.components.InitialsAvatar
 import com.example.ui.components.PostContentSafetyRow
@@ -3667,13 +3668,25 @@ fun MomentDetailSheetContent(
                     }
                 }
 
-                // Photos (Gaya 2 Collapsible Carousel)
+                // Media Section (Video or Photos)
                 AnimatedVisibility(
                     visible = !isKeyboardOpen,
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
-                    if (photos.isNotEmpty()) {
+                    if (moment.isVideo && moment.videoUrl.isNotBlank()) {
+                        SurabayaVideoPlayer(
+                            videoUrl = moment.videoUrl,
+                            thumbnailUrl = moment.videoThumbnailUrl,
+                            durationSec = moment.videoDurationSec,
+                            onDoubleTapLike = onToggleLike,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(currentImageHeight + 64.dp)
+                                .clip(RoundedCornerShape(imageCornerRadius))
+                                .testTag("sheet_moment_video"),
+                        )
+                    } else if (photos.isNotEmpty()) {
                         CulinaryPhotoCarousel(
                             photoUrls = photos,
                             fallbackImageKey = moment.imageKey,

@@ -1508,13 +1508,15 @@ fun SurabayaMainHub(
                         initialPostType = sheetTarget.initialPostType,
                         isSubmitting = isSubmitting,
                         isScanningPhoto = isScanningPhoto,
-                        onSubmit = { caption, dist, loc, postType, photos ->
+                        onSubmit = { caption, dist, loc, postType, photos, videoUri, videoDurationSec ->
                             viewModel.submitMoment(
                                 caption = caption,
                                 district = dist,
                                 locationName = loc,
                                 postType = postType,
                                 photoUris = photos,
+                                videoUri = videoUri,
+                                videoDurationSec = videoDurationSec,
                                 context = context,
                             )
                         },

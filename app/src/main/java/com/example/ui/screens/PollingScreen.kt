@@ -52,6 +52,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -192,66 +193,51 @@ fun PollingScreen(
             .testTag("polling_screen"),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Spacious Sub-Header Bar
+            // Compact Sub-Header Bar
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 1.dp,
+                shadowElevation = 0.5.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
                         onClick = onBackToHome,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(38.dp)
                             .testTag("btn_back_polling"),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Kembali ke Beranda",
                             tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(22.dp),
                         )
                     }
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 4.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.polling_page_title),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontSize = 17.5.sp,
-                                fontWeight = FontWeight.Bold,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = stringResource(R.string.polling_page_subtitle),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.polling_page_title),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
 
                     if (isAdmin && pendingCount > 0) {
                         IconButton(
                             onClick = onOpenAdminPending,
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(38.dp)
                                 .testTag("btn_admin_pending_polls_screen"),
                         ) {
                             BadgedBox(
@@ -268,32 +254,35 @@ fun PollingScreen(
                                     imageVector = Icons.Default.Security,
                                     contentDescription = "Moderasi Usulan Polling",
                                     tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(22.dp),
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
                     }
 
-                    IconButton(
+                    FilledTonalButton(
                         onClick = onOpenCreatePoll,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = ToskaPrimary.copy(alpha = 0.14f),
+                            contentColor = ToskaPrimaryDeep,
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier
-                            .size(42.dp)
+                            .height(34.dp)
                             .testTag("btn_header_create_poll"),
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = ToskaPrimary.copy(alpha = 0.12f),
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Usulkan Polling",
-                                    tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "Usulkan",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp),
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                 }
             }
@@ -302,72 +291,25 @@ fun PollingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // 1. Spacious Hero Banner
-                item(key = "poll_hero_banner") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 2.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(HeaderMintGradient)
-                            .border(1.dp, ToskaPrimary.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = ToskaPrimary.copy(alpha = 0.2f),
-                                modifier = Modifier.size(42.dp),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.HowToVote,
-                                        contentDescription = null,
-                                        tint = ToskaPrimaryDeep,
-                                        modifier = Modifier.size(22.dp),
-                                    )
-                                }
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Aspirasi & Suara Warga Kota",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Transparan, terbuka, dan dapat dibagikan sebagai infografis JPG ke media sosial.",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp, lineHeight = 17.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // 2. Admin Notice Banner (If any pending)
+                // 1. Admin Notice Banner (If any pending)
                 if (isAdmin && pendingCount > 0) {
                     item(key = "poll_admin_pending_banner") {
                         Card(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = AlertCrimson.copy(alpha = 0.08f)),
                             border = BorderStroke(1.dp, AlertCrimson.copy(alpha = 0.4f)),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
+                                .padding(horizontal = 12.dp)
                                 .clickable { onOpenAdminPending() },
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
@@ -379,19 +321,19 @@ fun PollingScreen(
                                         imageVector = Icons.Default.Security,
                                         contentDescription = null,
                                         tint = AlertCrimson,
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(18.dp),
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "$pendingCount Usulan Polling Menunggu Moderasi",
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        text = "$pendingCount Usulan Menunggu Moderasi",
+                                        style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
                                         color = AlertCrimson,
                                     )
                                 }
                                 Text(
                                     text = "Periksa →",
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = AlertCrimson,
                                 )
@@ -400,21 +342,21 @@ fun PollingScreen(
                     }
                 }
 
-                // 3. Spacious Search Bar
+                // 2. Compact Search Capsule
                 item(key = "poll_search_bar") {
-                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)) {
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(52.dp)
+                                .height(44.dp)
                                 .testTag("input_search_poll"),
                             placeholder = {
                                 Text(
-                                    text = "Cari topik polling, transportasi, tata kota, wilayah…",
-                                    fontSize = 13.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                    text = "Cari topik polling, transportasi, tata kota…",
+                                    fontSize = 12.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                                 )
                             },
                             leadingIcon = {
@@ -422,26 +364,29 @@ fun PollingScreen(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = null,
                                     tint = ToskaPrimaryDeep,
-                                    modifier = Modifier.size(22.dp),
+                                    modifier = Modifier.size(18.dp),
                                 )
                             },
                             trailingIcon = {
                                 if (searchQuery.isNotBlank()) {
-                                    IconButton(onClick = { searchQuery = "" }) {
+                                    IconButton(
+                                        onClick = { searchQuery = "" },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
                                         Icon(
                                             imageVector = Icons.Default.Clear,
                                             contentDescription = "Hapus Pencarian",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp),
+                                            modifier = Modifier.size(16.dp),
                                         )
                                     }
                                 }
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(22.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = ToskaPrimary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                             ),
@@ -449,87 +394,89 @@ fun PollingScreen(
                     }
                 }
 
-                // 4. View Tabs (Semua / Sudah Diikuti / Usulan Saya)
+                // 3. Compact Segmented Pills for Tabs (Semua / Diikuti / Usulan)
                 item(key = "poll_view_tabs") {
                     val tabTitles = listOf(
-                        PollViewFilter.ALL to "Semua Polling",
-                        PollViewFilter.VOTED to "Sudah Diikuti",
+                        PollViewFilter.ALL to "Semua",
+                        PollViewFilter.VOTED to "Diikuti",
                         PollViewFilter.MY_PROPOSALS to "Usulan Saya (${myProposedPolls.size})",
                     )
-                    val selectedIndex = tabTitles.indexOfFirst { it.first == currentTab }.coerceAtLeast(0)
-
-                    TabRow(
-                        selectedTabIndex = selectedIndex,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = ToskaPrimaryDeep,
-                        indicator = { tabPositions ->
-                            if (selectedIndex < tabPositions.size) {
-                                TabRowDefaults.SecondaryIndicator(
-                                    Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                                    height = 3.dp,
-                                    color = ToskaPrimary,
-                                )
-                            }
-                        },
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF3F4F6),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
+                            .padding(horizontal = 12.dp),
                     ) {
-                        tabTitles.forEachIndexed { _, (filter, title) ->
-                            Tab(
-                                selected = currentTab == filter,
-                                onClick = { currentTab = filter },
-                                text = {
-                                    Text(
-                                        text = title,
-                                        fontSize = 13.5.sp,
-                                        fontWeight = if (currentTab == filter) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (currentTab == filter) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .testTag("tab_poll_${filter.name.lowercase()}"),
-                            )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            tabTitles.forEach { (filter, title) ->
+                                val isSelected = currentTab == filter
+                                Surface(
+                                    onClick = { currentTab = filter },
+                                    shape = RoundedCornerShape(9.dp),
+                                    color = if (isSelected) Color.White else Color.Transparent,
+                                    shadowElevation = if (isSelected) 1.dp else 0.dp,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(32.dp)
+                                        .testTag("tab_poll_${filter.name.lowercase()}"),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = title,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) ToskaPrimaryDeep else Color(0xFF4B5563),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                // 5. Category Chips (Spacious Horizontal Scroll)
+                // 4. Compact Category Filter Chips
                 item(key = "poll_category_chips") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(horizontal = 12.dp, vertical = 1.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         POLL_CATEGORIES.forEach { (catKey, catLabel) ->
                             val isSelected = selectedCategory == catKey
-                            FilterChip(
-                                selected = isSelected,
+                            Surface(
                                 onClick = { selectedCategory = catKey },
-                                label = {
-                                    Text(
-                                        text = catLabel,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    )
-                                },
-                                shape = RoundedCornerShape(20.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = ToskaPrimary.copy(alpha = 0.18f),
-                                    selectedLabelColor = ToskaPrimaryDeep,
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = isSelected,
-                                    borderColor = if (isSelected) ToskaPrimary else MaterialTheme.colorScheme.outlineVariant,
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) ToskaPrimary.copy(alpha = 0.15f) else Color.White,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) ToskaPrimary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                                 ),
                                 modifier = Modifier
-                                    .height(38.dp)
+                                    .height(28.dp)
                                     .testTag("chip_poll_cat_$catKey"),
-                            )
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(horizontal = 10.dp),
+                                ) {
+                                    Text(
+                                        text = catLabel,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -619,33 +566,23 @@ fun PollingScreen(
             }
         }
 
-        // Floating Action Button
+        // Compact Floating Action Button (Doesn't block cards)
         FloatingActionButton(
             onClick = onOpenCreatePoll,
             containerColor = ToskaPrimary,
             contentColor = Color.White,
-            shape = RoundedCornerShape(24.dp),
+            shape = CircleShape,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(20.dp)
+                .padding(16.dp)
+                .size(48.dp)
                 .testTag("fab_create_poll"),
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.HowToVote,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Usulkan Polling",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Usulkan Polling",
+                modifier = Modifier.size(24.dp),
+            )
         }
     }
 }
@@ -772,15 +709,15 @@ fun PollCardItem(
     }
 
     Card(
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.28f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.25f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = modifier
             .fillMaxWidth()
             .testTag("poll_card_${poll.id}"),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             // Category, District, and Vote Count Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -792,31 +729,31 @@ fun PollCardItem(
                     modifier = Modifier.weight(1f, fill = false),
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(6.dp),
                         color = ToskaPrimary.copy(alpha = 0.12f),
                     ) {
                         Text(
                             text = poll.category.replace("_", " "),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             fontWeight = FontWeight.Bold,
                             color = ToskaPrimaryDeep,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(13.dp),
+                            modifier = Modifier.size(12.dp),
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "Kec. ${poll.district}",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -824,26 +761,26 @@ fun PollCardItem(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = ToskaPrimary.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(8.dp),
+                    color = ToskaPrimary.copy(alpha = 0.10f),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.HowToVote,
                             contentDescription = null,
                             tint = ToskaPrimaryDeep,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(12.dp),
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = "${poll.totalVotes} Suara",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
                             fontWeight = FontWeight.Bold,
                             color = ToskaPrimaryDeep,
                             maxLines = 1,
@@ -855,29 +792,29 @@ fun PollCardItem(
 
             // Moderation Status Badge if pending or rejected
             if (poll.status != "APPROVED") {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(6.dp),
                     color = if (poll.status == "PENDING") Color(0xFFFFF3CD) else AlertCrimson.copy(alpha = 0.12f),
                 ) {
                     Text(
                         text = if (poll.status == "PENDING") "Menunggu Moderasi Admin" else "Ditolak: ${poll.adminNote.ifBlank { "Tidak sesuai ketentuan" }}",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         fontWeight = FontWeight.Bold,
                         color = if (poll.status == "PENDING") Color(0xFF856404) else AlertCrimson,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Title - Large, Clear, and Well-Spaced
+            // Title - Crisp, Clear & Compact
             Text(
                 text = poll.title,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = 17.sp,
-                    lineHeight = 24.sp,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
                 ),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -887,23 +824,23 @@ fun PollCardItem(
             )
 
             if (poll.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = poll.description,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 19.sp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.clickable { onOpenDetail() },
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Options List with Direct Voting (Spacious & Modern Option Tiles)
+            // Options List with Direct Voting (High-Density & Clean Tiles)
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 poll.options.forEach { opt ->
                     val isChosenByMe = opt.id == userVotedOptionId
@@ -915,18 +852,18 @@ fun PollCardItem(
                     )
 
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = if (isChosenByMe) {
                             ToskaPrimary.copy(alpha = 0.14f)
                         } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                         },
                         border = BorderStroke(
-                            width = if (isChosenByMe) 2.dp else 1.dp,
+                            width = if (isChosenByMe) 1.5.dp else 1.dp,
                             color = if (isChosenByMe) {
                                 ToskaPrimary
                             } else {
-                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
                             },
                         ),
                         modifier = Modifier
@@ -934,7 +871,7 @@ fun PollCardItem(
                             .clickable { onVote(opt.id) }
                             .testTag("btn_card_vote_opt_${opt.id}"),
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -948,39 +885,39 @@ fun PollCardItem(
                                         imageVector = if (isChosenByMe) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                         contentDescription = if (isChosenByMe) "Pilihan Anda" else "Pilih Opsi",
                                         tint = if (isChosenByMe) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(22.dp),
+                                        modifier = Modifier.size(18.dp),
                                     )
-                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = opt.text,
                                         style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontSize = 14.5.sp,
-                                            lineHeight = 20.sp,
+                                            fontSize = 13.sp,
+                                            lineHeight = 17.sp,
                                         ),
-                                        fontWeight = if (isChosenByMe) FontWeight.Bold else FontWeight.SemiBold,
+                                        fontWeight = if (isChosenByMe) FontWeight.Bold else FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
 
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.widthIn(min = 52.dp),
+                                    modifier = Modifier.widthIn(min = 46.dp),
                                     horizontalArrangement = Arrangement.End,
                                 ) {
                                     Text(
                                         text = "%.0f%%".format(percentage),
-                                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp),
+                                        style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.5.sp),
                                         fontWeight = FontWeight.Bold,
                                         color = if (isChosenByMe) ToskaPrimaryDeep else MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         softWrap = false,
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
                                     Text(
                                         text = "(${opt.voteCount})",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         softWrap = false,
@@ -988,15 +925,15 @@ fun PollCardItem(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                            // Thicker, cleaner progress bar (8dp)
+                            // Clean compact progress bar (5dp)
                             LinearProgressIndicator(
                                 progress = { animatedProgress },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp)),
+                                    .height(5.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
                                 color = if (isChosenByMe) ToskaPrimary else ToskaPrimary.copy(alpha = 0.75f),
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                                 strokeCap = StrokeCap.Round,
