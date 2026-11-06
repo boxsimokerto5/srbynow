@@ -14,6 +14,7 @@ import com.example.data.model.AppNotificationType
 import com.example.data.model.BarkasComment
 import com.example.data.model.BarkasItem
 import com.example.data.model.BookmarkItem
+import com.example.data.model.CreateMomentResult
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.CitizenPoll
@@ -2261,11 +2262,15 @@ class SurabayaViewModel(
                     notifyMessage("Foto gagal diproses, silakan pilih foto lain dari galeri.")
                     return@launch
                 }
+                if (isVideoPost && preparedVideo == null) {
+                    notifyMessage("Video terlalu besar (maksimal 40MB) atau gagal dibaca dari perangkat. Silakan pilih video lain.")
+                    return@launch
+                }
                 if (!verifyPhotosAreSafe(preparedPhotos)) {
                     return@launch
                 }
 
-                repository.createMoment(
+                val result = repository.createMoment(
                     authorName = currentDisplayName(),
                     authorDistrict = userAccount.value?.district ?: "Genteng",
                     caption = caption,
@@ -2273,21 +2278,26 @@ class SurabayaViewModel(
                     locationName = locationName,
                     postType = postType,
                     photos = preparedPhotos,
-                    videoUrl = videoUri?.toString().orEmpty(),
+                    videoUrl = "",
+                    localVideoUri = videoUri?.toString().orEmpty(),
                     videoFile = preparedVideo,
                     videoThumbnail = videoThumbnailPhoto,
                     videoDurationSec = finalVideoDuration,
                     mediaType = if (isVideoPost) "VIDEO" else "PHOTO",
                 )
                 dismissSheet()
-                notifyMessage(
-                    when {
-                        isVideoPost && postType == POST_TYPE_LENSA_WARGA -> "Video estetika kota berhasil dibagikan ke Lensa Warga!"
-                        isVideoPost -> "Video Momen berhasil dibagikan ke warga Surabaya!"
-                        postType == POST_TYPE_LENSA_WARGA -> "Foto sudut kota berhasil dibagikan ke Lensa Warga!"
-                        else -> "Momen berhasil dibagikan ke warga Surabaya!"
-                    }
-                )
+                if (result.missingVideoFileSchema) {
+                    notifyMessage("⚠️ Video tayang lokal! Untuk menyimpan video di Cloudflare R2, buka Dashboard PB -> Tambah kolom 'video_file' (tipe File).")
+                } else {
+                    notifyMessage(
+                        when {
+                            isVideoPost && postType == POST_TYPE_LENSA_WARGA -> "Video estetika kota berhasil diunggah ke Cloudflare R2 & dibagikan!"
+                            isVideoPost -> "Video Momen berhasil diunggah ke Cloudflare R2 & dibagikan!"
+                            postType == POST_TYPE_LENSA_WARGA -> "Foto sudut kota berhasil dibagikan ke Lensa Warga!"
+                            else -> "Momen berhasil dibagikan ke warga Surabaya!"
+                        }
+                    )
+                }
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: DuplicateContentException) {

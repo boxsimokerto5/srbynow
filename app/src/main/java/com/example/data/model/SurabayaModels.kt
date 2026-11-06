@@ -483,6 +483,13 @@ data class UserMoment(
         get() = createdAt
 }
 
+data class CreateMomentResult(
+    val id: String,
+    val videoUrl: String = "",
+    val thumbnailUrl: String = "",
+    val missingVideoFileSchema: Boolean = false,
+)
+
 data class MomentComment(
     val id: String = "",
     val momentId: String = "",

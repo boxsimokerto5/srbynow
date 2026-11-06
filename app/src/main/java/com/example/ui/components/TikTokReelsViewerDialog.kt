@@ -400,7 +400,7 @@ fun TikTokReelsViewerDialog(
                 // Share Button
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     IconButton(
-                        onClick = { /* Share handled by user */ },
+                        onClick = { shareMomentReel(context, moment) },
                         modifier = Modifier
                             .size(44.dp)
                             .background(Color.Black.copy(alpha = 0.45f), CircleShape),

@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
+import com.example.ui.components.shareMomentReel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -682,12 +683,12 @@ private fun InstagramReelPageItem(
             // Repost / Share Curved Arrows (matching Instagram)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
-                    onClick = onOpenComments,
+                    onClick = { shareMomentReel(context, moment) },
                     modifier = Modifier.size(42.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Repeat,
-                        contentDescription = "Repost",
+                        contentDescription = "Bagikan",
                         tint = Color.White,
                         modifier = Modifier.size(26.dp),
                     )
@@ -703,12 +704,12 @@ private fun InstagramReelPageItem(
 
             // Direct Share / Send
             IconButton(
-                onClick = { /* Share handled by user */ },
+                onClick = { shareMomentReel(context, moment) },
                 modifier = Modifier.size(40.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Send,
-                    contentDescription = "Kirim",
+                    contentDescription = "Bagikan",
                     tint = Color.White,
                     modifier = Modifier.size(24.dp),
                 )

@@ -285,93 +285,45 @@ fun HomeShortcutGridSection(
             .fillMaxWidth()
             .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
-        // Section Header + Optional Admin "Atur Urutan" Control (Gojek Style "Pilihan buat kamu")
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        // Optional Admin "Atur Urutan" Control (title 'Pilihan buat kamu' removed as requested)
+        if (isAdmin) {
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = stringResource(R.string.home_shortcuts_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Canvas(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(2.dp)
-                ) {
-                    val pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
-                    drawLine(
-                        color = Color(0xFFD1D5DB),
-                        start = Offset(0f, size.height / 2),
-                        end = Offset(size.width, size.height / 2),
-                        strokeWidth = 1.5.dp.toPx(),
-                        pathEffect = pathEffect,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Surface(
+                    onClick = { showAdminReorderSheet = true },
                     shape = RoundedCornerShape(12.dp),
-                    color = SuperAppGreenContainer,
-                    border = BorderStroke(1.dp, SuperAppGreenDeep.copy(alpha = 0.25f)),
+                    color = ToskaPrimary.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .testTag("home_btn_admin_reorder_shortcuts")
+                        .minimumInteractiveComponentSize(),
                 ) {
-                    Text(
-                        text = "${orderedShortcuts.size} Layanan",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
-                        fontWeight = FontWeight.Bold,
-                        color = SuperAppGreenDeep,
+                    Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    )
-                }
-
-                if (isAdmin) {
-                    Surface(
-                        onClick = { showAdminReorderSheet = true },
-                        shape = RoundedCornerShape(12.dp),
-                        color = ToskaPrimary.copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, ToskaPrimary.copy(alpha = 0.35f)),
-                        modifier = Modifier
-                            .testTag("home_btn_admin_reorder_shortcuts")
-                            .minimumInteractiveComponentSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Tune,
-                                contentDescription = stringResource(R.string.home_shortcuts_admin_arrange),
-                                tint = ToskaPrimaryDeep,
-                                modifier = Modifier.size(13.dp),
-                            )
-                            Text(
-                                text = stringResource(R.string.home_shortcuts_admin_arrange),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
-                                fontWeight = FontWeight.Bold,
-                                color = ToskaPrimaryDeep,
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Tune,
+                            contentDescription = stringResource(R.string.home_shortcuts_admin_arrange),
+                            tint = ToskaPrimaryDeep,
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.home_shortcuts_admin_arrange),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                            fontWeight = FontWeight.Bold,
+                            color = ToskaPrimaryDeep,
+                        )
                     }
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(6.dp))
 
         // 2x4 Horizontal Swipeable Pager (8 shortcuts per slide = 2 rows x 4 columns)
         HorizontalPager(

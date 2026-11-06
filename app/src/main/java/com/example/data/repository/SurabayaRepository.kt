@@ -7,6 +7,7 @@ import com.example.data.model.AppNotificationType
 import com.example.data.model.BarkasComment
 import com.example.data.model.BarkasItem
 import com.example.data.model.BookmarkItem
+import com.example.data.model.CreateMomentResult
 import com.example.data.model.ChatMessage
 import com.example.data.model.ChatRoom
 import com.example.data.model.HomeBannerConfig
@@ -3483,11 +3484,12 @@ class SurabayaRepository(
         photo: PreparedPhoto? = null,
         photos: List<PreparedPhoto> = emptyList(),
         videoUrl: String = "",
+        localVideoUri: String = "",
         videoFile: PreparedPhoto? = null,
         videoThumbnail: PreparedPhoto? = null,
         videoDurationSec: Int = 0,
-        mediaType: String = if (videoUrl.isNotBlank() || videoFile != null) "VIDEO" else "PHOTO",
-    ): String {
+        mediaType: String = if (videoUrl.isNotBlank() || localVideoUri.isNotBlank() || videoFile != null) "VIDEO" else "PHOTO",
+    ): CreateMomentResult {
         val uid = requireUserId()
         val spamCheck = SurabayaSpamProtector.checkMomentDuplicate(
             userId = uid,
@@ -3512,6 +3514,18 @@ class SurabayaRepository(
         val cleanLocation = locationName.trim().take(100)
         val cleanDistrict = district.trim().take(60).ifEmpty { "Genteng" }
 
+        // Never save Android raw content:// or file:// picker URIs into database
+        val cleanRemoteVideoUrl = if (videoUrl.startsWith("content://") || videoUrl.startsWith("file://")) {
+            ""
+        } else {
+            videoUrl.trim()
+        }
+        val safeLocalUri = when {
+            localVideoUri.isNotBlank() -> localVideoUri
+            videoUrl.startsWith("content://") || videoUrl.startsWith("file://") -> videoUrl
+            else -> ""
+        }
+
         val payload = JSONObject().apply {
             put("id", recordId)
             put("author_id", uid)
@@ -3525,7 +3539,8 @@ class SurabayaRepository(
             put("likes_count", 0)
             put("liked_by_uids", "")
             put("comment_count", 0)
-            put("video_url", videoUrl)
+            put("video_url", cleanRemoteVideoUrl)
+            put("video_thumbnail_url", "")
             put("video_duration_sec", videoDurationSec)
             put("media_type", mediaType)
         }
@@ -3542,7 +3557,8 @@ class SurabayaRepository(
             "likes_count" to "0",
             "liked_by_uids" to "",
             "comment_count" to "0",
-            "video_url" to videoUrl,
+            "video_url" to cleanRemoteVideoUrl,
+            "video_thumbnail_url" to "",
             "video_duration_sec" to videoDurationSec.toString(),
             "media_type" to mediaType,
         )
@@ -3572,52 +3588,63 @@ class SurabayaRepository(
             }
         }
 
+        var createdRecord: JSONObject? = null
+        var missingVideoFileField = false
+        var uploadedVideoR2Url = ""
+        var uploadedThumbR2Url = ""
+
         try {
             if (multipartFiles.isNotEmpty()) {
                 val uploadSuccess = try {
-                    pb.createRecordMultipartFiles("moments", fields, multipartFiles)
+                    createdRecord = pb.createRecordMultipartFiles("moments", fields, multipartFiles)
                     true
                 } catch (e: Exception) {
                     val msg = e.message.orEmpty()
-                    val isVideoFieldError = msg.contains("video_file", ignoreCase = true)
+                    val isVideoFieldError = msg.contains("video_file", ignoreCase = true) ||
+                        msg.contains("unknown field", ignoreCase = true)
                     val isPostTypeError = msg.contains("post_type", ignoreCase = true)
-                    var targetFields = if (isPostTypeError) fields.filterKeys { it != "post_type" } else fields
+                    val targetFields = if (isPostTypeError) fields.filterKeys { it != "post_type" } else fields
 
-                    // If video_file field is not yet in PB schema, retry with photo part or fallback
-                    val fallbackFiles = if (isVideoFieldError) {
-                        multipartFiles.filter { it.fieldName != "video_file" }
-                    } else {
-                        multipartFiles
-                    }
-
-                    if (fallbackFiles.isNotEmpty()) {
+                    if (isVideoFieldError && videoFile != null) {
+                        // In case the collection named the field 'video' instead of 'video_file'
+                        val tryWithVideoName = multipartFiles.map { part ->
+                            if (part.fieldName == "video_file") part.copy(fieldName = "video") else part
+                        }
                         try {
-                            pb.createRecordMultipartFiles("moments", targetFields, fallbackFiles)
+                            createdRecord = pb.createRecordMultipartFiles("moments", targetFields, tryWithVideoName)
                             true
-                        } catch (e2: Exception) {
-                            if (e2.message?.contains("post_type", ignoreCase = true) == true) {
-                                val noPostTypeFields = fields.filterKeys { it != "post_type" }
-                                pb.createRecordMultipartFiles("moments", noPostTypeFields, fallbackFiles)
-                                true
+                        } catch (eAlt: Exception) {
+                            missingVideoFileField = true
+                            Log.w(TAG, "Server collection 'moments' does not have 'video_file' or 'video' file field: ${eAlt.message}")
+                            val fallbackFiles = multipartFiles.filter { it.fieldName != "video_file" && it.fieldName != "video" }
+                            if (fallbackFiles.isNotEmpty()) {
+                                try {
+                                    createdRecord = pb.createRecordMultipartFiles("moments", targetFields, fallbackFiles)
+                                    true
+                                } catch (eFallback: Exception) {
+                                    val noPostType = targetFields.filterKeys { it != "post_type" }
+                                    createdRecord = pb.createRecordMultipartFiles("moments", noPostType, fallbackFiles)
+                                    true
+                                }
                             } else {
                                 false
                             }
                         }
                     } else if (isPostTypeError) {
-                        pb.createRecordMultipartFiles("moments", targetFields, multipartFiles)
+                        createdRecord = pb.createRecordMultipartFiles("moments", targetFields, multipartFiles)
                         true
                     } else {
                         false
                     }
                 }
 
-                if (!uploadSuccess) {
+                if (createdRecord == null) {
                     try {
-                        pb.createRecord("moments", payload)
+                        createdRecord = pb.createRecord("moments", payload)
                     } catch (eFallback: Exception) {
                         if (eFallback.message?.contains("post_type", ignoreCase = true) == true) {
                             val legacyPayload = JSONObject(payload.toString()).apply { remove("post_type") }
-                            pb.createRecord("moments", legacyPayload)
+                            createdRecord = pb.createRecord("moments", legacyPayload)
                         } else {
                             throw eFallback
                         }
@@ -3625,11 +3652,11 @@ class SurabayaRepository(
                 }
             } else {
                 try {
-                    pb.createRecord("moments", payload)
+                    createdRecord = pb.createRecord("moments", payload)
                 } catch (e: Exception) {
                     if (e.message?.contains("post_type", ignoreCase = true) == true) {
                         val legacyPayload = JSONObject(payload.toString()).apply { remove("post_type") }
-                        pb.createRecord("moments", legacyPayload)
+                        createdRecord = pb.createRecord("moments", legacyPayload)
                     } else {
                         throw e
                     }
@@ -3639,8 +3666,48 @@ class SurabayaRepository(
             Log.w(TAG, "createMoment PB save: ${e.message}, saved to local memory")
         }
 
+        val serverId = createdRecord?.optString("id").orEmpty().ifBlank { recordId }
+
+        if (createdRecord != null) {
+            val storedVideoName = extractFileNames(createdRecord, "video_file").firstOrNull()
+                ?: extractFileNames(createdRecord, "video").firstOrNull()
+            val storedPhotoName = extractFileNames(createdRecord, "photo").firstOrNull()
+
+            if (!storedVideoName.isNullOrBlank()) {
+                uploadedVideoR2Url = pb.buildFileUrl("moments", serverId, storedVideoName)
+            }
+            if (!storedPhotoName.isNullOrBlank()) {
+                uploadedThumbR2Url = pb.buildFileUrl("moments", serverId, storedPhotoName)
+            }
+
+            // Patch the moments record in PocketBase with the Cloudflare R2 URLs
+            if (uploadedVideoR2Url.isNotBlank() || uploadedThumbR2Url.isNotBlank()) {
+                try {
+                    val patchPayload = JSONObject().apply {
+                        if (uploadedVideoR2Url.isNotBlank()) put("video_url", uploadedVideoR2Url)
+                        if (uploadedThumbR2Url.isNotBlank()) put("video_thumbnail_url", uploadedThumbR2Url)
+                    }
+                    pb.updateRecord("moments", serverId, patchPayload)
+                    Log.i(TAG, "Successfully patched moments $serverId with Cloudflare R2 URLs: video_url=$uploadedVideoR2Url, thumb=$uploadedThumbR2Url")
+                } catch (ePatch: Exception) {
+                    Log.w(TAG, "Failed patching Cloudflare R2 URLs on moments $serverId: ${ePatch.message}")
+                }
+            }
+        }
+
+        val finalEffectiveVideoUrl = when {
+            uploadedVideoR2Url.isNotBlank() -> uploadedVideoR2Url
+            safeLocalUri.isNotBlank() -> safeLocalUri
+            else -> cleanRemoteVideoUrl
+        }
+        val finalEffectiveThumbUrl = when {
+            uploadedThumbR2Url.isNotBlank() -> uploadedThumbR2Url
+            boundedPhotos.isNotEmpty() -> boundedPhotos.first().dataUri
+            else -> ""
+        }
+
         val moment = UserMoment(
-            id = recordId,
+            id = serverId,
             authorId = uid,
             authorName = cleanAuthor,
             authorDistrict = authorDistrict,
@@ -3649,8 +3716,10 @@ class SurabayaRepository(
             district = cleanDistrict,
             postType = postType,
             imageKey = "hero_surabaya",
-            videoUrl = videoUrl,
-            videoThumbnailUrl = "",
+            photoUrl = finalEffectiveThumbUrl,
+            photoUrls = if (finalEffectiveThumbUrl.isNotBlank()) listOf(finalEffectiveThumbUrl) else boundedPhotos.map { it.dataUri },
+            videoUrl = finalEffectiveVideoUrl,
+            videoThumbnailUrl = finalEffectiveThumbUrl,
             videoDurationSec = videoDurationSec,
             mediaType = mediaType,
             likesCount = 0,
@@ -3659,10 +3728,15 @@ class SurabayaRepository(
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
         )
-        inMemoryMoments[recordId] = moment
+        inMemoryMoments[serverId] = moment
         SurabayaSpamProtector.recordSubmission(uid, "moments")
         bumpMutationTick()
-        return recordId
+        return CreateMomentResult(
+            id = serverId,
+            videoUrl = uploadedVideoR2Url,
+            thumbnailUrl = uploadedThumbR2Url,
+            missingVideoFileSchema = missingVideoFileField,
+        )
     }
 
     suspend fun toggleMomentLike(moment: UserMoment) {
@@ -4133,9 +4207,11 @@ class SurabayaRepository(
 
         val postType = j.optString("post_type", POST_TYPE_MOMEN).ifBlank { POST_TYPE_MOMEN }
 
-        val videoFileNames = extractFileNames(j, "video_file")
+        val videoFileNames = extractFileNames(j, "video_file").ifEmpty { extractFileNames(j, "video") }
         val pbVideoUrl = videoFileNames.firstOrNull()?.let { pb.buildFileUrl("moments", id, it) }.orEmpty()
-        val finalVideoUrl = pbVideoUrl.ifBlank { j.optString("video_url") }
+        val rawDbVideoUrl = j.optString("video_url")
+        val cleanDbVideoUrl = if (rawDbVideoUrl.startsWith("content://") || rawDbVideoUrl.startsWith("file://")) "" else rawDbVideoUrl
+        val finalVideoUrl = pbVideoUrl.ifBlank { cleanDbVideoUrl }
 
         return UserMoment(
             id = id,

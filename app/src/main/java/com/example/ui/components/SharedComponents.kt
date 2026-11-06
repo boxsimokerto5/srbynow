@@ -3,6 +3,7 @@ package com.example.ui.components
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.example.data.model.UserMoment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -1193,6 +1194,49 @@ fun shareArekSurabayaApp(context: Context) {
         )
     }
     context.startActivity(Intent.createChooser(sendIntent, "Bagikan Aplikasi Arek Surabaya").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
+
+/**
+ * Utility function to share video reels and user moments to external apps via Android Share Sheet.
+ */
+fun shareMomentReel(context: Context, moment: UserMoment) {
+    val shareText = buildString {
+        append("🎬 Momen Arek Surabaya\n")
+        val captionClean = moment.caption.trim()
+        if (captionClean.isNotBlank()) {
+            append("\"$captionClean\"\n\n")
+        }
+        append("👤 Oleh: ${moment.authorName.ifBlank { "Warga Surabaya" }}")
+        if (moment.district.isNotBlank()) {
+            append(" • 📍 ${moment.district}, Surabaya")
+        }
+        append("\n")
+        val targetMedia = when {
+            moment.videoUrl.isNotBlank() && !moment.videoUrl.contains("commondatastorage.googleapis.com") -> moment.videoUrl
+            moment.photoUrl.isNotBlank() && !moment.photoUrl.contains("commondatastorage.googleapis.com") -> moment.photoUrl
+            moment.allPhotos.isNotEmpty() -> moment.allPhotos.firstOrNull().orEmpty()
+            else -> ""
+        }
+        if (targetMedia.isNotBlank()) {
+            append("\n▶️ Tonton di sini: $targetMedia\n")
+        }
+        append("\nPantau dan bagikan cerita menarik kotamu lewat aplikasi Arek Surabaya: https://play.google.com/store/apps/details?id=${context.packageName}")
+    }
+
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "Momen Arek Surabaya: ${moment.caption.take(40)}")
+        putExtra(Intent.EXTRA_TEXT, shareText)
+    }
+
+    try {
+        val chooser = Intent.createChooser(sendIntent, "Bagikan Momen Arek Surabaya").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        android.util.Log.e("ShareMoment", "Gagal membagikan reel momen", e)
+    }
 }
 
 fun rateArekSurabayaOnPlayStore(context: Context) {
